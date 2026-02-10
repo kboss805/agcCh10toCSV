@@ -60,6 +60,7 @@ void TestFrameSetup::tryLoadingFileValidFile()
     QVERIFY(result);
     QCOMPARE(fs.length(), 3);
 
+    // Parameters preserve file order: L, R, C
     const ParameterInfo* p0 = fs.getParameter(0);
     QVERIFY(p0 != nullptr);
     QCOMPARE(p0->name, QString("L_RCVR1"));
@@ -72,12 +73,13 @@ void TestFrameSetup::tryLoadingFileValidFile()
     const ParameterInfo* p1 = fs.getParameter(1);
     QVERIFY(p1 != nullptr);
     QCOMPARE(p1->name, QString("R_RCVR1"));
-    QCOMPARE(p1->word, 1);  // INI Word=2
+    QCOMPARE(p1->word, 1);  // INI Word=2, stored as 1
+    QCOMPARE(p1->is_enabled, true);
 
     const ParameterInfo* p2 = fs.getParameter(2);
     QVERIFY(p2 != nullptr);
     QCOMPARE(p2->name, QString("C_RCVR1"));
-    QCOMPARE(p2->word, 2);  // INI Word=3
+    QCOMPARE(p2->word, 2);  // INI Word=3, stored as 2
     QCOMPARE(p2->is_enabled, false);
 }
 

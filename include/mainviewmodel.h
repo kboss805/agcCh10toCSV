@@ -63,73 +63,111 @@ public:
     explicit MainViewModel(QObject* parent = nullptr);
     ~MainViewModel();
 
-    // --- Property getters ---
-    QString inputFilename() const;
-    QStringList timeChannelList() const;
-    QStringList pcmChannelList() const;
-    int timeChannelIndex() const;
-    int pcmChannelIndex() const;
-    bool fileLoaded() const;
-    int progressPercent() const;
-    bool processing() const;
-    bool controlsEnabled() const;
+    /// @name Property getters
+    /// @{
+    QString inputFilename() const;              ///< @return Path to the loaded .ch10 file.
+    QStringList timeChannelList() const;         ///< @return Display strings for time channel combo box.
+    QStringList pcmChannelList() const;          ///< @return Display strings for PCM channel combo box.
+    int timeChannelIndex() const;                ///< @return Currently selected time channel index.
+    int pcmChannelIndex() const;                 ///< @return Currently selected PCM channel index.
+    bool fileLoaded() const;                     ///< @return True if a .ch10 file is loaded.
+    int progressPercent() const;                 ///< @return Current processing progress (0--100).
+    bool processing() const;                     ///< @return True while background processing is active.
+    bool controlsEnabled() const;                ///< @return True when UI controls should be interactive.
 
-    bool extractAllTime() const;
-    int sampleRateIndex() const;
+    bool extractAllTime() const;                 ///< @return True if the full time range should be extracted.
+    int sampleRateIndex() const;                 ///< @return Sample rate combo box index.
 
-    int startDayOfYear() const;
-    int startHour() const;
-    int startMinute() const;
-    int startSecond() const;
-    int stopDayOfYear() const;
-    int stopHour() const;
-    int stopMinute() const;
-    int stopSecond() const;
+    int startDayOfYear() const;                  ///< @return File start day-of-year.
+    int startHour() const;                       ///< @return File start hour.
+    int startMinute() const;                     ///< @return File start minute.
+    int startSecond() const;                     ///< @return File start second.
+    int stopDayOfYear() const;                   ///< @return File stop day-of-year.
+    int stopHour() const;                        ///< @return File stop hour.
+    int stopMinute() const;                      ///< @return File stop minute.
+    int stopSecond() const;                      ///< @return File stop second.
 
-    QString frameSync() const;
-    bool negativePolarity() const;
-    int scaleIndex() const;
-    QString range() const;
-    int receiverCount() const;
-    int channelsPerReceiver() const;
+    QString frameSync() const;                   ///< @return Frame sync hex string.
+    bool negativePolarity() const;               ///< @return True if AGC polarity is negative.
+    int scaleIndex() const;                      ///< @return Voltage scale combo box index.
+    QString range() const;                       ///< @return Full-scale range in dB.
+    int receiverCount() const;                   ///< @return Number of receivers.
+    int channelsPerReceiver() const;             ///< @return Number of channels per receiver.
+    /// @}
 
-    // --- Property setters ---
-    void setTimeChannelIndex(int index);
-    void setPcmChannelIndex(int index);
-    void setExtractAllTime(bool value);
-    void setSampleRateIndex(int value);
-    void setFrameSync(const QString& value);
-    void setNegativePolarity(bool value);
-    void setScaleIndex(int value);
-    void setRange(const QString& value);
-    void setReceiverCount(int value);
-    void setChannelsPerReceiver(int value);
+    /// @name Property setters
+    /// @{
+    void setTimeChannelIndex(int index);         ///< Sets the selected time channel index.
+    void setPcmChannelIndex(int index);           ///< Sets the selected PCM channel index.
+    void setExtractAllTime(bool value);           ///< Sets whether to extract the full time range.
+    void setSampleRateIndex(int value);           ///< Sets the sample rate combo box index.
+    void setFrameSync(const QString& value);      ///< Sets the frame sync hex string.
+    void setNegativePolarity(bool value);          ///< Sets the AGC polarity.
+    void setScaleIndex(int value);                ///< Sets the voltage scale combo box index.
+    void setRange(const QString& value);          ///< Sets the full-scale range in dB.
+    void setReceiverCount(int value);             ///< Sets the number of receivers and resizes the grid.
+    void setChannelsPerReceiver(int value);       ///< Sets channels per receiver and resizes the grid.
+    /// @}
 
-    // --- Receiver grid state ---
+    /// @name Receiver grid state
+    /// @{
+
+    /// @return True if the specified receiver/channel is checked.
     bool receiverChecked(int receiver_index, int channel_index) const;
+    /// Sets the checked state of a single receiver/channel cell.
     void setReceiverChecked(int receiver_index, int channel_index, bool checked);
+    /// Sets all receiver/channel cells to @p checked.
     void setAllReceiversChecked(bool checked);
+    /// @}
 
-    // --- Settings integration ---
+    /// @name Settings integration
+    /// @{
+
+    /// @return Snapshot of all UI-relevant state for serialization.
     SettingsData getSettingsData() const;
+    /// Restores UI state from a previously saved snapshot.
     void applySettingsData(const SettingsData& data);
+    /// Loads frame parameter definitions from an INI file.
     void loadFrameSetupFrom(const QString& filename);
+    /// Writes the current frame parameter definitions to @p settings.
     void saveFrameSetupTo(QSettings& settings);
+    /// @}
 
-    // --- Static helpers ---
+    /// @name Static helpers
+    /// @{
+
+    /// @return Channel prefix string ("L", "R", "C", ...) for the given index.
     static QString channelPrefix(int index);
+    /// @return Full parameter name (e.g., "L_RCVR1") for a channel/receiver pair.
     static QString parameterName(int channel_index, int receiver_index);
+    /// @return Auto-generated timestamped output CSV filename.
     static QString generateOutputFilename();
+    /// @}
 
-    // --- Model accessors ---
-    Chapter10Reader* reader() const;
-    FrameSetup* frameSetup() const;
-
-    QString appRoot() const;
+    /// @name Model accessors
+    /// @{
+    Chapter10Reader* reader() const;             ///< @return Pointer to the Chapter10Reader instance.
+    FrameSetup* frameSetup() const;              ///< @return Pointer to the FrameSetup instance.
+    QString appRoot() const;                     ///< @return Application root directory path.
+    /// @}
 
 public slots:
+    /// Opens a .ch10 file and populates channel lists.
     void openFile(const QString& filename);
 
+    /**
+     * @brief Validates inputs and starts background AGC processing.
+     * @param[in] output_file       Path to the CSV output file.
+     * @param[in] start_ddd         Start day-of-year string.
+     * @param[in] start_hh          Start hour string.
+     * @param[in] start_mm          Start minute string.
+     * @param[in] start_ss          Start second string.
+     * @param[in] stop_ddd          Stop day-of-year string.
+     * @param[in] stop_hh           Stop hour string.
+     * @param[in] stop_mm           Stop minute string.
+     * @param[in] stop_ss           Stop second string.
+     * @param[in] sample_rate_index Sample rate combo box index.
+     */
     void startProcessing(const QString& output_file,
                          const QString& start_ddd, const QString& start_hh,
                          const QString& start_mm, const QString& start_ss,
@@ -137,52 +175,61 @@ public slots:
                          const QString& stop_mm, const QString& stop_ss,
                          int sample_rate_index);
 
+    /// Applies configuration values from the ConfigDialog.
     void applyConfig(const QString& frame_sync, bool neg_polarity,
                      int scale_idx, const QString& range,
                      int receiver_count, int channels_per_rcvr);
 
+    /// Loads settings from an INI file and applies them.
     void loadSettings(const QString& filename);
+    /// Saves the current state to an INI file.
     void saveSettings(const QString& filename);
 
+    /// Resets all state to defaults and closes the loaded file.
     void clearState();
 
 signals:
-    void inputFilenameChanged();
-    void channelListsChanged();
-    void timeChannelIndexChanged();
-    void pcmChannelIndexChanged();
-    void fileLoadedChanged();
-    void progressPercentChanged();
-    void processingChanged();
-    void controlsEnabledChanged();
-    void fileTimesChanged();
-    void extractAllTimeChanged();
-    void sampleRateIndexChanged();
-    void configChanged();
-    void receiverLayoutChanged();
+    void inputFilenameChanged();      ///< Emitted when the input file path changes.
+    void channelListsChanged();       ///< Emitted when channel combo box lists are rebuilt.
+    void timeChannelIndexChanged();   ///< Emitted when the selected time channel changes.
+    void pcmChannelIndexChanged();    ///< Emitted when the selected PCM channel changes.
+    void fileLoadedChanged();         ///< Emitted when the file-loaded state changes.
+    void progressPercentChanged();    ///< Emitted when the processing progress updates.
+    void processingChanged();         ///< Emitted when processing starts or stops.
+    void controlsEnabledChanged();    ///< Emitted when the controls-enabled state changes.
+    void fileTimesChanged();          ///< Emitted when start/stop file times are updated.
+    void extractAllTimeChanged();     ///< Emitted when the extract-all-time flag changes.
+    void sampleRateIndexChanged();    ///< Emitted when the sample rate index changes.
+    void configChanged();             ///< Emitted when any configuration property changes.
+    void receiverLayoutChanged();     ///< Emitted when receiver count or channels per receiver changes.
+    /// Emitted when a single receiver/channel checked state changes.
     void receiverCheckedChanged(int receiver_index, int channel_index, bool checked);
 
+    /// Emitted when a validation or processing error occurs.
     void errorOccurred(const QString& message);
+    /// Emitted when background processing finishes.
     void processingFinished(bool success, const QString& output_file);
+    /// Emitted when the background processor sends a log message.
     void logMessageReceived(const QString& message);
 
 private:
     /// @brief Validated parameters bundle passed to the worker thread.
     struct ProcessingParams {
-        QString filename;
-        int time_channel_id;
-        int pcm_channel_id;
-        uint64_t frame_sync;
-        int sync_pattern_length;
-        double scale_lower_bound;
-        double scale_upper_bound;
-        bool negative_polarity;
-        uint64_t start_seconds;
-        uint64_t stop_seconds;
-        int sample_rate;
-        QString outfile;
+        QString filename;              ///< Path to the .ch10 input file.
+        int time_channel_id;           ///< Resolved time channel ID.
+        int pcm_channel_id;            ///< Resolved PCM channel ID.
+        uint64_t frame_sync;           ///< Frame sync pattern as a numeric value.
+        int sync_pattern_length;       ///< Sync pattern length in bits.
+        double scale_lower_bound;      ///< Lower bound of the voltage scale.
+        double scale_upper_bound;      ///< Upper bound of the voltage scale.
+        bool negative_polarity;        ///< True if AGC polarity is negative.
+        uint64_t start_seconds;        ///< Start of extraction window (IRIG seconds).
+        uint64_t stop_seconds;         ///< End of extraction window (IRIG seconds).
+        int sample_rate;               ///< Output sample rate in Hz.
+        QString outfile;               ///< Path to the CSV output file.
     };
 
+    /// Validates user inputs and populates @p params for processing.
     bool validateProcessingInputs(ProcessingParams& params,
                                    const QString& start_ddd, const QString& start_hh,
                                    const QString& start_mm, const QString& start_ss,
@@ -190,46 +237,52 @@ private:
                                    const QString& stop_mm, const QString& stop_ss,
                                    int sample_rate_index);
 
+    /// Validates and parses day/hour/minute/second time field strings.
     static bool validateTimeFields(const QString& ddd, const QString& hh,
                                     const QString& mm, const QString& ss,
                                     int& out_ddd, int& out_hh, int& out_mm, int& out_ss);
 
+    /// Applies calibration slope/scale to each enabled frame parameter.
     bool prepareFrameSetupParameters(double scale_lower_bound,
                                       double scale_upper_bound,
                                       bool negative_polarity);
 
+    /// Creates a FrameProcessor and starts it on a background thread.
     void launchWorkerThread(const ProcessingParams& params);
 
+    /// Slot: updates m_progress_percent from the worker thread.
     void onProgressUpdated(int percent);
+    /// Slot: handles worker completion and cleans up the thread.
     void onProcessingFinished(bool success);
+    /// Slot: forwards a log message from the worker thread.
     void onLogMessage(const QString& message);
 
-    Chapter10Reader* m_reader;
-    FrameSetup* m_frame_setup;
-    SettingsManager* m_settings;
-    QThread* m_worker_thread;
+    Chapter10Reader* m_reader;               ///< Chapter 10 file reader instance.
+    FrameSetup* m_frame_setup;               ///< Frame parameter definitions.
+    SettingsManager* m_settings;             ///< Settings persistence manager.
+    QThread* m_worker_thread;                ///< Background processing thread.
 
-    QString m_app_root;
-    QString m_input_filename;
-    QString m_last_output_file;
-    bool m_file_loaded;
-    int m_progress_percent;
-    bool m_processing;
+    QString m_app_root;                      ///< Application root directory.
+    QString m_input_filename;                ///< Path to the loaded .ch10 file.
+    QString m_last_output_file;              ///< Path to the last generated CSV file.
+    bool m_file_loaded;                      ///< True when a .ch10 file is loaded.
+    int m_progress_percent;                  ///< Processing progress (0--100).
+    bool m_processing;                       ///< True while background processing is running.
 
-    int m_time_channel_index;
-    int m_pcm_channel_index;
+    int m_time_channel_index;                ///< Selected time channel combo box index.
+    int m_pcm_channel_index;                 ///< Selected PCM channel combo box index.
 
-    bool m_extract_all_time;
-    int m_sample_rate_index;
+    bool m_extract_all_time;                 ///< True to extract full time duration.
+    int m_sample_rate_index;                 ///< Selected sample rate combo box index.
 
-    QString m_cfg_frame_sync;
-    bool m_cfg_neg_polarity;
-    int m_cfg_scale_idx;
-    QString m_cfg_range;
-    int m_cfg_receiver_count;
-    int m_cfg_channels_per_rcvr;
+    QString m_cfg_frame_sync;                ///< Frame sync hex pattern.
+    bool m_cfg_neg_polarity;                 ///< True if AGC polarity is negative.
+    int m_cfg_scale_idx;                     ///< Voltage scale combo box index.
+    QString m_cfg_range;                     ///< Full-scale range in dB.
+    int m_cfg_receiver_count;                ///< Number of receivers.
+    int m_cfg_channels_per_rcvr;             ///< Channels per receiver.
 
-    QVector<QVector<bool>> m_receiver_states;
+    QVector<QVector<bool>> m_receiver_states; ///< 2D grid of receiver/channel checked states.
 };
 
 #endif // MAINVIEWMODEL_H

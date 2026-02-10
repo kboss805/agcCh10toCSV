@@ -2,6 +2,7 @@
 
 #include <QCoreApplication>
 #include <QDateTime>
+#include <QDebug>
 #include <QMap>
 
 #include "chapter10reader.h"
@@ -265,6 +266,15 @@ void MainViewModel::loadFrameSetupFrom(const QString& filename)
 
     if (m_frame_setup->length() == 0)
         return;
+
+    int expected_count = m_cfg_receiver_count * m_cfg_channels_per_rcvr;
+    if (m_frame_setup->length() != expected_count)
+    {
+        qWarning() << "Frame setup has" << m_frame_setup->length()
+                    << "parameters but expected" << expected_count
+                    << "(" << m_cfg_receiver_count << "receivers x"
+                    << m_cfg_channels_per_rcvr << "channels)";
+    }
 
     // Build name -> index map for O(1) parameter lookup
     QMap<QString, int> param_map;

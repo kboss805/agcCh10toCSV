@@ -1,9 +1,35 @@
 #include "framesetup.h"
 
+#include <QFile>
+#include <QRegularExpression>
+#include <QTextStream>
+
 namespace {
 const QStringList kSettingsGroups = {
     "Defaults", "Channels", "Frame", "Parameters", "Time", "Receivers", "Bounds"
 };
+
+/// Reads INI section names in the order they appear in the file.
+QStringList readGroupsInFileOrder(const QString& filename)
+{
+    QFile file(filename);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+        return {};
+
+    static const QRegularExpression sectionPattern(R"(^\[(.+)\]\s*$)");
+    QStringList groups;
+    QTextStream in(&file);
+
+    while (!in.atEnd())
+    {
+        QString line = in.readLine().trimmed();
+        QRegularExpressionMatch match = sectionPattern.match(line);
+        if (match.hasMatch())
+            groups.append(match.captured(1));
+    }
+
+    return groups;
+}
 } // namespace
 
 FrameSetup::FrameSetup(QObject* parent) :
@@ -20,7 +46,7 @@ bool FrameSetup::tryLoadingFile(const QString& filename, int num_words_in_minor_
     if (settings.status() != QSettings::NoError)
         return false;
 
-    QStringList groups = settings.childGroups();
+    QStringList groups = readGroupsInFileOrder(filename);
     if (groups.isEmpty())
         return false;
 

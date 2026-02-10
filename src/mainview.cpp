@@ -68,7 +68,6 @@ void MainView::setUpMainLayout()
 
     QWidget* controls_widget = new QWidget;
     controls_widget->setLayout(m_controls_layout);
-    controls_widget->setFixedWidth(controls_widget->minimumSizeHint().width());
 
     m_central_layout->addWidget(controls_widget, 0);
     m_central_layout->addWidget(m_log_window, 1);
@@ -87,9 +86,7 @@ void MainView::setUpMainLayout()
     m_pcm_channel->clear();
     m_pcm_channel->addItem("Select a PCM Channel");
 
-    m_receivers_all->setEnabled(false);
     setAllNumberedReceiversEnabled(false);
-    m_receivers_all->setChecked(true);
     setAllNumberedReceiversChecked(true);
 
     m_time_all->setEnabled(false);
@@ -183,86 +180,74 @@ void MainView::rebuildReceiversGrid()
             {
                 if (child->widget())
                     child->widget()->deleteLater();
-                if (child->layout())
-                {
-                    QLayoutItem* grandchild;
-                    while ((grandchild = child->layout()->takeAt(0)) != nullptr)
-                    {
-                        if (grandchild->widget())
-                            grandchild->widget()->deleteLater();
-                        delete grandchild;
-                    }
-                }
                 delete child;
             }
         }
         delete item;
     }
-    m_receiver_checks.clear();
+    m_receiver_trees.clear();
 
     int receiver_count = m_view_model->receiverCount();
     int channel_count = m_view_model->channelsPerReceiver();
+    const int num_columns = 4;
+    int per_column = (receiver_count + num_columns - 1) / num_columns;
 
-    // Select All checkbox
-    m_receivers_all = new QCheckBox("Select All");
-    connect(m_receivers_all, &QAbstractButton::toggled, this, &MainView::receiversAllCheckBoxToggled);
-    m_receivers_section_layout->addWidget(m_receivers_all);
+    // Receiver trees in side-by-side columns
+    QHBoxLayout* columns_layout = new QHBoxLayout;
+    columns_layout->setSpacing(2);
+    columns_layout->setContentsMargins(0, 0, 0, 0);
 
-    // Two side-by-side grids
-    QHBoxLayout* grids_row = new QHBoxLayout;
-    int per_block = (receiver_count + 1) / 2;
-
-    for (int block = 0; block < 2; block++)
+    for (int col = 0; col < num_columns; col++)
     {
-        int start = block * per_block;
-        int end = qMin(start + per_block, receiver_count);
+        int start = col * per_column;
+        int end = qMin(start + per_column, receiver_count);
         if (start >= receiver_count)
             break;
 
-        QGridLayout* grid = new QGridLayout;
-        grid->setHorizontalSpacing(12);
+        QTreeWidget* tree = new QTreeWidget;
+        tree->setHeaderHidden(true);
+        tree->setColumnCount(1);
+        tree->setRootIsDecorated(true);
+        tree->setAnimated(true);
+        tree->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        tree->setMinimumHeight(120);
 
-        // Column headers (row 0): blank label column, then channel prefixes
-        grid->addWidget(new QLabel(""), 0, 0);
-        for (int channel_index = 0; channel_index < channel_count; channel_index++)
-            grid->addWidget(new QLabel(MainViewModel::channelPrefix(channel_index)), 0, channel_index + 1, Qt::AlignCenter);
-
-        // Receiver rows
         for (int receiver_index = start; receiver_index < end; receiver_index++)
         {
-            int grid_row = receiver_index - start + 1;
-            grid->addWidget(new QLabel(QString::number(receiver_index + 1).rightJustified(2)), grid_row, 0);
+            QTreeWidgetItem* receiver_item = new QTreeWidgetItem;
+            receiver_item->setText(0, "RCVR " + QString::number(receiver_index + 1));
+            receiver_item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsUserCheckable | Qt::ItemIsAutoTristate);
+            receiver_item->setData(0, Qt::UserRole, receiver_index);
 
-            QVector<QCheckBox*> row_checkboxes;
             for (int channel_index = 0; channel_index < channel_count; channel_index++)
             {
-                QCheckBox* cb = new QCheckBox;
-                cb->setChecked(m_view_model->receiverChecked(receiver_index, channel_index));
-
-                // Forward checkbox changes to ViewModel
-                connect(cb, &QCheckBox::toggled, this, [this, receiver_index, channel_index](bool checked) {
-                    if (!m_updating_from_viewmodel)
-                        m_view_model->setReceiverChecked(receiver_index, channel_index, checked);
-                });
-
-                grid->addWidget(cb, grid_row, channel_index + 1, Qt::AlignCenter);
-                row_checkboxes.append(cb);
+                QTreeWidgetItem* channel_item = new QTreeWidgetItem;
+                channel_item->setText(0, MainViewModel::channelPrefix(channel_index));
+                channel_item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsUserCheckable);
+                channel_item->setCheckState(0,
+                    m_view_model->receiverChecked(receiver_index, channel_index)
+                        ? Qt::Checked : Qt::Unchecked);
+                receiver_item->addChild(channel_item);
             }
-            // Insert at the correct index in the outer vector
-            if (receiver_index >= m_receiver_checks.size())
-                m_receiver_checks.resize(receiver_index + 1);
-            m_receiver_checks[receiver_index] = row_checkboxes;
+
+            tree->addTopLevelItem(receiver_item);
         }
 
-        grids_row->addLayout(grid);
-        if (block == 0 && end < receiver_count)
-        {
-            QSpacerItem* spacer = new QSpacerItem(16, 0, QSizePolicy::Expanding, QSizePolicy::Minimum);
-            grids_row->addItem(spacer);
-        }
+        // Size each tree to exactly fit the widest item (expanded children)
+        tree->expandAll();
+        tree->resizeColumnToContents(0);
+        tree->setFixedWidth(tree->columnWidth(0) + tree->frameWidth() * 2 + 4);
+        tree->collapseAll();
+
+        connect(tree, &QTreeWidget::itemChanged,
+                this, &MainView::onTreeItemChanged);
+
+        columns_layout->addWidget(tree);
+        m_receiver_trees.append(tree);
     }
 
-    m_receivers_section_layout->addLayout(grids_row);
+    columns_layout->addStretch(1);
+    m_receivers_section_layout->addLayout(columns_layout);
 }
 
 void MainView::setUpTimeSection()
@@ -454,7 +439,7 @@ void MainView::onFileLoadedChanged()
 
     m_time_channel->setEnabled(loaded);
     m_pcm_channel->setEnabled(loaded);
-    m_receivers_all->setEnabled(loaded);
+    setAllNumberedReceiversEnabled(loaded);
     m_time_all->setEnabled(loaded);
     m_sample_rate->setEnabled(loaded);
     m_process_btn->setEnabled(loaded);
@@ -477,9 +462,7 @@ void MainView::onFileLoadedChanged()
         m_pcm_channel->clear();
         m_pcm_channel->addItem("Select a PCM Channel");
 
-        m_receivers_all->setEnabled(false);
         setAllNumberedReceiversEnabled(false);
-        m_receivers_all->setChecked(true);
         setAllNumberedReceiversChecked(true);
 
         m_time_all->setEnabled(false);
@@ -543,29 +526,55 @@ void MainView::onReceiverLayoutChanged()
     rebuildReceiversGrid();
 }
 
+void MainView::onTreeItemChanged(QTreeWidgetItem* item, int column)
+{
+    if (column != 0)
+        return;
+    if (m_updating_from_viewmodel)
+        return;
+
+    // Only forward leaf (channel) items to the ViewModel.
+    // Parent (receiver) items have their state managed by Qt::ItemIsAutoTristate.
+    QTreeWidgetItem* parent = item->parent();
+    if (!parent)
+        return;
+
+    int receiver_index = parent->data(0, Qt::UserRole).toInt();
+    int channel_index = parent->indexOfChild(item);
+    bool checked = (item->checkState(0) == Qt::Checked);
+
+    m_view_model->setReceiverChecked(receiver_index, channel_index, checked);
+}
+
 void MainView::onReceiverCheckedChanged(int receiver_index, int channel_index, bool checked)
 {
-    if (receiver_index < 0 || receiver_index >= m_receiver_checks.size())
-        return;
-    if (channel_index < 0 || channel_index >= m_receiver_checks[receiver_index].size())
+    // Find the tree item matching this receiver_index via UserRole data
+    QTreeWidgetItem* target = nullptr;
+    QTreeWidget* target_tree = nullptr;
+    for (QTreeWidget* tree : m_receiver_trees)
+    {
+        for (int i = 0; i < tree->topLevelItemCount(); i++)
+        {
+            if (tree->topLevelItem(i)->data(0, Qt::UserRole).toInt() == receiver_index)
+            {
+                target = tree->topLevelItem(i);
+                target_tree = tree;
+                break;
+            }
+        }
+        if (target)
+            break;
+    }
+
+    if (!target || channel_index < 0 || channel_index >= target->childCount())
         return;
 
     m_updating_from_viewmodel = true;
-    m_receiver_checks[receiver_index][channel_index]->setChecked(checked);
+    target_tree->blockSignals(true);
+    target->child(channel_index)->setCheckState(
+        0, checked ? Qt::Checked : Qt::Unchecked);
+    target_tree->blockSignals(false);
     m_updating_from_viewmodel = false;
-
-    // Update "Select All" state based on whether all are checked
-    bool all_checked = true;
-    for (int r = 0; r < m_receiver_checks.size() && all_checked; r++)
-        for (int c = 0; c < m_receiver_checks[r].size() && all_checked; c++)
-            if (!m_receiver_checks[r][c]->isChecked())
-                all_checked = false;
-
-    {
-        QSignalBlocker blocker(m_receivers_all);
-        m_receivers_all->setChecked(all_checked);
-    }
-    setAllNumberedReceiversEnabled(!all_checked);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -638,13 +647,6 @@ void MainView::onSettings()
     }
 }
 
-void MainView::receiversAllCheckBoxToggled(bool checked)
-{
-    m_view_model->setAllReceiversChecked(checked);
-    setAllNumberedReceiversChecked(checked);
-    setAllNumberedReceiversEnabled(!checked);
-}
-
 void MainView::timeAllCheckBoxToggled(bool checked)
 {
     if (checked)
@@ -690,41 +692,42 @@ void MainView::setAllControlsEnabled(bool enabled)
     m_open_file_action->setEnabled(enabled);
     m_time_channel->setEnabled(enabled);
     m_pcm_channel->setEnabled(enabled);
-    m_receivers_all->setEnabled(enabled);
+    setAllNumberedReceiversEnabled(enabled);
     m_time_all->setEnabled(enabled);
     m_sample_rate->setEnabled(enabled);
     m_process_btn->setEnabled(enabled);
 
     if (enabled)
     {
-        if (!m_receivers_all->isChecked())
-            setAllNumberedReceiversEnabled(true);
         if (!m_time_all->isChecked())
             setAllStartStopTimesEnabled(true);
     }
     else
     {
-        setAllNumberedReceiversEnabled(false);
         setAllStartStopTimesEnabled(false);
     }
 }
 
 void MainView::setAllNumberedReceiversEnabled(bool enabled)
 {
-    for (int receiver_index = 0; receiver_index < m_receiver_checks.size(); receiver_index++)
-        for (int channel_index = 0;
-             channel_index < m_receiver_checks[receiver_index].size();
-             channel_index++)
-            m_receiver_checks[receiver_index][channel_index]->setEnabled(enabled);
+    for (QTreeWidget* tree : m_receiver_trees)
+        tree->setEnabled(enabled);
 }
 
 void MainView::setAllNumberedReceiversChecked(bool checked)
 {
-    for (int receiver_index = 0; receiver_index < m_receiver_checks.size(); receiver_index++)
-        for (int channel_index = 0;
-             channel_index < m_receiver_checks[receiver_index].size();
-             channel_index++)
-            m_receiver_checks[receiver_index][channel_index]->setChecked(checked);
+    Qt::CheckState state = checked ? Qt::Checked : Qt::Unchecked;
+    for (QTreeWidget* tree : m_receiver_trees)
+    {
+        tree->blockSignals(true);
+        for (int r = 0; r < tree->topLevelItemCount(); r++)
+        {
+            QTreeWidgetItem* receiver_item = tree->topLevelItem(r);
+            for (int c = 0; c < receiver_item->childCount(); c++)
+                receiver_item->child(c)->setCheckState(0, state);
+        }
+        tree->blockSignals(false);
+    }
 }
 
 void MainView::setAllStartStopTimesEnabled(bool enabled)

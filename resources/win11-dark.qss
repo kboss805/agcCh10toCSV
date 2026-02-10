@@ -363,6 +363,86 @@ QCheckBox::indicator:disabled
 }
 
 
+/*-----QTreeWidget-----*/
+QTreeWidget
+{
+    background-color: #2B2B2B;
+    border: none;
+    outline: 0;
+    color: #FFFFFF;
+}
+
+
+QTreeWidget::item
+{
+    padding: 2px 0px;
+}
+
+
+QTreeWidget::item:hover
+{
+    background-color: #323232;
+}
+
+
+QTreeWidget::item:selected
+{
+    background-color: #2D2D2D;
+}
+
+
+QTreeWidget::branch
+{
+    background-color: transparent;
+}
+
+
+QTreeWidget::indicator
+{
+    background-color: #2D2D2D;
+    border: 1px solid #9E9E9E;
+    border-radius: 4px;
+    width: 18px;
+    height: 18px;
+}
+
+
+QTreeWidget::indicator:checked
+{
+    background-color: #60CDFF;
+    border: 1px solid #60CDFF;
+    image: url(:/resources/checkmark.svg);
+}
+
+
+QTreeWidget::indicator:indeterminate
+{
+    background-color: #60CDFF;
+    border: 1px solid #60CDFF;
+}
+
+
+QTreeWidget::indicator:unchecked:hover
+{
+    border: 1px solid #FFFFFF;
+}
+
+
+QTreeWidget::indicator:checked:hover
+{
+    background-color: #99ECFF;
+    border: 1px solid #99ECFF;
+    image: url(:/resources/checkmark.svg);
+}
+
+
+QTreeWidget::indicator:disabled
+{
+    background-color: #2A2A2A;
+    border: 1px solid #454545;
+}
+
+
 /*-----QTableView & QTableWidget-----*/
 QTableView
 {
