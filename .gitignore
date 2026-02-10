@@ -1,0 +1,78 @@
+# Build directories
+debug/
+release/
+samplefiles/
+
+# Qt generated files
+*.pro.user
+*.pro.user.*
+*.autosave
+Makefile
+Makefile.*
+.qmake.stash
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+ui_*.h
+*.qm
+
+# Compiled Object files
+*.o
+*.obj
+*.slo
+*.lo
+*.so
+*.dylib
+*.dll
+*.a
+*.lib
+*.lai
+*.la
+
+# Executables
+*.exe
+*.out
+*.app
+
+# External libraries (third-party, maintained separately)
+lib/
+
+# IDE and editor settings
+.vscode/
+.vs/
+*.creator.user*
+*.suo
+*.user
+*.ncb
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.opendb
+*.bat
+
+# Claude Code settings
+.claude/
+.claudeignore
+
+# Build artifacts
+*.pdb
+*.ilk
+*.log
+
+# Temporary files
+*~
+*.swp
+*.bak
+*.tmp
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Runtime-generated config
+config/last_used.ini
+
+# Input and Output files (you may want to keep these)
+*.csv
+*.ch10
