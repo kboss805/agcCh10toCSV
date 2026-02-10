@@ -75,4 +75,4 @@ config/last_used.ini
 
 # Input and Output files (you may want to keep these)
 *.csv
-*.ch10
+

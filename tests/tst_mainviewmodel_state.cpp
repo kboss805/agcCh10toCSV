@@ -1,0 +1,275 @@
+#include "tst_mainviewmodel_state.h"
+
+#include <QSignalSpy>
+#include <QtTest>
+
+#include "constants.h"
+#include "mainviewmodel.h"
+#include "settingsdata.h"
+
+void TestMainViewModelState::constructorDefaults()
+{
+    MainViewModel vm;
+
+    QCOMPARE(vm.fileLoaded(), false);
+    QCOMPARE(vm.processing(), false);
+    QCOMPARE(vm.progressPercent(), 0);
+    QCOMPARE(vm.extractAllTime(), true);
+    QCOMPARE(vm.sampleRateIndex(), 0);
+    QCOMPARE(vm.negativePolarity(), false);
+    QCOMPARE(vm.scaleIndex(), UIConstants::kDefaultScaleIndex);
+    QCOMPARE(vm.range(), QString(UIConstants::kDefaultRange));
+    QCOMPARE(vm.receiverCount(), UIConstants::kDefaultReceiverCount);
+    QCOMPARE(vm.channelsPerReceiver(), UIConstants::kDefaultChannelsPerReceiver);
+    QCOMPARE(vm.timeChannelIndex(), 0);
+    QCOMPARE(vm.pcmChannelIndex(), 0);
+    QVERIFY(vm.inputFilename().isEmpty());
+}
+
+void TestMainViewModelState::setExtractAllTimeEmitsSignal()
+{
+    MainViewModel vm;
+    QSignalSpy spy(&vm, &MainViewModel::extractAllTimeChanged);
+
+    vm.setExtractAllTime(false);
+
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(vm.extractAllTime(), false);
+}
+
+void TestMainViewModelState::setExtractAllTimeNoOpWhenUnchanged()
+{
+    MainViewModel vm;
+    QSignalSpy spy(&vm, &MainViewModel::extractAllTimeChanged);
+
+    vm.setExtractAllTime(true); // default is true
+
+    QCOMPARE(spy.count(), 0);
+}
+
+void TestMainViewModelState::setSampleRateIndexEmitsSignal()
+{
+    MainViewModel vm;
+    QSignalSpy spy(&vm, &MainViewModel::sampleRateIndexChanged);
+
+    vm.setSampleRateIndex(2);
+
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(vm.sampleRateIndex(), 2);
+}
+
+void TestMainViewModelState::setSampleRateIndexNoOpWhenUnchanged()
+{
+    MainViewModel vm;
+    QSignalSpy spy(&vm, &MainViewModel::sampleRateIndexChanged);
+
+    vm.setSampleRateIndex(0); // default is 0
+
+    QCOMPARE(spy.count(), 0);
+}
+
+void TestMainViewModelState::setFrameSyncEmitsSignal()
+{
+    MainViewModel vm;
+    QSignalSpy spy(&vm, &MainViewModel::configChanged);
+
+    vm.setFrameSync("ABCD1234");
+
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(vm.frameSync(), QString("ABCD1234"));
+}
+
+void TestMainViewModelState::setFrameSyncNoOpWhenUnchanged()
+{
+    MainViewModel vm;
+    vm.setFrameSync("ABCD1234");
+
+    QSignalSpy spy(&vm, &MainViewModel::configChanged);
+    vm.setFrameSync("ABCD1234");
+
+    QCOMPARE(spy.count(), 0);
+}
+
+void TestMainViewModelState::setNegativePolarityEmitsSignal()
+{
+    MainViewModel vm;
+    QSignalSpy spy(&vm, &MainViewModel::configChanged);
+
+    vm.setNegativePolarity(true);
+
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(vm.negativePolarity(), true);
+}
+
+void TestMainViewModelState::setScaleIndexEmitsSignal()
+{
+    MainViewModel vm;
+    QSignalSpy spy(&vm, &MainViewModel::configChanged);
+
+    vm.setScaleIndex(0); // default is kDefaultScaleIndex (2)
+
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(vm.scaleIndex(), 0);
+}
+
+void TestMainViewModelState::setRangeEmitsSignal()
+{
+    MainViewModel vm;
+    QSignalSpy spy(&vm, &MainViewModel::configChanged);
+
+    vm.setRange("200");
+
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(vm.range(), QString("200"));
+}
+
+void TestMainViewModelState::setReceiverCountEmitsSignal()
+{
+    MainViewModel vm;
+    QSignalSpy spy(&vm, &MainViewModel::receiverLayoutChanged);
+
+    vm.setReceiverCount(8);
+
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(vm.receiverCount(), 8);
+}
+
+void TestMainViewModelState::setReceiverCountResizesGrid()
+{
+    MainViewModel vm;
+    vm.setReceiverCount(4);
+
+    for (int r = 0; r < 4; r++)
+        for (int c = 0; c < vm.channelsPerReceiver(); c++)
+            QCOMPARE(vm.receiverChecked(r, c), true);
+
+    QCOMPARE(vm.receiverChecked(4, 0), false);
+}
+
+void TestMainViewModelState::setChannelsPerReceiverEmitsSignal()
+{
+    MainViewModel vm;
+    QSignalSpy spy(&vm, &MainViewModel::receiverLayoutChanged);
+
+    vm.setChannelsPerReceiver(5);
+
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(vm.channelsPerReceiver(), 5);
+}
+
+void TestMainViewModelState::setChannelsPerReceiverResizesGrid()
+{
+    MainViewModel vm;
+    vm.setChannelsPerReceiver(2);
+
+    QCOMPARE(vm.receiverChecked(0, 0), true);
+    QCOMPARE(vm.receiverChecked(0, 1), true);
+    QCOMPARE(vm.receiverChecked(0, 2), false);
+}
+
+void TestMainViewModelState::receiverCheckedValidIndices()
+{
+    MainViewModel vm;
+    QCOMPARE(vm.receiverChecked(0, 0), true);
+    QCOMPARE(vm.receiverChecked(15, 2), true);
+}
+
+void TestMainViewModelState::receiverCheckedOutOfBoundsReturnsFalse()
+{
+    MainViewModel vm;
+    QCOMPARE(vm.receiverChecked(-1, 0), false);
+    QCOMPARE(vm.receiverChecked(0, -1), false);
+    QCOMPARE(vm.receiverChecked(100, 0), false);
+    QCOMPARE(vm.receiverChecked(0, 100), false);
+}
+
+void TestMainViewModelState::setReceiverCheckedEmitsSignal()
+{
+    MainViewModel vm;
+    QSignalSpy spy(&vm, &MainViewModel::receiverCheckedChanged);
+
+    vm.setReceiverChecked(0, 0, false);
+
+    QCOMPARE(spy.count(), 1);
+    QList<QVariant> args = spy.takeFirst();
+    QCOMPARE(args.at(0).toInt(), 0);
+    QCOMPARE(args.at(1).toInt(), 0);
+    QCOMPARE(args.at(2).toBool(), false);
+    QCOMPARE(vm.receiverChecked(0, 0), false);
+}
+
+void TestMainViewModelState::setReceiverCheckedNoOpWhenUnchanged()
+{
+    MainViewModel vm;
+    QSignalSpy spy(&vm, &MainViewModel::receiverCheckedChanged);
+
+    vm.setReceiverChecked(0, 0, true); // default is true
+
+    QCOMPARE(spy.count(), 0);
+}
+
+void TestMainViewModelState::setAllReceiversCheckedTrue()
+{
+    MainViewModel vm;
+    vm.setReceiverChecked(0, 0, false);
+    vm.setReceiverChecked(1, 1, false);
+
+    vm.setAllReceiversChecked(true);
+
+    for (int r = 0; r < vm.receiverCount(); r++)
+        for (int c = 0; c < vm.channelsPerReceiver(); c++)
+            QCOMPARE(vm.receiverChecked(r, c), true);
+}
+
+void TestMainViewModelState::setAllReceiversCheckedFalse()
+{
+    MainViewModel vm;
+
+    vm.setAllReceiversChecked(false);
+
+    for (int r = 0; r < vm.receiverCount(); r++)
+        for (int c = 0; c < vm.channelsPerReceiver(); c++)
+            QCOMPARE(vm.receiverChecked(r, c), false);
+}
+
+void TestMainViewModelState::getSettingsDataApplySettingsDataRoundtrip()
+{
+    MainViewModel vm;
+
+    vm.setFrameSync("DEADBEEF");
+    vm.setNegativePolarity(true);
+    vm.setScaleIndex(1);
+    vm.setRange("50");
+    vm.setExtractAllTime(false);
+    vm.setSampleRateIndex(2);
+    vm.setReceiverCount(8);
+    vm.setChannelsPerReceiver(2);
+
+    SettingsData data = vm.getSettingsData();
+
+    MainViewModel vm2;
+    vm2.applySettingsData(data);
+
+    QCOMPARE(vm2.frameSync(), QString("DEADBEEF"));
+    QCOMPARE(vm2.negativePolarity(), true);
+    QCOMPARE(vm2.scaleIndex(), 1);
+    QCOMPARE(vm2.range(), QString("50"));
+    QCOMPARE(vm2.extractAllTime(), false);
+    QCOMPARE(vm2.sampleRateIndex(), 2);
+    QCOMPARE(vm2.receiverCount(), 8);
+    QCOMPARE(vm2.channelsPerReceiver(), 2);
+}
+
+void TestMainViewModelState::applyConfigUpdatesProperties()
+{
+    MainViewModel vm;
+
+    vm.applyConfig("11223344", true, 3, "75", 4, 2);
+
+    QCOMPARE(vm.frameSync(), QString("11223344"));
+    QCOMPARE(vm.negativePolarity(), true);
+    QCOMPARE(vm.scaleIndex(), 3);
+    QCOMPARE(vm.range(), QString("75"));
+    QCOMPARE(vm.receiverCount(), 4);
+    QCOMPARE(vm.channelsPerReceiver(), 2);
+}
