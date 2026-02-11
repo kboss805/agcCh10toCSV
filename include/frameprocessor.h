@@ -91,15 +91,64 @@ signals:
     void errorOccurred(const QString& message);
 
 private:
-    /**
-     * @brief Opens a Chapter 10 file and synchronizes the time reference.
-     * @param[in] filename Path to the .ch10 file.
-     * @return true on success.
-     */
-    bool openFile(const QString& filename);
+    /// @brief Per-packet timing information for timestamp computation.
+    struct PacketTimeRef {
+        int64_t base_time;    ///< Packet header reference time (100ns units).
+        uint64_t start_bit;   ///< Starting bit position in combined buffer.
+        uint64_t num_bits;    ///< Number of data bits from this packet.
+    };
 
-    /// Closes the currently open Chapter 10 file and frees the read buffer.
+    /// @name File I/O helpers
+    /// @{
+    bool openFile(const QString& filename);
     void closeFile();
+    /// @}
+
+    /// @name irig106 C helper wrappers
+    /// @{
+    /**
+     * @brief Deallocates the per-channel info table and associated attributes.
+     * @param[in,out] channel_info Array of SuChanInfo pointers to free.
+     * @param[in]     max_channels Length of the channel_info array.
+     */
+    void freeChanInfoTable(SuChanInfo* channel_info[], int max_channels);
+
+    /**
+     * @brief Builds per-channel attribute structures from TMATS metadata.
+     * @param[in]     tmats_info    Parsed TMATS metadata.
+     * @param[in,out] channel_info  Array of SuChanInfo pointers to populate.
+     * @param[in]     max_channels  Length of the channel_info array.
+     * @return I106_OK on success.
+     */
+    Irig106::EnI106Status assembleAttributesFromTMATS(
+        Irig106::SuTmatsInfo* tmats_info,
+        SuChanInfo* channel_info[],
+        int max_channels);
+    /// @}
+
+    /// @name PCM bit-level helpers
+    /// @{
+    /**
+     * @brief Applies IRIG 106 Appendix D self-synchronizing descrambler.
+     * @param[in,out] data       Raw byte buffer to derandomize in-place.
+     * @param[in]     total_bits Number of valid bits in the buffer.
+     * @param[in,out] lfsr       15-bit LFSR state carried across packets.
+     */
+    void derandomizeBitstream(uint8_t* data, uint64_t total_bits, uint16_t& lfsr);
+
+    /**
+     * @brief Scans a bitstream for the first occurrence of a sync pattern.
+     * @param[in] data         Raw byte buffer to scan.
+     * @param[in] total_bits   Number of valid bits in the buffer.
+     * @param[in] sync_pat     Expected sync pattern value.
+     * @param[in] sync_mask    Bitmask for sync pattern comparison.
+     * @param[in] sync_pat_len Sync pattern length in bits.
+     * @return true if the pattern was found.
+     */
+    bool hasSyncPattern(const uint8_t* data, uint64_t total_bits,
+                        uint64_t sync_pat, uint64_t sync_mask,
+                        uint32_t sync_pat_len) const;
+    /// @}
 
     /**
      * @brief Writes one averaged time sample row to the CSV output.

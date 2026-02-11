@@ -1,3 +1,8 @@
+/**
+ * @file mainviewmodel.cpp
+ * @brief Implementation of MainViewModel — state management and processing orchestration.
+ */
+
 #include "mainviewmodel.h"
 
 #include <QCoreApplication>
@@ -325,22 +330,22 @@ void MainViewModel::saveFrameSetupTo(QSettings& settings)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//                            STATIC HELPERS                                  //
+//                               HELPERS                                      //
 ////////////////////////////////////////////////////////////////////////////////
 
-QString MainViewModel::channelPrefix(int index)
+QString MainViewModel::channelPrefix(int index) const
 {
     if (index < UIConstants::kNumKnownPrefixes)
         return UIConstants::kChannelPrefixes[index];
     return "CH" + QString::number(index + 1);
 }
 
-QString MainViewModel::parameterName(int channel_index, int receiver_index)
+QString MainViewModel::parameterName(int channel_index, int receiver_index) const
 {
     return channelPrefix(channel_index) + "_RCVR" + QString::number(receiver_index + 1);
 }
 
-QString MainViewModel::generateOutputFilename()
+QString MainViewModel::generateOutputFilename() const
 {
     return QString(UIConstants::kOutputPrefix) +
            QDateTime::currentDateTime().toString(UIConstants::kOutputTimestampFormat) +
@@ -500,7 +505,7 @@ void MainViewModel::clearState()
 
 bool MainViewModel::validateTimeFields(const QString& ddd, const QString& hh,
                                         const QString& mm, const QString& ss,
-                                        int& out_ddd, int& out_hh, int& out_mm, int& out_ss)
+                                        int& out_ddd, int& out_hh, int& out_mm, int& out_ss) const
 {
     bool ddd_ok, hh_ok, mm_ok, ss_ok;
     out_ddd = ddd.toInt(&ddd_ok);
@@ -647,8 +652,8 @@ bool MainViewModel::prepareFrameSetupParameters(double scale_lower_bound,
     for (int i = 0; i < m_frame_setup->length(); i++)
     {
         ParameterInfo* param = m_frame_setup->getParameter(i);
-        param->slope = (scale_upper_bound - scale_lower_bound) / 0xFFFF;
-        param->scale = scale_lower_bound / (scale_upper_bound - scale_lower_bound) * 0xFFFF;
+        param->slope = (scale_upper_bound - scale_lower_bound) / PCMConstants::kMaxRawSampleValue;
+        param->scale = scale_lower_bound / (scale_upper_bound - scale_lower_bound) * PCMConstants::kMaxRawSampleValue;
         if (negative_polarity)
             param->scale *= -1;
         param->is_enabled = true;

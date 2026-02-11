@@ -1,6 +1,11 @@
+/**
+ * @file chapter10reader.cpp
+ * @brief Implementation of Chapter10Reader — IRIG 106 file metadata scanner.
+ */
+
 #include "chapter10reader.h"
 
-#include <QDebug>
+#include "constants.h"
 
 using namespace Irig106;
 
@@ -11,8 +16,8 @@ Chapter10Reader::Chapter10Reader(QObject* parent) :
     putenv("TZ=GMT0");
     tzset();
 
-    m_buffer = nullptr;
-    m_buffer_size = 0L;
+    m_buffer = (unsigned char*)malloc(PCMConstants::kDefaultBufferSize);
+    m_buffer_size = m_buffer ? PCMConstants::kDefaultBufferSize : 0L;
 
     m_current_time_channel = -1; // no channel selected
     m_current_pcm_channel = -1;
@@ -102,8 +107,6 @@ bool Chapter10Reader::loadChannels(const QString& filename)
             }
             m_buffer = new_buffer;
             m_buffer_size = uGetDataLen(&m_header);
-
-            qDebug() << "resized buffer size to " << m_buffer_size;
         }
 
         // Read the data buffer

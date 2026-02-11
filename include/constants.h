@@ -6,6 +6,18 @@
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
 
+#include <QString>
+
+/// @brief Application version information.
+struct AppVersion {
+    static constexpr int kMajor = 2;   ///< Major version number.
+    static constexpr int kMinor = 0;   ///< Minor version number.
+    static constexpr int kPatch = 0;   ///< Patch version number.
+
+    /// @return Version string in "major.minor.patch" format.
+    static QString toString() { return QString("%1.%2.%3").arg(kMajor).arg(kMinor).arg(kPatch); }
+};
+
 /// @brief Constants for PCM frame structure and channel type identifiers.
 namespace PCMConstants {
     inline constexpr int kWordsInMinorFrame   = 49;    ///< Words per PCM minor frame.
@@ -18,6 +30,15 @@ namespace PCMConstants {
     /// Time rounding offset (0.5 ms) used in writeTimeSample.
     inline constexpr double kTimeRoundingOffset = 0.0005;
 
+    /// Maximum raw 16-bit sample value for calibration math.
+    inline constexpr uint16_t kMaxRawSampleValue = 0xFFFF;
+
+    /// Default initial buffer size for CH10 packet reading (64 KB).
+    inline constexpr unsigned long kDefaultBufferSize = 65536;
+
+    /// Number of packets between progress position queries.
+    inline constexpr int kProgressReportInterval = 100;
+
     /// @name Channel type identifiers from TMATS records
     /// @{
     inline constexpr const char* kChannelTypeTime = "TIMEIN"; ///< TMATS type for time channels.
@@ -27,6 +48,31 @@ namespace PCMConstants {
 
 /// @brief Constants for UI configuration, validation limits, and output formatting.
 namespace UIConstants {
+    /// @name QSettings keys and theme identifiers
+    /// @{
+    inline constexpr const char* kOrganizationName  = "agcCh10toCSV"; ///< QSettings organization name.
+    inline constexpr const char* kApplicationName   = "agcCh10toCSV"; ///< QSettings application name.
+    inline constexpr const char* kSettingsKeyTheme  = "Theme";        ///< QSettings key for theme preference.
+    inline constexpr const char* kSettingsKeyLastDir = "LastOpenDirectory"; ///< QSettings key for last opened directory.
+    inline constexpr const char* kThemeDark         = "dark";         ///< Dark theme identifier.
+    inline constexpr const char* kThemeLight        = "light";        ///< Light theme identifier.
+    /// @}
+
+    /// @name Receiver grid layout
+    /// @{
+    inline constexpr int kReceiverGridColumns   = 4;   ///< Number of columns in receiver grid.
+    inline constexpr int kTreeItemHeightFactor  = 28;  ///< Approximate height per tree item in pixels.
+    inline constexpr int kTreeHeightBuffer      = 10;  ///< Extra height buffer for tree widgets.
+    inline constexpr int kTreeFixedWidth        = 100; ///< Fixed width for receiver tree widgets.
+    inline constexpr int kLogMinimumWidth       = 300; ///< Minimum width for the log window.
+    /// @}
+
+    /// @name Time conversion
+    /// @{
+    inline constexpr int kSecondsPerDay    = 86400; ///< Seconds in a day.
+    inline constexpr int kSecondsPerHour   = 3600;  ///< Seconds in an hour.
+    inline constexpr int kSecondsPerMinute = 60;    ///< Seconds in a minute.
+    /// @}
     inline constexpr int kDefaultScaleIndex           = 2;     ///< Default voltage scale combo index.
     inline constexpr const char* kDefaultRange        = "100"; ///< Default full-scale range in dB.
     inline constexpr int kDefaultReceiverCount        = 16;    ///< Default number of receivers.

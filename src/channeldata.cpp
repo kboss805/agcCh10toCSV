@@ -1,3 +1,8 @@
+/**
+ * @file channeldata.cpp
+ * @brief Implementation of ChannelData — per-channel metadata storage.
+ */
+
 #include "channeldata.h"
 
 ChannelData::ChannelData(int channel_id) :

@@ -73,6 +73,10 @@ RESOURCES += \
     resources/win11-light.qss \
     resources/icon.ico \
     resources/checkmark.svg \
+    resources/chevron-down-dark.svg \
+    resources/chevron-down-light.svg \
+    resources/chevron-down-disabled-dark.svg \
+    resources/chevron-down-disabled-light.svg \
     resources/folder-open.svg \
     resources/play.svg
 

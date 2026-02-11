@@ -1,6 +1,12 @@
+/**
+ * @file frameprocessor.cpp
+ * @brief Implementation of FrameProcessor — PCM frame extraction and CSV output.
+ */
+
 #include "frameprocessor.h"
 
 #include <fstream>
+#include <string>
 #include <vector>
 
 #include <QDebug>
@@ -12,23 +18,20 @@
 using namespace Irig106;
 
 ////////////////////////////////////////////////////////////////////////////////
-//                          IRIG106 HELPER FUNCTIONS                          //
+//                          IRIG106 HELPER METHODS                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-static void FreeChanInfoTable(SuChanInfo* apsuChanInfo[], int MaxSuChanInfo)
+void FrameProcessor::freeChanInfoTable(SuChanInfo* apsuChanInfo[], int MaxSuChanInfo)
 {
-    int iTrackNumber;
-
     if(apsuChanInfo == NULL)
         return;
 
-    for(iTrackNumber = 0; iTrackNumber < MaxSuChanInfo; iTrackNumber++)
+    for(int iTrackNumber = 0; iTrackNumber < MaxSuChanInfo; iTrackNumber++)
     {
         if(apsuChanInfo[iTrackNumber] != NULL)
         {
             if(apsuChanInfo[iTrackNumber]->psuAttributes != NULL)
             {
-                // Pcm special
                 if (strcasecmp(apsuChanInfo[iTrackNumber]->psuRDataSrc->szChannelDataType,"PCMIN") == 0)
                     FreeOutputBuffers_PcmF1((SuPcmF1_Attributes *) apsuChanInfo[iTrackNumber]->psuAttributes);
                 free(apsuChanInfo[iTrackNumber]->psuAttributes);
@@ -41,9 +44,9 @@ static void FreeChanInfoTable(SuChanInfo* apsuChanInfo[], int MaxSuChanInfo)
     }
 }
 
-static EnI106Status AssembleAttributesFromTMATS(SuTmatsInfo* psuTmatsInfo,
-                                                SuChanInfo* apsuChanInfo[],
-                                                int MaxSuChanInfo)
+EnI106Status FrameProcessor::assembleAttributesFromTMATS(SuTmatsInfo* psuTmatsInfo,
+                                                         SuChanInfo* apsuChanInfo[],
+                                                         int MaxSuChanInfo)
 {
     static const char* szModuleText = "Assemble Attributes From TMATS";
     char szText[_MAX_PATH + _MAX_PATH];
@@ -53,7 +56,7 @@ static EnI106Status AssembleAttributesFromTMATS(SuTmatsInfo* psuTmatsInfo,
     SuRRecord* psuRRecord;
     SuRDataSource* psuRDataSrc;
     int iTrackNumber;
-    memset(szText, 0, SizeOfText--); // init and set the size to one less
+    memset(szText, 0, SizeOfText--);
 
     if((psuTmatsInfo->psuFirstGRecord == NULL) || (psuTmatsInfo->psuFirstRRecord == NULL))
     {
@@ -61,11 +64,9 @@ static EnI106Status AssembleAttributesFromTMATS(SuTmatsInfo* psuTmatsInfo,
         return(I106_INVALID_DATA);
     }
 
-    // Find channels mentioned in TMATS record
     psuRRecord = psuTmatsInfo->psuFirstRRecord;
     while (psuRRecord != NULL)
     {
-        // Get the first data source for this R record
         psuRDataSrc = psuRRecord->psuFirstDataSource;
         while (psuRDataSrc != NULL)
         {
@@ -77,40 +78,34 @@ static EnI106Status AssembleAttributesFromTMATS(SuTmatsInfo* psuTmatsInfo,
             if(iTrackNumber >= MaxSuChanInfo)
                 return(I106_BUFFER_TOO_SMALL);
 
-            // Make sure a message count structure exists
             if (apsuChanInfo[iTrackNumber] == NULL)
             {
                 if((apsuChanInfo[iTrackNumber] = (SuChanInfo *)calloc(1, sizeof(SuChanInfo))) == NULL)
                 {
                     _snprintf(&szText[TextLen], SizeOfText - TextLen, "%s: %s\n", szModuleText, szI106ErrorStr(I106_BUFFER_TOO_SMALL));
-                    FreeChanInfoTable(apsuChanInfo, MaxSuChanInfo);
+                    freeChanInfoTable(apsuChanInfo, MaxSuChanInfo);
                     return(I106_BUFFER_TOO_SMALL);
                 }
 
-                // Now save channel type and name
                 apsuChanInfo[iTrackNumber]->uChID = iTrackNumber;
                 apsuChanInfo[iTrackNumber]->bEnabled = psuRDataSrc->szEnabled[0] == 'T';
                 apsuChanInfo[iTrackNumber]->psuRDataSrc = psuRDataSrc;
 
                 if (strcasecmp(psuRDataSrc->szChannelDataType,"PCMIN") == 0)
                 {
-                    // Create the correspondent attributes structure
                     if((apsuChanInfo[iTrackNumber]->psuAttributes = calloc(1, sizeof(SuPcmF1_Attributes))) == NULL)
                     {
                         _snprintf(&szText[TextLen], SizeOfText - TextLen, "%s: %s\n", szModuleText, szI106ErrorStr(I106_BUFFER_TOO_SMALL));
-                        FreeChanInfoTable(apsuChanInfo, MaxSuChanInfo);
+                        freeChanInfoTable(apsuChanInfo, MaxSuChanInfo);
                         return(I106_BUFFER_TOO_SMALL);
                     }
-                    // Fill the attributes, don't check the return status I106_INVALID_PARAMETER
                     (void)Set_Attributes_PcmF1(psuRDataSrc, (SuPcmF1_Attributes *)apsuChanInfo[iTrackNumber]->psuAttributes);
                 }
             }
 
-            // Get the next R record data source
             psuRDataSrc = psuRDataSrc->psuNext;
         }
 
-        // Get the next R record
         psuRRecord = psuRRecord->psuNext;
     }
 
@@ -118,22 +113,10 @@ static EnI106Status AssembleAttributesFromTMATS(SuTmatsInfo* psuTmatsInfo,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//                          STATIC HELPER FUNCTIONS                           //
+//                          PCM BIT-LEVEL HELPERS                             //
 ////////////////////////////////////////////////////////////////////////////////
 
-// Per-packet timing information for timestamp computation.
-struct PacketTimeRef {
-    int64_t base_time;    // Packet header reference time (100ns units)
-    uint64_t start_bit;   // Starting bit position in combined buffer
-    uint64_t num_bits;    // Number of data bits from this packet
-};
-
-// IRIG 106 Appendix D self-synchronizing descrambler on raw byte buffer.
-// Polynomial h(x) = x^15 + x^14 + 1; taps at stages 14 and 15.
-// Bits are processed MSB-first (left-to-right), matching IsBitSetL2R ordering.
-// The received (scrambled) bits load the shift register; the output is
-// received_bit XOR stage14 XOR stage15.  Self-synchronises after 15 bits.
-static void derandomizeBitstream(uint8_t* data, uint64_t total_bits, uint16_t& lfsr)
+void FrameProcessor::derandomizeBitstream(uint8_t* data, uint64_t total_bits, uint16_t& lfsr)
 {
     for (uint64_t i = 0; i < total_bits; i++)
     {
@@ -151,11 +134,9 @@ static void derandomizeBitstream(uint8_t* data, uint64_t total_bits, uint16_t& l
     }
 }
 
-// Quick scan for a sync pattern in the bitstream.  Returns true as soon as
-// the first match is found, without extracting any frame data.
-static bool hasSyncPattern(const uint8_t* data, uint64_t total_bits,
-                           uint64_t sync_pat, uint64_t sync_mask,
-                           uint32_t sync_pat_len)
+bool FrameProcessor::hasSyncPattern(const uint8_t* data, uint64_t total_bits,
+                                    uint64_t sync_pat, uint64_t sync_mask,
+                                    uint32_t sync_pat_len) const
 {
     uint64_t test_word = 0;
     uint64_t bits_loaded = 0;
@@ -185,11 +166,15 @@ FrameProcessor::FrameProcessor(QObject* parent)
     putenv("TZ=GMT0");
     tzset();
     memset(m_channel_info, 0, sizeof(m_channel_info));
+
+    m_buffer = (unsigned char*)malloc(PCMConstants::kDefaultBufferSize);
+    if (m_buffer)
+        m_buffer_size = PCMConstants::kDefaultBufferSize;
 }
 
 FrameProcessor::~FrameProcessor()
 {
-    FreeChanInfoTable(m_channel_info, PCMConstants::kMaxChannelCount);
+    freeChanInfoTable(m_channel_info, PCMConstants::kMaxChannelCount);
     if (m_buffer)
         free(m_buffer);
 }
@@ -337,7 +322,7 @@ bool FrameProcessor::process(const QString& filename,
         if (m_status != I106_OK)
             return fail("Failed to process TMATS info from first header.");
 
-        m_status = AssembleAttributesFromTMATS(&m_tmats_info, m_channel_info, PCMConstants::kMaxChannelCount);
+        m_status = assembleAttributesFromTMATS(&m_tmats_info, m_channel_info, PCMConstants::kMaxChannelCount);
         if (m_status != I106_OK)
             return fail("Failed to assemble attributes from TMATS header.");
     }
@@ -421,6 +406,7 @@ bool FrameProcessor::process(const QString& filename,
     // Single pass: read packets and process PCM data immediately
     // -----------------------------------------------------------------------
     emit logMessage("Processing PCM data...");
+    int packet_count = 0;
 
     while (true)
     {
@@ -433,8 +419,9 @@ bool FrameProcessor::process(const QString& filename,
             break;
         }
 
-        // Report progress (0-100% based on file position)
-        if (m_total_file_size > 0)
+        // Report progress every N packets to reduce I/O overhead
+        packet_count++;
+        if (m_total_file_size > 0 && (packet_count % PCMConstants::kProgressReportInterval) == 0)
         {
             int64_t current_pos = 0;
             enI106Ch10GetPos(m_file_handle, &current_pos);
@@ -698,11 +685,13 @@ void FrameProcessor::writeTimeSample(std::ofstream& output,
     irig_time.ulFrac = frac_time;
     irig_time.enFmt = I106_DATEFMT_DAY;
     char* szTime = IrigTime2String(&irig_time);
-    output << szTime;
+    std::string row(szTime);
     for (auto* param : enabled_params)
     {
-        output << ',' << param->sample_sum / n_samples;
+        row += ',';
+        row += std::to_string(param->sample_sum / n_samples);
         param->sample_sum = 0;
     }
-    output << "\n";
+    row += '\n';
+    output.write(row.data(), row.size());
 }

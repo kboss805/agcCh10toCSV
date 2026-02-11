@@ -1,3 +1,8 @@
+/**
+ * @file mainview.cpp
+ * @brief Implementation of MainView — Qt Widgets UI and ViewModel signal wiring.
+ */
+
 #include "mainview.h"
 
 #include <QApplication>
@@ -24,11 +29,20 @@ MainView::MainView(QWidget *parent)
 
     setUpMainLayout();
 
+    QSettings app_settings(UIConstants::kOrganizationName, UIConstants::kApplicationName);
+    m_last_dir = app_settings.value(UIConstants::kSettingsKeyLastDir).toString();
+
     setUpConnections();
 }
 
 MainView::~MainView()
 {
+}
+
+void MainView::saveLastDir()
+{
+    QSettings app_settings(UIConstants::kOrganizationName, UIConstants::kApplicationName);
+    app_settings.setValue(UIConstants::kSettingsKeyLastDir, m_last_dir);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -71,7 +85,7 @@ void MainView::setUpMainLayout()
     // Log in a dock widget (right side)
     m_log_window = new QPlainTextEdit;
     m_log_window->setReadOnly(true);
-    m_log_window->setMinimumWidth(300);
+    m_log_window->setMinimumWidth(UIConstants::kLogMinimumWidth);
 
     m_log_dock = new QDockWidget("Log", this);
     m_log_dock->setWidget(m_log_window);
@@ -114,10 +128,10 @@ void MainView::setUpMenuBar()
     QAction* settings_action = file_menu->addAction("Settings...");
     file_menu->addSeparator();
 
-    QSettings app_settings("agcCh10toCSV", "agcCh10toCSV");
-    QString current_theme = app_settings.value("Theme", "dark").toString();
+    QSettings app_settings(UIConstants::kOrganizationName, UIConstants::kApplicationName);
+    QString current_theme = app_settings.value(UIConstants::kSettingsKeyTheme, UIConstants::kThemeDark).toString();
     m_theme_action = file_menu->addAction(
-        (current_theme == "dark") ? "Switch to Light Theme" : "Switch to Dark Theme");
+        (current_theme == UIConstants::kThemeDark) ? "Switch to Light Theme" : "Switch to Dark Theme");
     file_menu->addSeparator();
 
     QAction* exit_action = file_menu->addAction("Exit");
@@ -135,7 +149,7 @@ void MainView::setUpMenuBar()
             64, 64, Qt::KeepAspectRatio, Qt::SmoothTransformation));
         about_box.setText(
             "<h3>Chapter 10 to CSV AGC Converter</h3>"
-            "<p>Version 1.0.0</p>"
+            "<p>Version " + AppVersion::toString() + "</p>"
             "<p>Extracts PCM data from IRIG 106 Chapter 10 recordings "
             "and exports receiver channel samples to CSV format.</p>");
         about_box.exec();
@@ -221,7 +235,7 @@ void MainView::rebuildReceiversGrid()
     m_receivers_section_layout->addWidget(toggle_btn, 0, Qt::AlignLeft);
 
     // Four columns of receiver trees
-    const int num_columns = 4;
+    const int num_columns = UIConstants::kReceiverGridColumns;
     int actual_columns = qMin(num_columns, receiver_count);
     int per_column = (receiver_count + actual_columns - 1) / actual_columns;
 
@@ -242,11 +256,11 @@ void MainView::rebuildReceiversGrid()
         tree->setRootIsDecorated(true);
         tree->setAnimated(true);
         tree->setIndentation(0);
-        tree->setFixedWidth(100);
+        tree->setFixedWidth(UIConstants::kTreeFixedWidth);
         tree->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
         tree->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
         // Fixed height fits all collapsed receivers; scrollbar appears when expanded
-        tree->setFixedHeight(per_column * 28 + 10);
+        tree->setFixedHeight(per_column * UIConstants::kTreeItemHeightFactor + UIConstants::kTreeHeightBuffer);
 
         for (int receiver_index = start; receiver_index < end; receiver_index++)
         {
@@ -258,7 +272,7 @@ void MainView::rebuildReceiversGrid()
             for (int channel_index = 0; channel_index < channel_count; channel_index++)
             {
                 QTreeWidgetItem* channel_item = new QTreeWidgetItem;
-                channel_item->setText(0, MainViewModel::channelPrefix(channel_index));
+                channel_item->setText(0, m_view_model->channelPrefix(channel_index));
                 channel_item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsUserCheckable);
                 channel_item->setCheckState(0,
                     m_view_model->receiverChecked(receiver_index, channel_index)
@@ -575,6 +589,7 @@ void MainView::inputFileButtonPressed()
         return;
 
     m_last_dir = QFileInfo(filename).absolutePath();
+    saveLastDir();
     m_view_model->openFile(filename);
 }
 
@@ -628,11 +643,11 @@ void MainView::onSettings()
 
 void MainView::onToggleTheme()
 {
-    QSettings app_settings("agcCh10toCSV", "agcCh10toCSV");
-    QString current_theme = app_settings.value("Theme", "dark").toString();
-    QString new_theme = (current_theme == "dark") ? "light" : "dark";
+    QSettings app_settings(UIConstants::kOrganizationName, UIConstants::kApplicationName);
+    QString current_theme = app_settings.value(UIConstants::kSettingsKeyTheme, UIConstants::kThemeDark).toString();
+    QString new_theme = (current_theme == UIConstants::kThemeDark) ? UIConstants::kThemeLight : UIConstants::kThemeDark;
 
-    QString qss_path = (new_theme == "light")
+    QString qss_path = (new_theme == UIConstants::kThemeLight)
         ? ":/resources/win11-light.qss"
         : ":/resources/win11-dark.qss";
 
@@ -644,10 +659,10 @@ void MainView::onToggleTheme()
         qss_file.close();
     }
 
-    app_settings.setValue("Theme", new_theme);
+    app_settings.setValue(UIConstants::kSettingsKeyTheme, new_theme);
 
     m_theme_action->setText(
-        (new_theme == "dark") ? "Switch to Light Theme" : "Switch to Dark Theme");
+        (new_theme == UIConstants::kThemeDark) ? "Switch to Light Theme" : "Switch to Dark Theme");
 }
 
 void MainView::timeAllCheckBoxToggled(bool checked)
@@ -710,9 +725,9 @@ void MainView::progressProcessButtonPressed()
             return;
         }
 
-        // Compare as composite value: DDD*86400 + HH*3600 + MM*60 + SS
-        long long start_total = s_ddd * 86400LL + s_hh * 3600LL + s_mm * 60LL + s_ss;
-        long long stop_total  = e_ddd * 86400LL + e_hh * 3600LL + e_mm * 60LL + e_ss;
+        // Compare as composite value: DDD*SecondsPerDay + HH*SecondsPerHour + MM*SecondsPerMinute + SS
+        long long start_total = s_ddd * (long long)UIConstants::kSecondsPerDay + s_hh * (long long)UIConstants::kSecondsPerHour + s_mm * (long long)UIConstants::kSecondsPerMinute + s_ss;
+        long long stop_total  = e_ddd * (long long)UIConstants::kSecondsPerDay + e_hh * (long long)UIConstants::kSecondsPerHour + e_mm * (long long)UIConstants::kSecondsPerMinute + e_ss;
         if (stop_total <= start_total)
         {
             QMessageBox::warning(this, "Invalid Time",
@@ -722,12 +737,13 @@ void MainView::progressProcessButtonPressed()
     }
 
     QString outfile = QFileDialog::getSaveFileName(this, tr("Save File"),
-                                                    m_last_dir + "/" + MainViewModel::generateOutputFilename(),
+                                                    m_last_dir + "/" + m_view_model->generateOutputFilename(),
                                                     tr("CSV Files (*.csv);;All Files (*.*)"));
     if (outfile.isEmpty())
         return;
 
     m_last_dir = QFileInfo(outfile).absolutePath();
+    saveLastDir();
 
     QStringList start_parts = m_start_time->text().split(":");
     QStringList stop_parts = m_stop_time->text().split(":");
@@ -768,6 +784,7 @@ void MainView::dropEvent(QDropEvent* event)
         if (file.endsWith(".ch10", Qt::CaseInsensitive))
         {
             m_last_dir = QFileInfo(file).absolutePath();
+            saveLastDir();
             m_view_model->openFile(file);
             return;
         }

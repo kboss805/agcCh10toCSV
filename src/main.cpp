@@ -1,3 +1,8 @@
+/**
+ * @file main.cpp
+ * @brief Application entry point — loads theme, creates MainView, and runs the event loop.
+ */
+
 #include "mainview.h"
 
 #include <QApplication>
@@ -6,13 +11,15 @@
 #include <QSettings>
 #include <QStyleFactory>
 
+#include "constants.h"
+
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
 
-    QSettings app_settings("agcCh10toCSV", "agcCh10toCSV");
-    QString theme = app_settings.value("Theme", "dark").toString();
-    QString qss_path = (theme == "light")
+    QSettings app_settings(UIConstants::kOrganizationName, UIConstants::kApplicationName);
+    QString theme = app_settings.value(UIConstants::kSettingsKeyTheme, UIConstants::kThemeDark).toString();
+    QString qss_path = (theme == UIConstants::kThemeLight)
         ? ":/resources/win11-light.qss"
         : ":/resources/win11-dark.qss";
 

@@ -7,13 +7,13 @@ This file provides context and guidelines for AI assistants working on the agcCh
 - **Qt Version**: 6.10.2
 - **MinGW Version**: 13.1.0
 - **C++ Standard**: C++17
-- **Project Version**: See MAJOR_VERSION, MINOR_VERSION, PATCH_VERSION in chapter10reader.h (currently 0.9.0)
+- **Project Version**: 2.0.0 — defined in `AppVersion` struct in `include/constants.h`
 
 - **Target Users:** Telemetry engineers and data analysts who need to convert RCC IRIG 106 chapter 10 formated files that include automatic gain control (AGC) signals information from telmetery receivers to comma separated values so AGC signals can be plotted and analyzed in capplications like Microsoft Excel or Matlab. 
 
 ## Project Overview
 
-**agcCh10toCSV** is a Qt 6 desktop application that converts AGC sample data in IRIG 106 Chapter 10 telemetry recording files (.ch10) to CSV formatted files. The application is built using Qt Widgets with a custom dark theme UI.
+**agcCh10toCSV** is a Qt 6 desktop application that converts AGC sample data in IRIG 106 Chapter 10 telemetry recording files (.ch10) to CSV formatted files. The application is built using Qt Widgets with Windows 11 styled dark and light themes.
 
 ## User Stories (v1.0 Requirements)
 
@@ -77,26 +77,39 @@ This file provides context and guidelines for AI assistants working on the agcCh
 - ✅ Uses my defined polarity (positive/negative) and slope (dB/V) to properly convert from integer V to decimal dB
 - ✅ Default polarity and slope values are extracted from a configuraion file
 
-## Future Version Functions
+## Version History
 
-### v1.0 — Release Candidate
+### v1.0 — Initial Release
 - All v1.0 user stories complete (US1–US5 above)
 - Automated unit tests (Qt Test framework)
-- Installer / deployment packaging
 
-### v1.1 — Usability Improvements
-- Drag-and-drop .ch10 file loading
+### v2.0 — Code Quality & Usability
+- ✅ Drag-and-drop .ch10 file loading
+- ✅ Dark and light theme toggle with Windows 11 / WinUI 3 styling
+- ✅ QComboBox dropdown chevron arrows respecting theme
+- ✅ QToolButton hover/pressed states
+- ✅ Persistent last-opened directory via QSettings
+- ✅ All static functions moved into classes
+- ✅ Magic numbers extracted to named constants
+- ✅ Performance: pre-allocated buffers, throttled progress, batched CSV writes
+- ✅ Full Doxygen @file/@brief documentation on all source files
+- ✅ Version defined in AppVersion struct (no more #defines)
+
+## Future Version Functions
+
+### v2.1 — Usability Improvements
 - Recent files list (File menu)
 - Cancel/abort in-progress processing
 - Status bar with file metadata summary
+- Installer / deployment packaging
 
-### v1.2 — Extended Format Support
+### v2.2 — Extended Format Support
 - Configurable CSV delimiter (comma, tab, semicolon)
 - Additional PCM code formats beyond NRZ-L and RNRZ-L
 - Export to additional output formats (e.g., JSON, HDF5)
 - Batch processing of multiple .ch10 files
 
-### v2.0 — Analysis and Visualization
+### v3.0 — Analysis and Visualization
 - Built-in AGC signal plotting (time-series chart)
 - Real-time preview of AGC data during processing
 - Statistical summary in output (min, max, mean, std dev)
@@ -166,7 +179,7 @@ The application follows the **MVVM (Model-View-ViewModel)** pattern:
    - Created fresh per processing run, moved to a worker thread, auto-deleted via `deleteLater`
    - Owns its own irig106 file handle, buffers, and TMATS metadata
    - `process()` method takes channel IDs (not indices) and emits progress/completion signals
-   - Absorbs the former `chapter10reader_helper.cpp` functions (`FreeChanInfoTable`, `AssembleAttributesFromTMATS`)
+   - Private helper methods: `freeChanInfoTable()`, `assembleAttributesFromTMATS()`, `derandomizeBitstream()`, `hasSyncPattern()`
 
 6. **SettingsManager** (`src/settingsmanager.cpp`, `include/settingsmanager.h`) — *Model*
    - Handles saving/loading user preferences using QSettings
@@ -182,8 +195,9 @@ The application follows the **MVVM (Model-View-ViewModel)** pattern:
 
 ### Constants and Data Structures
 
-- **`PCMConstants`** namespace (in `include/constants.h`) — Named constants for PCM frame parameters (word count, frame length, sync pattern length, time rounding, channel type identifiers)
-- **`UIConstants`** namespace (in `include/constants.h`) — Named constants for UI configuration (receiver count, default slope/scale, button text, time validation limits, sample rates, output filename format)
+- **`AppVersion`** struct (in `include/constants.h`) — Version information with `kMajor`, `kMinor`, `kPatch` and `toString()`
+- **`PCMConstants`** namespace (in `include/constants.h`) — Named constants for PCM frame parameters (word count, frame length, sync pattern length, time rounding, channel type identifiers, max raw sample value, default buffer size, progress report interval)
+- **`UIConstants`** namespace (in `include/constants.h`) — Named constants for UI configuration (QSettings keys, theme identifiers, receiver grid layout, time conversion, receiver count, default slope/scale, button text, time validation limits, sample rates, output filename format)
 - **`SettingsData`** struct (in `include/settingsdata.h`) — Value type used to transfer UI state between MainViewModel and SettingsManager without `friend class` coupling
 - **`SuChanInfo`** typedef (in `include/frameprocessor.h`) — Per-channel bookkeeping struct for the irig106 C helper layer
 

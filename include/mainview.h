@@ -118,6 +118,7 @@ private:
     void setAllStartStopTimesEnabled(bool enabled);     ///< Enables or disables start/stop time fields.
     void fillAllStartStopTimes();                       ///< Populates time fields from ViewModel file times.
     void clearAllStartStopTimes();                      ///< Clears all start/stop time fields.
+    void saveLastDir();                                  ///< Persists m_last_dir to QSettings.
     /// @}
 
     MainViewModel* m_view_model;             ///< Owning ViewModel instance.

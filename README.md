@@ -1,6 +1,6 @@
 # Chapter 10 to CSV AGC Converter (agcCh10toCSV)
 
-A desktop application for extracting, processing, exporting multiplexted receiver Automatic Gain Control (AGC) signal samples in IRIG 106 Chapter 10 telemetry files. The exported can be imported into 3rd party applications like Microsoft Excel and MATLAB for analyzing and plotting the AGC signal samples.
+A desktop application for extracting, processing, and exporting multiplexed receiver Automatic Gain Control (AGC) signal samples from IRIG 106 Chapter 10 telemetry files. The exported data can be imported into 3rd party applications like Microsoft Excel and MATLAB for analyzing and plotting AGC signal samples.
 
 ## Overview
 
@@ -12,11 +12,14 @@ This application reads IRIG 106 Chapter 10 (.ch10) files, extracts telemetry dat
 - **Channel Selection**: Choose specific time and PCM channels for data extraction
 - **Time Range Filtering**: Specify start and stop times (Day of Year, Hour, Minute, Second)
 - **Frame Configuration**: Configure frame synchronization, randomization, and setup parameters
-- **AGC Processing**: Extract and process Automatic Gain Control data
-- **Receiver Selection**: Enable/disable specific receivers (1-16)
-- **Settings Management**: Save and load processing configurations
-- **CSV Export**: Output processed data in CSV format
-- **Dark Theme UI**: Modern dark theme interface (win11-dark.qss)
+- **AGC Processing**: Extract and process Automatic Gain Control data with V-to-dB conversion
+- **Receiver Selection**: Enable/disable specific receivers and channels per receiver
+- **Settings Management**: Save and load processing configurations from INI files
+- **CSV Export**: Output processed data in CSV format with auto-generated timestamped filenames
+- **Dark & Light Themes**: Windows 11 / WinUI 3 styled dark and light themes with runtime toggle
+- **Drag-and-Drop**: Drop .ch10 files directly onto the application window
+- **Persistent Directory**: Remembers the last opened folder between sessions
+- **Sample Rate Options**: 1 Hz, 10 Hz, or 20 Hz output sample rates
 
 ## System Requirements
 
@@ -65,37 +68,31 @@ To build and debug:
 ## Usage
 
 1. **Load Input File**
-   - Click "..." to browse for a Chapter 10 (.ch10) file
-   - The application will parse the file and populate available channels
+   - Click the folder icon in the toolbar to browse for a Chapter 10 (.ch10) file
+   - Or drag and drop a .ch10 file onto the application window
 
 2. **Select Channels**
    - Choose a Time Channel from the dropdown
    - Choose a PCM Channel from the dropdown
 
 3. **Configure Frame Settings**
-   - Select randomization option
-   - Enter frame sync pattern (hexadecimal)
-   - Load frame setup file if needed
+   - Open Settings dialog from the File menu
+   - Configure frame sync pattern, polarity, scale, and range
+   - Or load settings from an INI configuration file
 
-4. **Set Parameters**
-   - Check "Use AGC info from Frame Setup File" to use default settings
-   - Or configure polarity, slope, and scale manually
+4. **Configure Receivers**
+   - Select receivers and channels to include in the export
+   - Use the tree checkboxes to enable/disable individual channels
 
-5. **Configure Receivers**
-   - Select "All" to enable all receivers
-   - Or individually select receivers 1-16
-
-6. **Set Time Range**
+5. **Set Time Range**
    - Check "All" to process entire file
    - Or specify start/stop times (DDD HH:MM:SS format)
-   - Select sample rate and time format
+   - Select sample rate (1 Hz, 10 Hz, or 20 Hz)
 
-7. **Specify Output**
-   - Enter output CSV file path
-
-8. **Process**
-   - Click "Process" to begin conversion
-   - Monitor progress and status
+6. **Process**
+   - Click the play icon in the toolbar to begin conversion
+   - Choose output CSV file location
+   - Monitor progress in the progress bar and log window
 
 ## Project Structure
 
@@ -104,7 +101,7 @@ agcCH10toCSV/
 ├── src/                        # Source files
 │   ├── main.cpp               # Application entry point
 │   ├── mainview.cpp           # Main GUI window (View)
-│   ├── configdialog.cpp       # Configuration dialog (View)
+│   ├── settingsdialog.cpp     # Settings dialog (View)
 │   ├── mainviewmodel.cpp      # Application logic (ViewModel)
 │   ├── chapter10reader.cpp    # Chapter 10 file metadata (Model)
 │   ├── frameprocessor.cpp     # PCM frame extraction and CSV output (Model)
@@ -113,7 +110,7 @@ agcCH10toCSV/
 │   └── settingsmanager.cpp    # Settings persistence (Model)
 ├── include/                    # Header files
 │   ├── mainview.h
-│   ├── configdialog.h
+│   ├── settingsdialog.h
 │   ├── mainviewmodel.h
 │   ├── chapter10reader.h
 │   ├── frameprocessor.h
@@ -125,11 +122,19 @@ agcCH10toCSV/
 ├── lib/irig106/                # Third-party IRIG 106 library
 │   ├── src/                   # irig106utils C source files
 │   └── include/               # irig106utils C header files
+├── tests/                      # Qt Test framework unit tests
 ├── config/                     # Default and user configuration files
 ├── resources/                  # Resources (stylesheets, icons)
-│   └── win11-dark.qss        # Dark theme stylesheet
+│   ├── win11-dark.qss         # Dark theme stylesheet
+│   ├── win11-light.qss        # Light theme stylesheet
+│   ├── chevron-down-*.svg     # Combo box dropdown arrow icons
+│   ├── checkmark.svg          # Checkbox checkmark icon
+│   ├── folder-open.svg        # Toolbar open icon
+│   ├── play.svg               # Toolbar process icon
+│   └── icon.ico               # Application icon
 ├── .vscode/                    # VS Code configuration
 ├── agcCh10toCSV.pro            # Qt project file
+├── CLAUDE.md                   # AI assistant guide
 └── README.md                   # This file
 ```
 

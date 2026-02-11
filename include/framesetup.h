@@ -61,7 +61,11 @@ public:
     void clearParameters();
 
 private:
-    QList<ParameterInfo> m_parameters; ///< Ordered list of frame parameters.
+    /// Reads INI section names in the order they appear in the file.
+    QStringList readGroupsInFileOrder(const QString& filename) const;
+
+    static const QStringList kSettingsGroups; ///< Reserved INI group names to skip.
+    QList<ParameterInfo> m_parameters;        ///< Ordered list of frame parameters.
 };
 
 #endif // FRAMESETUP_H

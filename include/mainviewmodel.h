@@ -133,15 +133,15 @@ public:
     void saveFrameSetupTo(QSettings& settings);
     /// @}
 
-    /// @name Static helpers
+    /// @name Helpers
     /// @{
 
     /// @return Channel prefix string ("L", "R", "C", ...) for the given index.
-    static QString channelPrefix(int index);
+    QString channelPrefix(int index) const;
     /// @return Full parameter name (e.g., "L_RCVR1") for a channel/receiver pair.
-    static QString parameterName(int channel_index, int receiver_index);
+    QString parameterName(int channel_index, int receiver_index) const;
     /// @return Auto-generated timestamped output CSV filename.
-    static QString generateOutputFilename();
+    QString generateOutputFilename() const;
     /// @}
 
     /// @name Model accessors
@@ -238,9 +238,9 @@ private:
                                    int sample_rate_index);
 
     /// Validates and parses day/hour/minute/second time field strings.
-    static bool validateTimeFields(const QString& ddd, const QString& hh,
-                                    const QString& mm, const QString& ss,
-                                    int& out_ddd, int& out_hh, int& out_mm, int& out_ss);
+    bool validateTimeFields(const QString& ddd, const QString& hh,
+                             const QString& mm, const QString& ss,
+                             int& out_ddd, int& out_hh, int& out_mm, int& out_ss) const;
 
     /// Applies calibration slope/scale to each enabled frame parameter.
     bool prepareFrameSetupParameters(double scale_lower_bound,

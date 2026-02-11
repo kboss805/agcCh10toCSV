@@ -151,40 +151,6 @@ QPushButton::disabled
 }
 
 
-/*-----QPushButton (accent)-----*/
-QPushButton#m_process_btn
-{
-    background-color: #005FB8;
-    color: #FFFFFF;
-    border: 1px solid #005FB8;
-    border-radius: 4px;
-    padding: 5px 12px;
-    font-weight: 600;
-}
-
-
-QPushButton#m_process_btn:hover
-{
-    background-color: #0067C0;
-    border: 1px solid #0067C0;
-}
-
-
-QPushButton#m_process_btn:pressed
-{
-    background-color: #003D92;
-    border: 1px solid #003D92;
-}
-
-
-QPushButton#m_process_btn:disabled
-{
-    background-color: #F5F5F5;
-    color: rgba(27, 27, 27, 0.36);
-    border: 1px solid #E5E5E5;
-}
-
-
 /*-----QComboBox-----*/
 QComboBox
 {
@@ -242,10 +208,24 @@ QComboBox::drop-down
 }
 
 
+QComboBox:focus
+{
+    border: 1px solid #EBEBEB;
+    border-bottom: 2px solid #005FB8;
+}
+
+
 QComboBox::down-arrow
 {
-    width: 8px;
-    height: 8px;
+    image: url(:/resources/chevron-down-light.svg);
+    width: 10px;
+    height: 10px;
+}
+
+
+QComboBox::down-arrow:disabled
+{
+    image: url(:/resources/chevron-down-disabled-light.svg);
 }
 
 
@@ -661,6 +641,29 @@ QToolBar::separator
     width: 1px;
     background-color: #E5E5E5;
     margin: 4px 2px;
+}
+
+
+/*-----QToolButton-----*/
+QToolButton
+{
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 4px;
+}
+
+
+QToolButton:hover
+{
+    background-color: #F6F6F6;
+    border: 1px solid #EBEBEB;
+}
+
+
+QToolButton:pressed
+{
+    background-color: #F0F0F0;
 }
 
 

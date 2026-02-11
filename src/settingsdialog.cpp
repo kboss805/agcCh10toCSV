@@ -1,3 +1,8 @@
+/**
+ * @file settingsdialog.cpp
+ * @brief Implementation of SettingsDialog — modal settings editor.
+ */
+
 #include "settingsdialog.h"
 
 #include <QDialogButtonBox>

@@ -24,12 +24,6 @@
 #include "channeldata.h"
 #include "constants.h"
 
-/// @name Version
-/// @{
-#define MAJOR_VERSION "0"
-#define MINOR_VERSION "9"
-#define PATCH_VERSION "0"
-/// @}
 
 /**
  * @brief Reads IRIG 106 Chapter 10 file metadata and manages channel selection.

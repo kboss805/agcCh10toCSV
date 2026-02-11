@@ -1,16 +1,19 @@
+/**
+ * @file framesetup.cpp
+ * @brief Implementation of FrameSetup — INI-based frame parameter loading.
+ */
+
 #include "framesetup.h"
 
 #include <QFile>
 #include <QRegularExpression>
 #include <QTextStream>
 
-namespace {
-const QStringList kSettingsGroups = {
+const QStringList FrameSetup::kSettingsGroups = {
     "Defaults", "Channels", "Frame", "Parameters", "Time", "Receivers", "Bounds"
 };
 
-/// Reads INI section names in the order they appear in the file.
-QStringList readGroupsInFileOrder(const QString& filename)
+QStringList FrameSetup::readGroupsInFileOrder(const QString& filename) const
 {
     QFile file(filename);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
@@ -30,7 +33,6 @@ QStringList readGroupsInFileOrder(const QString& filename)
 
     return groups;
 }
-} // namespace
 
 FrameSetup::FrameSetup(QObject* parent) :
     QObject(parent)

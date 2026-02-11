@@ -1,3 +1,8 @@
+/**
+ * @file settingsmanager.cpp
+ * @brief Implementation of SettingsManager — INI file persistence.
+ */
+
 #include "settingsmanager.h"
 
 #include <QSettings>
