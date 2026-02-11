@@ -1,12 +1,15 @@
 #include "mainview.h"
 
+#include <QApplication>
 #include <QDebug>
+#include <QGridLayout>
 #include <QMessageBox>
 #include <QPixmap>
+#include <QSettings>
 #include <QSignalBlocker>
 #include <QTime>
 
-#include "configdialog.h"
+#include "settingsdialog.h"
 #include "constants.h"
 #include "mainviewmodel.h"
 
@@ -16,6 +19,8 @@ MainView::MainView(QWidget *parent)
       m_updating_from_viewmodel(false)
 {
     m_view_model = new MainViewModel(this);
+
+    setAcceptDrops(true);
 
     setUpMainLayout();
 
@@ -32,9 +37,6 @@ MainView::~MainView()
 
 void MainView::setUpMainLayout()
 {
-    // allocate memory
-    m_central_widget = new QWidget;
-    m_central_layout = new QHBoxLayout;
     m_controls_layout = new QVBoxLayout;
 
     // set up constituent parts
@@ -44,37 +46,40 @@ void MainView::setUpMainLayout()
     setUpReceiversSection();
     setUpTimeSection();
 
-    m_progress_bar_layout = new QHBoxLayout;
     m_progress_bar = new QProgressBar;
     m_progress_bar->setMinimum(0);
     m_progress_bar->setMaximum(100);
     m_progress_bar->setValue(0);
-    m_process_btn = new QPushButton(UIConstants::kButtonTextStart);
-    m_process_btn->setObjectName("m_process_btn");
-    m_progress_bar_layout->addWidget(m_progress_bar);
-    m_progress_bar_layout->addSpacing(16);
-    m_progress_bar_layout->addWidget(m_process_btn);
 
+    m_input_file = new QLineEdit;
+    m_input_file->setReadOnly(true);
+    m_input_file->setPlaceholderText("No file loaded");
+
+    m_controls_layout->addWidget(m_input_file);
     m_controls_layout->addLayout(m_time_channel_layout);
     m_controls_layout->addLayout(m_pcm_channel_layout);
     m_controls_layout->addWidget(m_receivers_section);
     m_controls_layout->addWidget(m_time_section);
-    m_controls_layout->addLayout(m_progress_bar_layout);
+    m_controls_layout->addWidget(m_progress_bar);
     m_controls_layout->addStretch(1);
 
+    // Central widget is just the controls
+    QWidget* controls_widget = new QWidget;
+    controls_widget->setLayout(m_controls_layout);
+    setCentralWidget(controls_widget);
+
+    // Log in a dock widget (right side)
     m_log_window = new QPlainTextEdit;
     m_log_window->setReadOnly(true);
     m_log_window->setMinimumWidth(300);
 
-    QWidget* controls_widget = new QWidget;
-    controls_widget->setLayout(m_controls_layout);
-
-    m_central_layout->addWidget(controls_widget, 0);
-    m_central_layout->addWidget(m_log_window, 1);
+    m_log_dock = new QDockWidget("Log", this);
+    m_log_dock->setWidget(m_log_window);
+    m_log_dock->setFeatures(QDockWidget::DockWidgetMovable |
+                             QDockWidget::DockWidgetFloatable);
+    addDockWidget(Qt::RightDockWidgetArea, m_log_dock);
 
     // additional settings
-    m_central_widget->setLayout(m_central_layout);
-    setCentralWidget(m_central_widget);
     setWindowTitle("Chapter 10 to CSV AGC Converter");
 
     // Initialize UI to disabled state
@@ -97,7 +102,6 @@ void MainView::setUpMainLayout()
     m_sample_rate->setCurrentIndex(0);
 
     m_progress_bar->setValue(0);
-    m_process_btn->setEnabled(false);
 
     resize(minimumSizeHint());
 }
@@ -107,14 +111,19 @@ void MainView::setUpMenuBar()
     QMenuBar* menu_bar = menuBar();
     QMenu* file_menu = menu_bar->addMenu("&File");
 
-    m_open_file_action = file_menu->addAction("Open Ch10 File...");
-    file_menu->addSeparator();
     QAction* settings_action = file_menu->addAction("Settings...");
     file_menu->addSeparator();
+
+    QSettings app_settings("agcCh10toCSV", "agcCh10toCSV");
+    QString current_theme = app_settings.value("Theme", "dark").toString();
+    m_theme_action = file_menu->addAction(
+        (current_theme == "dark") ? "Switch to Light Theme" : "Switch to Dark Theme");
+    file_menu->addSeparator();
+
     QAction* exit_action = file_menu->addAction("Exit");
 
-    connect(m_open_file_action, &QAction::triggered, this, &MainView::inputFileButtonPressed);
     connect(settings_action, &QAction::triggered, this, &MainView::onSettings);
+    connect(m_theme_action, &QAction::triggered, this, &MainView::onToggleTheme);
     connect(exit_action, &QAction::triggered, this, &QMainWindow::close);
 
     QMenu* help_menu = menu_bar->addMenu("&Help");
@@ -131,30 +140,44 @@ void MainView::setUpMenuBar()
             "and exports receiver channel samples to CSV format.</p>");
         about_box.exec();
     });
+
+    // Toolbar
+    m_toolbar = addToolBar("Main");
+    m_toolbar->setMovable(false);
+    m_toolbar->setFloatable(false);
+    m_toolbar->setToolButtonStyle(Qt::ToolButtonIconOnly);
+    m_toolbar->setIconSize(QSize(24, 24));
+
+    m_toolbar_open_action = m_toolbar->addAction(
+        QIcon(":/resources/folder-open.svg"), "Open Ch10 File");
+    m_toolbar_open_action->setToolTip("Open Ch10 File");
+    connect(m_toolbar_open_action, &QAction::triggered,
+            this, &MainView::inputFileButtonPressed);
+
+    m_toolbar->addSeparator();
+
+    m_process_action = m_toolbar->addAction(
+        QIcon(":/resources/play.svg"), "Process");
+    m_process_action->setToolTip("Process Ch10 to CSV");
+    m_process_action->setEnabled(false);
+    connect(m_process_action, &QAction::triggered,
+            this, &MainView::progressProcessButtonPressed);
 }
 
 void MainView::setUpTimeChannelRow()
 {
     m_time_channel_layout = new QHBoxLayout;
-
-    QLabel* time_label = new QLabel("Time Channel: ");
+    m_time_channel_layout->addWidget(new QLabel("Time Channel"));
     m_time_channel = new QComboBox;
-    m_time_channel->setMinimumWidth(300);
-
-    m_time_channel_layout->addWidget(time_label);
-    m_time_channel_layout->addWidget(m_time_channel);
+    m_time_channel_layout->addWidget(m_time_channel, 1);
 }
 
 void MainView::setUpPCMChannelRow()
 {
     m_pcm_channel_layout = new QHBoxLayout;
-
-    QLabel* pcm_label = new QLabel("PCM Channel: ");
+    m_pcm_channel_layout->addWidget(new QLabel("PCM Channel"));
     m_pcm_channel = new QComboBox;
-    m_pcm_channel->setMinimumWidth(300);
-
-    m_pcm_channel_layout->addWidget(pcm_label);
-    m_pcm_channel_layout->addWidget(m_pcm_channel);
+    m_pcm_channel_layout->addWidget(m_pcm_channel, 1);
 }
 
 void MainView::setUpReceiversSection()
@@ -189,15 +212,24 @@ void MainView::rebuildReceiversGrid()
 
     int receiver_count = m_view_model->receiverCount();
     int channel_count = m_view_model->channelsPerReceiver();
-    const int num_columns = 4;
-    int per_column = (receiver_count + num_columns - 1) / num_columns;
+    if (receiver_count <= 0)
+        return;
 
-    // Receiver trees in side-by-side columns
+    // Expand/Collapse All button
+    QPushButton* toggle_btn = new QPushButton("Expand All");
+    toggle_btn->setFlat(true);
+    m_receivers_section_layout->addWidget(toggle_btn, 0, Qt::AlignLeft);
+
+    // Four columns of receiver trees
+    const int num_columns = 4;
+    int actual_columns = qMin(num_columns, receiver_count);
+    int per_column = (receiver_count + actual_columns - 1) / actual_columns;
+
     QHBoxLayout* columns_layout = new QHBoxLayout;
     columns_layout->setSpacing(2);
     columns_layout->setContentsMargins(0, 0, 0, 0);
 
-    for (int col = 0; col < num_columns; col++)
+    for (int col = 0; col < actual_columns; col++)
     {
         int start = col * per_column;
         int end = qMin(start + per_column, receiver_count);
@@ -209,8 +241,12 @@ void MainView::rebuildReceiversGrid()
         tree->setColumnCount(1);
         tree->setRootIsDecorated(true);
         tree->setAnimated(true);
+        tree->setIndentation(0);
+        tree->setFixedWidth(100);
         tree->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-        tree->setMinimumHeight(120);
+        tree->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+        // Fixed height fits all collapsed receivers; scrollbar appears when expanded
+        tree->setFixedHeight(per_column * 28 + 10);
 
         for (int receiver_index = start; receiver_index < end; receiver_index++)
         {
@@ -233,10 +269,6 @@ void MainView::rebuildReceiversGrid()
             tree->addTopLevelItem(receiver_item);
         }
 
-        // Size each tree to exactly fit the widest item (expanded children)
-        tree->expandAll();
-        tree->resizeColumnToContents(0);
-        tree->setFixedWidth(tree->columnWidth(0) + tree->frameWidth() * 2 + 4);
         tree->collapseAll();
 
         connect(tree, &QTreeWidget::itemChanged,
@@ -248,124 +280,71 @@ void MainView::rebuildReceiversGrid()
 
     columns_layout->addStretch(1);
     m_receivers_section_layout->addLayout(columns_layout);
+
+    // Hide scrollbar on non-last columns; sync all from the visible one
+    if (m_receiver_trees.size() > 1)
+    {
+        QScrollBar* visible_bar = m_receiver_trees.last()->verticalScrollBar();
+        for (int i = 0; i < m_receiver_trees.size() - 1; i++)
+        {
+            m_receiver_trees[i]->verticalScrollBar()->setFixedWidth(0);
+            connect(visible_bar, &QScrollBar::valueChanged,
+                    m_receiver_trees[i]->verticalScrollBar(), &QScrollBar::setValue);
+        }
+    }
+
+    // Connect expand/collapse toggle
+    connect(toggle_btn, &QPushButton::clicked, this, [this, toggle_btn]() {
+        bool any_collapsed = false;
+        for (QTreeWidget* t : m_receiver_trees)
+            for (int i = 0; i < t->topLevelItemCount(); i++)
+                if (!t->topLevelItem(i)->isExpanded())
+                    any_collapsed = true;
+
+        for (QTreeWidget* t : m_receiver_trees)
+        {
+            if (any_collapsed)
+                t->expandAll();
+            else
+                t->collapseAll();
+        }
+        toggle_btn->setText(any_collapsed ? "Collapse All" : "Expand All");
+    });
 }
 
 void MainView::setUpTimeSection()
 {
-    // allocate memory
     m_time_section = new QGroupBox("Time");
-    QVBoxLayout* time_section_layout = new QVBoxLayout;
+    QGridLayout* time_grid = new QGridLayout;
 
-    // set up constituent parts
-    setUpTimeSectionRow1();
-    setUpTimeSectionRow2();
-    setUpTimeSectionRow3();
-
-    // add each constituent part
-    time_section_layout->addItem(m_time_all_layout);
-    time_section_layout->addItem(m_time_start_stop_layout);
-    time_section_layout->addItem(m_sample_rate_layout);
-    m_time_section->setLayout(time_section_layout);
-}
-
-void MainView::setUpTimeSectionRow1()
-{
-    // allocate memory
-    m_time_all_layout = new QHBoxLayout;
-
-    // set up constituent parts
     m_time_all = new QCheckBox("Extract All Time");
-
-    // add each constituent part
-    m_time_all_layout->addWidget(m_time_all);
-}
-
-void MainView::setUpTimeSectionRow2()
-{
-    // allocate memory
-    m_time_start_stop_layout = new QVBoxLayout;
-
-    // set up constituent parts
-    setUpTimeSectionRow2StartTime();
-    setUpTimeSectionRow2StopTime();
-
-    // add each constituent part
-    m_time_start_stop_layout->addItem(m_time_start_section);
-    m_time_start_stop_layout->addItem(m_time_stop_section);
-}
-
-void MainView::setUpTimeSectionRow2StartTime()
-{
-    setUpTimeInputGroup("Start Time:", m_time_start_section,
-                        m_start_ddd, m_start_hh,
-                        m_start_mm, m_start_ss);
-}
-
-void MainView::setUpTimeSectionRow2StopTime()
-{
-    setUpTimeInputGroup("Stop Time:", m_time_stop_section,
-                        m_stop_ddd, m_stop_hh,
-                        m_stop_mm, m_stop_ss);
-}
-
-void MainView::setUpTimeInputGroup(const QString& label, QVBoxLayout*& section,
-                                     QLineEdit*& ddd, QLineEdit*& hh, QLineEdit*& mm, QLineEdit*& ss)
-{
-    section = new QVBoxLayout;
-
-    QHBoxLayout* header_row = new QHBoxLayout;
-    header_row->addWidget(new QLabel(label));
-
-    QGridLayout* input_row = new QGridLayout;
-    input_row->setHorizontalSpacing(2);
-
-    int two_char_width = 40;
-    int three_char_width = 48;
-
-    ddd = new QLineEdit;
-    ddd->setAlignment(Qt::AlignCenter);
-    ddd->setMinimumWidth(three_char_width);
-    hh = new QLineEdit;
-    hh->setAlignment(Qt::AlignCenter);
-    hh->setMinimumWidth(two_char_width);
-    mm = new QLineEdit;
-    mm->setAlignment(Qt::AlignCenter);
-    mm->setMinimumWidth(two_char_width);
-    ss = new QLineEdit;
-    ss->setAlignment(Qt::AlignCenter);
-    ss->setMinimumWidth(two_char_width);
-    input_row->addWidget(ddd, 0, 0);
-    input_row->addWidget(new QLabel(":"), 0, 1);
-    input_row->addWidget(hh, 0, 2);
-    input_row->addWidget(new QLabel(":"), 0, 3);
-    input_row->addWidget(mm, 0, 4);
-    input_row->addWidget(new QLabel(":"), 0, 5);
-    input_row->addWidget(ss, 0, 6);
-    input_row->addWidget(new QLabel("DDD"), 1, 0, Qt::AlignCenter);
-    input_row->addWidget(new QLabel("HH"), 1, 2, Qt::AlignCenter);
-    input_row->addWidget(new QLabel("MM"), 1, 4, Qt::AlignCenter);
-    input_row->addWidget(new QLabel("SS"), 1, 6, Qt::AlignCenter);
-
-    section->addItem(header_row);
-    section->addItem(input_row);
-}
-
-void MainView::setUpTimeSectionRow3()
-{
-    // allocate memory
-    m_sample_rate_layout = new QHBoxLayout;
-
-    // set up constituent parts
-    m_sample_rate = new QComboBox();
-
-    // add each constituent part
-    m_sample_rate_layout->addWidget(new QLabel("Sample Rate:"));
-    m_sample_rate_layout->addWidget(m_sample_rate);
-
-    // initial settings for parts
+    m_sample_rate = new QComboBox;
     m_sample_rate->addItem(QString::number(UIConstants::kSampleRate1Hz) + " Hz");
     m_sample_rate->addItem(QString::number(UIConstants::kSampleRate10Hz) + " Hz");
     m_sample_rate->addItem(QString::number(UIConstants::kSampleRate20Hz) + " Hz");
+
+    m_start_time = new QLineEdit;
+    m_start_time->setInputMask("000:00:00:00;_");
+    m_start_time->setPlaceholderText("DDD:HH:MM:SS");
+    m_start_time->setMaximumWidth(100);
+
+    m_stop_time = new QLineEdit;
+    m_stop_time->setInputMask("000:00:00:00;_");
+    m_stop_time->setPlaceholderText("DDD:HH:MM:SS");
+    m_stop_time->setMaximumWidth(100);
+
+    // Row 0: Extract All Time (spans 0-1) | <stretch> | Sample Rate: | combo
+    // Row 1: Start | start input          | <stretch> | Stop         | stop input
+    time_grid->addWidget(m_time_all,                0, 0, 1, 2);
+    time_grid->addWidget(new QLabel("Sample Rate:"), 0, 3);
+    time_grid->addWidget(m_sample_rate,             0, 4);
+    time_grid->addWidget(new QLabel("Start"),       1, 0);
+    time_grid->addWidget(m_start_time,              1, 1);
+    time_grid->addWidget(new QLabel("Stop"),        1, 3);
+    time_grid->addWidget(m_stop_time,               1, 4);
+
+    time_grid->setColumnStretch(2, 1);
+    m_time_section->setLayout(time_grid);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -386,9 +365,11 @@ void MainView::setUpConnections()
 
     // View -> View: local UI toggles
     connect(m_time_all, &QAbstractButton::toggled, this, &MainView::timeAllCheckBoxToggled);
-    connect(m_process_btn, &QAbstractButton::pressed, this, &MainView::progressProcessButtonPressed);
 
     // ViewModel -> View: data binding
+    connect(m_view_model, &MainViewModel::inputFilenameChanged, this, [this]() {
+        m_input_file->setText(m_view_model->inputFilename());
+    });
     connect(m_view_model, &MainViewModel::channelListsChanged, this, &MainView::onChannelListsChanged);
     connect(m_view_model, &MainViewModel::fileLoadedChanged, this, &MainView::onFileLoadedChanged);
     connect(m_view_model, &MainViewModel::fileTimesChanged, this, &MainView::onFileTimesChanged);
@@ -442,7 +423,7 @@ void MainView::onFileLoadedChanged()
     setAllNumberedReceiversEnabled(loaded);
     m_time_all->setEnabled(loaded);
     m_sample_rate->setEnabled(loaded);
-    m_process_btn->setEnabled(loaded);
+    m_process_action->setEnabled(loaded);
 
     if (loaded)
     {
@@ -473,7 +454,7 @@ void MainView::onFileLoadedChanged()
         m_sample_rate->setCurrentIndex(0);
 
         m_progress_bar->setValue(0);
-        m_process_btn->setEnabled(false);
+        m_process_action->setEnabled(false);
     }
 }
 
@@ -496,12 +477,10 @@ void MainView::onProcessingChanged()
         setAllControlsEnabled(false);
         m_log_window->clear();
         m_progress_bar->setValue(0);
-        m_process_btn->setText(UIConstants::kButtonTextProcessing);
     }
     else
     {
         setAllControlsEnabled(true);
-        m_process_btn->setText(UIConstants::kButtonTextStart);
     }
 }
 
@@ -601,7 +580,7 @@ void MainView::inputFileButtonPressed()
 
 void MainView::onSettings()
 {
-    ConfigDialog dialog(this);
+    SettingsDialog dialog(this);
     dialog.setFrameSync(m_view_model->frameSync());
     dialog.setNegativePolarity(m_view_model->negativePolarity());
     dialog.setScaleIndex(m_view_model->scaleIndex());
@@ -609,7 +588,7 @@ void MainView::onSettings()
     dialog.setReceiverCount(m_view_model->receiverCount());
     dialog.setChannelsPerReceiver(m_view_model->channelsPerReceiver());
 
-    connect(&dialog, &ConfigDialog::loadRequested, this, [this, &dialog]() {
+    connect(&dialog, &SettingsDialog::loadRequested, this, [this, &dialog]() {
         QString filename = QFileDialog::getOpenFileName(this, tr("Open File"),
                                                         m_view_model->appRoot() + "/config",
                                                         tr("Configuration Settings Files (*.ini)"));
@@ -627,8 +606,8 @@ void MainView::onSettings()
         dialog.setChannelsPerReceiver(m_view_model->channelsPerReceiver());
     });
 
-    connect(&dialog, &ConfigDialog::saveAsRequested, this, [this, &dialog]() {
-        m_view_model->applyConfig(dialog.frameSync(), dialog.negativePolarity(),
+    connect(&dialog, &SettingsDialog::saveAsRequested, this, [this, &dialog]() {
+        m_view_model->applySettings(dialog.frameSync(), dialog.negativePolarity(),
                                    dialog.scaleIndex(), dialog.range(),
                                    dialog.receiverCount(), dialog.channelsPerReceiver());
 
@@ -641,23 +620,42 @@ void MainView::onSettings()
 
     if (dialog.exec() == QDialog::Accepted)
     {
-        m_view_model->applyConfig(dialog.frameSync(), dialog.negativePolarity(),
+        m_view_model->applySettings(dialog.frameSync(), dialog.negativePolarity(),
                                    dialog.scaleIndex(), dialog.range(),
                                    dialog.receiverCount(), dialog.channelsPerReceiver());
     }
 }
 
+void MainView::onToggleTheme()
+{
+    QSettings app_settings("agcCh10toCSV", "agcCh10toCSV");
+    QString current_theme = app_settings.value("Theme", "dark").toString();
+    QString new_theme = (current_theme == "dark") ? "light" : "dark";
+
+    QString qss_path = (new_theme == "light")
+        ? ":/resources/win11-light.qss"
+        : ":/resources/win11-dark.qss";
+
+    QFile qss_file(qss_path);
+    if (qss_file.open(QFile::ReadOnly))
+    {
+        static_cast<QApplication*>(QApplication::instance())->setStyleSheet(
+            QLatin1String(qss_file.readAll()));
+        qss_file.close();
+    }
+
+    app_settings.setValue("Theme", new_theme);
+
+    m_theme_action->setText(
+        (new_theme == "dark") ? "Switch to Light Theme" : "Switch to Dark Theme");
+}
+
 void MainView::timeAllCheckBoxToggled(bool checked)
 {
     if (checked)
-    {
-        setAllStartStopTimesEnabled(false);
         fillAllStartStopTimes();
-    }
-    else
-    {
-        setAllStartStopTimesEnabled(true);
-    }
+
+    setAllStartStopTimesEnabled(!checked);
 }
 
 void MainView::progressProcessButtonPressed()
@@ -665,6 +663,63 @@ void MainView::progressProcessButtonPressed()
     // Guard against re-entry
     if (m_view_model->processing())
         return;
+
+    // Validate time fields before prompting for output file
+    if (!m_time_all->isChecked())
+    {
+        QStringList start_parts = m_start_time->text().split(":");
+        QStringList stop_parts = m_stop_time->text().split(":");
+
+        if (start_parts.size() != 4 || stop_parts.size() != 4)
+        {
+            QMessageBox::warning(this, "Invalid Time",
+                "Start and stop times must be in DDD:HH:MM:SS format.");
+            return;
+        }
+
+        bool ok = false;
+        int s_ddd = start_parts[0].toInt(&ok); if (!ok) { QMessageBox::warning(this, "Invalid Time", "Start day is not a valid number."); return; }
+        int s_hh  = start_parts[1].toInt(&ok); if (!ok) { QMessageBox::warning(this, "Invalid Time", "Start hour is not a valid number."); return; }
+        int s_mm  = start_parts[2].toInt(&ok); if (!ok) { QMessageBox::warning(this, "Invalid Time", "Start minute is not a valid number."); return; }
+        int s_ss  = start_parts[3].toInt(&ok); if (!ok) { QMessageBox::warning(this, "Invalid Time", "Start second is not a valid number."); return; }
+
+        int e_ddd = stop_parts[0].toInt(&ok); if (!ok) { QMessageBox::warning(this, "Invalid Time", "Stop day is not a valid number."); return; }
+        int e_hh  = stop_parts[1].toInt(&ok); if (!ok) { QMessageBox::warning(this, "Invalid Time", "Stop hour is not a valid number."); return; }
+        int e_mm  = stop_parts[2].toInt(&ok); if (!ok) { QMessageBox::warning(this, "Invalid Time", "Stop minute is not a valid number."); return; }
+        int e_ss  = stop_parts[3].toInt(&ok); if (!ok) { QMessageBox::warning(this, "Invalid Time", "Stop second is not a valid number."); return; }
+
+        if (s_ddd < UIConstants::kMinDayOfYear || s_ddd > UIConstants::kMaxDayOfYear ||
+            s_hh < 0 || s_hh > UIConstants::kMaxHour ||
+            s_mm < 0 || s_mm > UIConstants::kMaxMinute ||
+            s_ss < 0 || s_ss > UIConstants::kMaxSecond)
+        {
+            QMessageBox::warning(this, "Invalid Time",
+                "Start time is out of range.\n"
+                "Day: 1-366, Hour: 0-23, Minute: 0-59, Second: 0-59.");
+            return;
+        }
+
+        if (e_ddd < UIConstants::kMinDayOfYear || e_ddd > UIConstants::kMaxDayOfYear ||
+            e_hh < 0 || e_hh > UIConstants::kMaxHour ||
+            e_mm < 0 || e_mm > UIConstants::kMaxMinute ||
+            e_ss < 0 || e_ss > UIConstants::kMaxSecond)
+        {
+            QMessageBox::warning(this, "Invalid Time",
+                "Stop time is out of range.\n"
+                "Day: 1-366, Hour: 0-23, Minute: 0-59, Second: 0-59.");
+            return;
+        }
+
+        // Compare as composite value: DDD*86400 + HH*3600 + MM*60 + SS
+        long long start_total = s_ddd * 86400LL + s_hh * 3600LL + s_mm * 60LL + s_ss;
+        long long stop_total  = e_ddd * 86400LL + e_hh * 3600LL + e_mm * 60LL + e_ss;
+        if (stop_total <= start_total)
+        {
+            QMessageBox::warning(this, "Invalid Time",
+                "Stop time must be after start time.");
+            return;
+        }
+    }
 
     QString outfile = QFileDialog::getSaveFileName(this, tr("Save File"),
                                                     m_last_dir + "/" + MainViewModel::generateOutputFilename(),
@@ -674,13 +729,49 @@ void MainView::progressProcessButtonPressed()
 
     m_last_dir = QFileInfo(outfile).absolutePath();
 
+    QStringList start_parts = m_start_time->text().split(":");
+    QStringList stop_parts = m_stop_time->text().split(":");
+
     m_view_model->startProcessing(
         outfile,
-        m_start_ddd->text(), m_start_hh->text(),
-        m_start_mm->text(), m_start_ss->text(),
-        m_stop_ddd->text(), m_stop_hh->text(),
-        m_stop_mm->text(), m_stop_ss->text(),
+        start_parts.value(0), start_parts.value(1),
+        start_parts.value(2), start_parts.value(3),
+        stop_parts.value(0), stop_parts.value(1),
+        stop_parts.value(2), stop_parts.value(3),
         m_sample_rate->currentIndex());
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//                            DRAG AND DROP                                   //
+////////////////////////////////////////////////////////////////////////////////
+
+void MainView::dragEnterEvent(QDragEnterEvent* event)
+{
+    if (event->mimeData()->hasUrls())
+    {
+        for (const QUrl& url : event->mimeData()->urls())
+        {
+            if (url.toLocalFile().endsWith(".ch10", Qt::CaseInsensitive))
+            {
+                event->acceptProposedAction();
+                return;
+            }
+        }
+    }
+}
+
+void MainView::dropEvent(QDropEvent* event)
+{
+    for (const QUrl& url : event->mimeData()->urls())
+    {
+        QString file = url.toLocalFile();
+        if (file.endsWith(".ch10", Qt::CaseInsensitive))
+        {
+            m_last_dir = QFileInfo(file).absolutePath();
+            m_view_model->openFile(file);
+            return;
+        }
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -689,13 +780,13 @@ void MainView::progressProcessButtonPressed()
 
 void MainView::setAllControlsEnabled(bool enabled)
 {
-    m_open_file_action->setEnabled(enabled);
+    m_toolbar_open_action->setEnabled(enabled);
     m_time_channel->setEnabled(enabled);
     m_pcm_channel->setEnabled(enabled);
     setAllNumberedReceiversEnabled(enabled);
     m_time_all->setEnabled(enabled);
     m_sample_rate->setEnabled(enabled);
-    m_process_btn->setEnabled(enabled);
+    m_process_action->setEnabled(enabled);
 
     if (enabled)
     {
@@ -732,37 +823,29 @@ void MainView::setAllNumberedReceiversChecked(bool checked)
 
 void MainView::setAllStartStopTimesEnabled(bool enabled)
 {
-    m_start_ddd->setEnabled(enabled);
-    m_start_hh->setEnabled(enabled);
-    m_start_mm->setEnabled(enabled);
-    m_start_ss->setEnabled(enabled);
-    m_stop_ddd->setEnabled(enabled);
-    m_stop_hh->setEnabled(enabled);
-    m_stop_mm->setEnabled(enabled);
-    m_stop_ss->setEnabled(enabled);
+    m_start_time->setEnabled(enabled);
+    m_stop_time->setEnabled(enabled);
 }
 
 void MainView::fillAllStartStopTimes()
 {
-    m_start_ddd->setText(QString::number(m_view_model->startDayOfYear()));
-    m_start_hh->setText(QString::number(m_view_model->startHour()));
-    m_start_mm->setText(QString::number(m_view_model->startMinute()));
-    m_start_ss->setText(QString::number(m_view_model->startSecond()));
+    m_start_time->setText(
+        QString("%1:%2:%3:%4")
+            .arg(m_view_model->startDayOfYear(), 3, 10, QChar('0'))
+            .arg(m_view_model->startHour(), 2, 10, QChar('0'))
+            .arg(m_view_model->startMinute(), 2, 10, QChar('0'))
+            .arg(m_view_model->startSecond(), 2, 10, QChar('0')));
 
-    m_stop_ddd->setText(QString::number(m_view_model->stopDayOfYear()));
-    m_stop_hh->setText(QString::number(m_view_model->stopHour()));
-    m_stop_mm->setText(QString::number(m_view_model->stopMinute()));
-    m_stop_ss->setText(QString::number(m_view_model->stopSecond()));
+    m_stop_time->setText(
+        QString("%1:%2:%3:%4")
+            .arg(m_view_model->stopDayOfYear(), 3, 10, QChar('0'))
+            .arg(m_view_model->stopHour(), 2, 10, QChar('0'))
+            .arg(m_view_model->stopMinute(), 2, 10, QChar('0'))
+            .arg(m_view_model->stopSecond(), 2, 10, QChar('0')));
 }
 
 void MainView::clearAllStartStopTimes()
 {
-    m_start_ddd->clear();
-    m_start_hh->clear();
-    m_start_mm->clear();
-    m_start_ss->clear();
-    m_stop_ddd->clear();
-    m_stop_hh->clear();
-    m_stop_mm->clear();
-    m_stop_ss->clear();
+    m_start_time->clear();
+    m_stop_time->clear();
 }

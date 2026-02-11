@@ -29,7 +29,7 @@ private slots:
     void setAllReceiversCheckedTrue();
     void setAllReceiversCheckedFalse();
     void getSettingsDataApplySettingsDataRoundtrip();
-    void applyConfigUpdatesProperties();
+    void applySettingsUpdatesProperties();
 };
 
 #endif // TST_MAINVIEWMODEL_STATE_H

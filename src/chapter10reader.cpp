@@ -297,6 +297,8 @@ void Chapter10Reader::timeChannelChanged(int combobox_index)
     int list_index = combobox_index - 1;
     if (list_index < 0)
         m_current_time_channel = -1;
+    else if (list_index >= m_time_channels.size())
+        m_current_time_channel = -1;
     else
         m_current_time_channel = m_time_channels[list_index]->channelID();
 }
@@ -306,6 +308,8 @@ void Chapter10Reader::pcmChannelChanged(int combobox_index)
     // subtract 1 from the index to account for "Select a PCM Stream"
     int list_index = combobox_index - 1;
     if (list_index < 0)
+        m_current_pcm_channel = -1;
+    else if (list_index >= m_pcm_channels.size())
         m_current_pcm_channel = -1;
     else
         m_current_pcm_channel = m_pcm_channels[list_index]->channelID();

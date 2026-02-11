@@ -11,6 +11,8 @@
 #include <QComboBox>
 #include <QCoreApplication>
 #include <QDialog>
+#include <QDockWidget>
+#include <QDragEnterEvent>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QGroupBox>
@@ -18,11 +20,14 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QMainWindow>
+#include <QMimeData>
 #include <QPlainTextEdit>
 #include <QMenuBar>
 #include <QProgressBar>
 #include <QPushButton>
+#include <QScrollBar>
 #include <QStringList>
+#include <QToolBar>
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
 #include <QVBoxLayout>
@@ -50,8 +55,10 @@ private slots:
     void displayErrorMessage(const QString& message);
     /// Opens a file dialog and loads the selected .ch10 file.
     void inputFileButtonPressed();
-    /// Opens the ConfigDialog for editing settings.
+    /// Opens the SettingsDialog for editing settings.
     void onSettings();
+    /// Toggles between light and dark themes.
+    void onToggleTheme();
     /// Toggles extraction of the full time range or a user-defined window.
     void timeAllCheckBoxToggled(bool checked);
     /// Validates inputs and starts background processing.
@@ -82,26 +89,22 @@ private slots:
     void onTreeItemChanged(QTreeWidgetItem* item, int column);
     /// @}
 
+protected:
+    void dragEnterEvent(QDragEnterEvent* event) override;
+    void dropEvent(QDropEvent* event) override;
+
 private:
     /// @name Widget setup helpers
     /// @{
-    void setUpMenuBar();                     ///< Creates the menu bar with File menu actions.
-    void setUpMainLayout();                  ///< Creates the top-level horizontal layout.
+    void setUpMenuBar();                     ///< Creates the menu bar.
+    void setUpMainLayout();                  ///< Creates the top-level layout with dockable log.
     void setUpTimeChannelRow();              ///< Creates the time channel combo box row.
     void setUpPCMChannelRow();               ///< Creates the PCM channel combo box row.
 
-    void setUpReceiversSection();            ///< Creates the receivers group box and "All" checkbox.
+    void setUpReceiversSection();            ///< Creates the receivers group box.
     void rebuildReceiversGrid();             ///< Rebuilds the receiver checkbox grid from ViewModel state.
 
     void setUpTimeSection();                 ///< Creates the time extraction group box.
-    void setUpTimeSectionRow1();             ///< Creates the "All time" checkbox row.
-    void setUpTimeSectionRow2();             ///< Creates the start/stop time input rows.
-    void setUpTimeSectionRow2StartTime();    ///< Creates the start time input fields.
-    void setUpTimeSectionRow2StopTime();     ///< Creates the stop time input fields.
-    /// Creates a labeled group of DDD:HH:MM:SS input fields.
-    void setUpTimeInputGroup(const QString& label, QVBoxLayout*& section,
-                             QLineEdit*& ddd, QLineEdit*& hh, QLineEdit*& mm, QLineEdit*& ss);
-    void setUpTimeSectionRow3();             ///< Creates the sample rate combo box row.
 
     void setUpConnections();                 ///< Connects all ViewModel signals to View slots.
     /// @}
@@ -119,17 +122,21 @@ private:
 
     MainViewModel* m_view_model;             ///< Owning ViewModel instance.
 
-    QWidget* m_central_widget;               ///< Central widget container.
-    QHBoxLayout* m_central_layout;           ///< Top-level horizontal layout.
     QVBoxLayout* m_controls_layout;          ///< Left-side vertical controls layout.
-    QPlainTextEdit* m_log_window;            ///< Right-side log output pane.
+    QDockWidget* m_log_dock;                 ///< Dockable log panel.
+    QPlainTextEdit* m_log_window;            ///< Log output pane.
 
-    QAction* m_open_file_action;             ///< File > Open action.
+    QAction* m_theme_action;                 ///< File > Toggle theme action.
+
+    QToolBar* m_toolbar;                     ///< Main toolbar.
+    QAction* m_toolbar_open_action;          ///< Toolbar open action.
+    QAction* m_process_action;               ///< Toolbar process/play action.
+
+    QLineEdit* m_input_file;                  ///< Read-only display of loaded .ch10 file path.
 
     QHBoxLayout* m_time_channel_layout;      ///< Time channel row layout.
-    QComboBox* m_time_channel;               ///< Time channel selector.
-
     QHBoxLayout* m_pcm_channel_layout;       ///< PCM channel row layout.
+    QComboBox* m_time_channel;               ///< Time channel selector.
     QComboBox* m_pcm_channel;                ///< PCM channel selector.
 
     QGroupBox* m_receivers_section;          ///< Receivers group box.
@@ -137,27 +144,12 @@ private:
     QVector<QTreeWidget*> m_receiver_trees;  ///< Column trees for receiver display.
 
     QGroupBox* m_time_section;               ///< Time extraction group box.
-    QHBoxLayout* m_time_all_layout;          ///< "All time" checkbox row layout.
     QCheckBox* m_time_all;                   ///< "Extract all time" toggle checkbox.
-
-    QVBoxLayout* m_time_start_stop_layout;   ///< Container for start/stop time groups.
-    QVBoxLayout* m_time_start_section;       ///< Start time input group layout.
-    QLineEdit* m_start_ddd;                  ///< Start day-of-year input.
-    QLineEdit* m_start_hh;                   ///< Start hour input.
-    QLineEdit* m_start_mm;                   ///< Start minute input.
-    QLineEdit* m_start_ss;                   ///< Start second input.
-    QVBoxLayout* m_time_stop_section;        ///< Stop time input group layout.
-    QLineEdit* m_stop_ddd;                   ///< Stop day-of-year input.
-    QLineEdit* m_stop_hh;                    ///< Stop hour input.
-    QLineEdit* m_stop_mm;                    ///< Stop minute input.
-    QLineEdit* m_stop_ss;                    ///< Stop second input.
-
-    QHBoxLayout* m_sample_rate_layout;       ///< Sample rate row layout.
+    QLineEdit* m_start_time;                 ///< Start time input (DDD:HH:MM:SS).
+    QLineEdit* m_stop_time;                  ///< Stop time input (DDD:HH:MM:SS).
     QComboBox* m_sample_rate;                ///< Sample rate selector.
 
-    QHBoxLayout* m_progress_bar_layout;      ///< Progress/process button row layout.
     QProgressBar* m_progress_bar;            ///< Processing progress bar.
-    QPushButton* m_process_btn;              ///< Start/stop processing button.
 
     QString m_last_dir;                      ///< Last directory used in file dialogs.
 

@@ -70,6 +70,11 @@ lib/
 Thumbs.db
 desktop.ini
 
+# Test artifacts
+tests/results*.txt
+tests/run_tests.ps1
+tests/nul
+
 # Runtime-generated config
 config/last_used.ini
 

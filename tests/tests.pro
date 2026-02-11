@@ -20,7 +20,7 @@ SOURCES += \
     $$PWD/../src/framesetup.cpp \
     $$PWD/../src/mainviewmodel.cpp \
     $$PWD/../src/mainview.cpp \
-    $$PWD/../src/configdialog.cpp \
+    $$PWD/../src/settingsdialog.cpp \
     $$PWD/../src/frameprocessor.cpp \
     $$PWD/../src/settingsmanager.cpp
 
@@ -34,7 +34,7 @@ HEADERS += \
     $$PWD/../include/mainview.h \
     $$PWD/../include/frameprocessor.h \
     $$PWD/../include/settingsdata.h \
-    $$PWD/../include/configdialog.h \
+    $$PWD/../include/settingsdialog.h \
     $$PWD/../include/settingsmanager.h
 
 # irig106 library sources

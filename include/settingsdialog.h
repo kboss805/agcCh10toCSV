@@ -1,10 +1,10 @@
 /**
- * @file configdialog.h
- * @brief Modal dialog for editing PCM frame and receiver configuration.
+ * @file settingsdialog.h
+ * @brief Modal dialog for editing PCM frame and receiver settings.
  */
 
-#ifndef CONFIGDIALOG_H
-#define CONFIGDIALOG_H
+#ifndef SETTINGSDIALOG_H
+#define SETTINGSDIALOG_H
 
 #include <QDialog>
 #include <QLineEdit>
@@ -19,12 +19,12 @@
  * Emits loadRequested() and saveAsRequested() so the caller can handle
  * file I/O through SettingsManager.
  */
-class ConfigDialog : public QDialog
+class SettingsDialog : public QDialog
 {
     Q_OBJECT
 
 public:
-    ConfigDialog(QWidget* parent = nullptr);
+    SettingsDialog(QWidget* parent = nullptr);
 
     void setFrameSync(const QString& value);   ///< Sets the frame sync hex string.
     QString frameSync() const;                  ///< @return Current frame sync hex string.
@@ -57,4 +57,4 @@ private:
     QLineEdit* m_channels_per_receiver;  ///< Channels-per-receiver input.
 };
 
-#endif // CONFIGDIALOG_H
+#endif // SETTINGSDIALOG_H

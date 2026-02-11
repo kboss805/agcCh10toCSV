@@ -52,10 +52,10 @@ class MainViewModel : public QObject
 
     Q_PROPERTY(bool extractAllTime READ extractAllTime WRITE setExtractAllTime NOTIFY extractAllTimeChanged)
     Q_PROPERTY(int sampleRateIndex READ sampleRateIndex WRITE setSampleRateIndex NOTIFY sampleRateIndexChanged)
-    Q_PROPERTY(QString frameSync READ frameSync WRITE setFrameSync NOTIFY configChanged)
-    Q_PROPERTY(bool negativePolarity READ negativePolarity WRITE setNegativePolarity NOTIFY configChanged)
-    Q_PROPERTY(int scaleIndex READ scaleIndex WRITE setScaleIndex NOTIFY configChanged)
-    Q_PROPERTY(QString range READ range WRITE setRange NOTIFY configChanged)
+    Q_PROPERTY(QString frameSync READ frameSync WRITE setFrameSync NOTIFY settingsChanged)
+    Q_PROPERTY(bool negativePolarity READ negativePolarity WRITE setNegativePolarity NOTIFY settingsChanged)
+    Q_PROPERTY(int scaleIndex READ scaleIndex WRITE setScaleIndex NOTIFY settingsChanged)
+    Q_PROPERTY(QString range READ range WRITE setRange NOTIFY settingsChanged)
     Q_PROPERTY(int receiverCount READ receiverCount WRITE setReceiverCount NOTIFY receiverLayoutChanged)
     Q_PROPERTY(int channelsPerReceiver READ channelsPerReceiver WRITE setChannelsPerReceiver NOTIFY receiverLayoutChanged)
 
@@ -175,10 +175,10 @@ public slots:
                          const QString& stop_mm, const QString& stop_ss,
                          int sample_rate_index);
 
-    /// Applies configuration values from the ConfigDialog.
-    void applyConfig(const QString& frame_sync, bool neg_polarity,
-                     int scale_idx, const QString& range,
-                     int receiver_count, int channels_per_rcvr);
+    /// Applies settings values from the SettingsDialog.
+    void applySettings(const QString& frame_sync, bool neg_polarity,
+                       int scale_idx, const QString& range,
+                       int receiver_count, int channels_per_rcvr);
 
     /// Loads settings from an INI file and applies them.
     void loadSettings(const QString& filename);
@@ -200,7 +200,7 @@ signals:
     void fileTimesChanged();          ///< Emitted when start/stop file times are updated.
     void extractAllTimeChanged();     ///< Emitted when the extract-all-time flag changes.
     void sampleRateIndexChanged();    ///< Emitted when the sample rate index changes.
-    void configChanged();             ///< Emitted when any configuration property changes.
+    void settingsChanged();           ///< Emitted when any settings property changes.
     void receiverLayoutChanged();     ///< Emitted when receiver count or channels per receiver changes.
     /// Emitted when a single receiver/channel checked state changes.
     void receiverCheckedChanged(int receiver_index, int channel_index, bool checked);
@@ -275,12 +275,12 @@ private:
     bool m_extract_all_time;                 ///< True to extract full time duration.
     int m_sample_rate_index;                 ///< Selected sample rate combo box index.
 
-    QString m_cfg_frame_sync;                ///< Frame sync hex pattern.
-    bool m_cfg_neg_polarity;                 ///< True if AGC polarity is negative.
-    int m_cfg_scale_idx;                     ///< Voltage scale combo box index.
-    QString m_cfg_range;                     ///< Full-scale range in dB.
-    int m_cfg_receiver_count;                ///< Number of receivers.
-    int m_cfg_channels_per_rcvr;             ///< Channels per receiver.
+    QString m_settings_frame_sync;                ///< Frame sync hex pattern.
+    bool m_settings_neg_polarity;                 ///< True if AGC polarity is negative.
+    int m_settings_scale_idx;                     ///< Voltage scale combo box index.
+    QString m_settings_range;                     ///< Full-scale range in dB.
+    int m_settings_receiver_count;                ///< Number of receivers.
+    int m_settings_channels_per_rcvr;             ///< Channels per receiver.
 
     QVector<QVector<bool>> m_receiver_states; ///< 2D grid of receiver/channel checked states.
 };

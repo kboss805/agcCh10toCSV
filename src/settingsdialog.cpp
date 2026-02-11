@@ -1,4 +1,4 @@
-#include "configdialog.h"
+#include "settingsdialog.h"
 
 #include <QDialogButtonBox>
 #include <QHBoxLayout>
@@ -6,10 +6,10 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 
-ConfigDialog::ConfigDialog(QWidget* parent)
+SettingsDialog::SettingsDialog(QWidget* parent)
     : QDialog(parent)
 {
-    setWindowTitle("Configuration");
+    setWindowTitle("Settings");
 
     QVBoxLayout* main_layout = new QVBoxLayout;
 
@@ -88,62 +88,62 @@ ConfigDialog::ConfigDialog(QWidget* parent)
     setLayout(main_layout);
 }
 
-void ConfigDialog::setFrameSync(const QString& value)
+void SettingsDialog::setFrameSync(const QString& value)
 {
     m_frame_sync->setText(value);
 }
 
-QString ConfigDialog::frameSync() const
+QString SettingsDialog::frameSync() const
 {
     return m_frame_sync->text();
 }
 
-void ConfigDialog::setNegativePolarity(bool value)
+void SettingsDialog::setNegativePolarity(bool value)
 {
     m_polarity->setChecked(value);
 }
 
-bool ConfigDialog::negativePolarity() const
+bool SettingsDialog::negativePolarity() const
 {
     return m_polarity->isChecked();
 }
 
-void ConfigDialog::setScaleIndex(int value)
+void SettingsDialog::setScaleIndex(int value)
 {
     m_scale->setCurrentIndex(value);
 }
 
-int ConfigDialog::scaleIndex() const
+int SettingsDialog::scaleIndex() const
 {
     return m_scale->currentIndex();
 }
 
-void ConfigDialog::setRange(const QString& value)
+void SettingsDialog::setRange(const QString& value)
 {
     m_range->setText(value);
 }
 
-QString ConfigDialog::range() const
+QString SettingsDialog::range() const
 {
     return m_range->text();
 }
 
-void ConfigDialog::setReceiverCount(int value)
+void SettingsDialog::setReceiverCount(int value)
 {
     m_receiver_count->setText(QString::number(value));
 }
 
-int ConfigDialog::receiverCount() const
+int SettingsDialog::receiverCount() const
 {
     return m_receiver_count->text().toInt();
 }
 
-void ConfigDialog::setChannelsPerReceiver(int value)
+void SettingsDialog::setChannelsPerReceiver(int value)
 {
     m_channels_per_receiver->setText(QString::number(value));
 }
 
-int ConfigDialog::channelsPerReceiver() const
+int SettingsDialog::channelsPerReceiver() const
 {
     return m_channels_per_receiver->text().toInt();
 }

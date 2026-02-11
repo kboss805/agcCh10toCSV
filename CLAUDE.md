@@ -144,8 +144,8 @@ The application follows the **MVVM (Model-View-ViewModel)** pattern:
    - Binds to MainViewModel Q_PROPERTYs and connects signals/slots
    - Contains no business logic; delegates all actions to the ViewModel
 
-2. **ConfigDialog** (`src/configdialog.cpp`, `include/configdialog.h`) — *View*
-   - Modal dialog for frame sync, polarity, scale, range, and receiver configuration
+2. **SettingsDialog** (`src/settingsdialog.cpp`, `include/settingsdialog.h`) — *View*
+   - Modal dialog for frame sync, polarity, scale, range, and receiver settings
    - Reads initial values from MainViewModel and writes back on accept
 
 3. **MainViewModel** (`src/mainviewmodel.cpp`, `include/mainviewmodel.h`) — *ViewModel*
@@ -242,7 +242,7 @@ When using Qt classes, ensure proper headers are included:
 ### Naming Conventions
 - **Classes**: PascalCase (e.g., `MainView`, `MainViewModel`, `Chapter10Reader`, `FrameProcessor`)
 - **Constants**: kPascalCase in namespaces (e.g., `PCMConstants::kWordsInMinorFrame`, `UIConstants::kDefaultScaleIndex`)
-- **Member variables**: m_ prefix with snake_case (e.g., `m_frame_setup`, `m_reader`); widget members drop type suffixes when the declared type is clear (e.g., `m_input_file` not `m_input_file_lineedit`); buttons use `_btn` suffix (e.g., `m_process_btn`); config members use `m_cfg_` prefix (e.g., `m_cfg_frame_sync`)
+- **Member variables**: m_ prefix with snake_case (e.g., `m_frame_setup`, `m_reader`); widget members drop type suffixes when the declared type is clear (e.g., `m_input_file` not `m_input_file_lineedit`); buttons use `_btn` suffix (e.g., `m_process_btn`); settings members use `m_settings_` prefix (e.g., `m_settings_frame_sync`)
 - **Methods**: camelCase (e.g., `process()`, `getTimeChannelComboBoxList()`)
 - **Slots**: camelCase with descriptive names (e.g., `inputFileButtonPressed()`)
 - **Struct fields**: `ParameterInfo` and `ProcessingParams` use snake_case; `SettingsData` uses camelCase (Qt property style)

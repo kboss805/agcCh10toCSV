@@ -246,6 +246,20 @@ bool FrameProcessor::process(const QString& filename,
     m_total_file_size = QFileInfo(filename).size();
     int last_reported_percent = -1;
 
+    // Validate channel IDs before using them as array indices
+    if (time_channel_id < 0 || time_channel_id >= PCMConstants::kMaxChannelCount)
+    {
+        emit errorOccurred("Time channel ID is out of range.");
+        emit processingFinished(false);
+        return false;
+    }
+    if (pcm_channel_id < 0 || pcm_channel_id >= PCMConstants::kMaxChannelCount)
+    {
+        emit errorOccurred("PCM channel ID is out of range.");
+        emit processingFinished(false);
+        return false;
+    }
+
     memset(m_channel_info, 0, sizeof(m_channel_info));
 
     // Open input file and sync time
@@ -265,7 +279,7 @@ bool FrameProcessor::process(const QString& filename,
     output.open(outfile.toUtf8().constData());
     if (!output.is_open())
     {
-        emit errorOccurred("Failed to load output file.");
+        emit errorOccurred("Failed to open output file: " + outfile);
         closeFile();
         emit processingFinished(false);
         return false;

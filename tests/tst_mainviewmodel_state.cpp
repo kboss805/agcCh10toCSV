@@ -71,7 +71,7 @@ void TestMainViewModelState::setSampleRateIndexNoOpWhenUnchanged()
 void TestMainViewModelState::setFrameSyncEmitsSignal()
 {
     MainViewModel vm;
-    QSignalSpy spy(&vm, &MainViewModel::configChanged);
+    QSignalSpy spy(&vm, &MainViewModel::settingsChanged);
 
     vm.setFrameSync("ABCD1234");
 
@@ -84,7 +84,7 @@ void TestMainViewModelState::setFrameSyncNoOpWhenUnchanged()
     MainViewModel vm;
     vm.setFrameSync("ABCD1234");
 
-    QSignalSpy spy(&vm, &MainViewModel::configChanged);
+    QSignalSpy spy(&vm, &MainViewModel::settingsChanged);
     vm.setFrameSync("ABCD1234");
 
     QCOMPARE(spy.count(), 0);
@@ -93,7 +93,7 @@ void TestMainViewModelState::setFrameSyncNoOpWhenUnchanged()
 void TestMainViewModelState::setNegativePolarityEmitsSignal()
 {
     MainViewModel vm;
-    QSignalSpy spy(&vm, &MainViewModel::configChanged);
+    QSignalSpy spy(&vm, &MainViewModel::settingsChanged);
 
     vm.setNegativePolarity(true);
 
@@ -104,7 +104,7 @@ void TestMainViewModelState::setNegativePolarityEmitsSignal()
 void TestMainViewModelState::setScaleIndexEmitsSignal()
 {
     MainViewModel vm;
-    QSignalSpy spy(&vm, &MainViewModel::configChanged);
+    QSignalSpy spy(&vm, &MainViewModel::settingsChanged);
 
     vm.setScaleIndex(0); // default is kDefaultScaleIndex (2)
 
@@ -115,7 +115,7 @@ void TestMainViewModelState::setScaleIndexEmitsSignal()
 void TestMainViewModelState::setRangeEmitsSignal()
 {
     MainViewModel vm;
-    QSignalSpy spy(&vm, &MainViewModel::configChanged);
+    QSignalSpy spy(&vm, &MainViewModel::settingsChanged);
 
     vm.setRange("200");
 
@@ -260,11 +260,11 @@ void TestMainViewModelState::getSettingsDataApplySettingsDataRoundtrip()
     QCOMPARE(vm2.channelsPerReceiver(), 2);
 }
 
-void TestMainViewModelState::applyConfigUpdatesProperties()
+void TestMainViewModelState::applySettingsUpdatesProperties()
 {
     MainViewModel vm;
 
-    vm.applyConfig("11223344", true, 3, "75", 4, 2);
+    vm.applySettings("11223344", true, 3, "75", 4, 2);
 
     QCOMPARE(vm.frameSync(), QString("11223344"));
     QCOMPARE(vm.negativePolarity(), true);

@@ -21,20 +21,20 @@ MainViewModel::MainViewModel(QObject* parent)
       m_pcm_channel_index(0),
       m_extract_all_time(true),
       m_sample_rate_index(0),
-      m_cfg_neg_polarity(false),
-      m_cfg_scale_idx(UIConstants::kDefaultScaleIndex),
-      m_cfg_range(UIConstants::kDefaultRange),
-      m_cfg_receiver_count(UIConstants::kDefaultReceiverCount),
-      m_cfg_channels_per_rcvr(UIConstants::kDefaultChannelsPerReceiver)
+      m_settings_neg_polarity(false),
+      m_settings_scale_idx(UIConstants::kDefaultScaleIndex),
+      m_settings_range(UIConstants::kDefaultRange),
+      m_settings_receiver_count(UIConstants::kDefaultReceiverCount),
+      m_settings_channels_per_rcvr(UIConstants::kDefaultChannelsPerReceiver)
 {
     m_app_root = QCoreApplication::applicationDirPath() + "/..";
     m_reader = new Chapter10Reader();
     m_frame_setup = new FrameSetup(this);
     m_settings = new SettingsManager(this);
 
-    m_receiver_states.resize(m_cfg_receiver_count);
-    for (int i = 0; i < m_cfg_receiver_count; i++)
-        m_receiver_states[i].fill(true, m_cfg_channels_per_rcvr);
+    m_receiver_states.resize(m_settings_receiver_count);
+    for (int i = 0; i < m_settings_receiver_count; i++)
+        m_receiver_states[i].fill(true, m_settings_channels_per_rcvr);
 
     connect(m_reader, &Chapter10Reader::displayErrorMessage,
             this, &MainViewModel::errorOccurred);
@@ -79,12 +79,12 @@ int MainViewModel::stopHour() const { return m_reader->getStopHour(); }
 int MainViewModel::stopMinute() const { return m_reader->getStopMinute(); }
 int MainViewModel::stopSecond() const { return m_reader->getStopSecond(); }
 
-QString MainViewModel::frameSync() const { return m_cfg_frame_sync; }
-bool MainViewModel::negativePolarity() const { return m_cfg_neg_polarity; }
-int MainViewModel::scaleIndex() const { return m_cfg_scale_idx; }
-QString MainViewModel::range() const { return m_cfg_range; }
-int MainViewModel::receiverCount() const { return m_cfg_receiver_count; }
-int MainViewModel::channelsPerReceiver() const { return m_cfg_channels_per_rcvr; }
+QString MainViewModel::frameSync() const { return m_settings_frame_sync; }
+bool MainViewModel::negativePolarity() const { return m_settings_neg_polarity; }
+int MainViewModel::scaleIndex() const { return m_settings_scale_idx; }
+QString MainViewModel::range() const { return m_settings_range; }
+int MainViewModel::receiverCount() const { return m_settings_receiver_count; }
+int MainViewModel::channelsPerReceiver() const { return m_settings_channels_per_rcvr; }
 
 ////////////////////////////////////////////////////////////////////////////////
 //                            PROPERTY SETTERS                                //
@@ -127,53 +127,53 @@ void MainViewModel::setSampleRateIndex(int value)
 
 void MainViewModel::setFrameSync(const QString& value)
 {
-    if (m_cfg_frame_sync == value)
+    if (m_settings_frame_sync == value)
         return;
-    m_cfg_frame_sync = value;
-    emit configChanged();
+    m_settings_frame_sync = value;
+    emit settingsChanged();
 }
 
 void MainViewModel::setNegativePolarity(bool value)
 {
-    if (m_cfg_neg_polarity == value)
+    if (m_settings_neg_polarity == value)
         return;
-    m_cfg_neg_polarity = value;
-    emit configChanged();
+    m_settings_neg_polarity = value;
+    emit settingsChanged();
 }
 
 void MainViewModel::setScaleIndex(int value)
 {
-    if (m_cfg_scale_idx == value)
+    if (m_settings_scale_idx == value)
         return;
-    m_cfg_scale_idx = value;
-    emit configChanged();
+    m_settings_scale_idx = value;
+    emit settingsChanged();
 }
 
 void MainViewModel::setRange(const QString& value)
 {
-    if (m_cfg_range == value)
+    if (m_settings_range == value)
         return;
-    m_cfg_range = value;
-    emit configChanged();
+    m_settings_range = value;
+    emit settingsChanged();
 }
 
 void MainViewModel::setReceiverCount(int value)
 {
-    if (m_cfg_receiver_count == value)
+    if (m_settings_receiver_count == value)
         return;
-    m_cfg_receiver_count = value;
+    m_settings_receiver_count = value;
     m_receiver_states.resize(value);
     for (int i = 0; i < value; i++)
-        if (m_receiver_states[i].size() != m_cfg_channels_per_rcvr)
-            m_receiver_states[i].fill(true, m_cfg_channels_per_rcvr);
+        if (m_receiver_states[i].size() != m_settings_channels_per_rcvr)
+            m_receiver_states[i].fill(true, m_settings_channels_per_rcvr);
     emit receiverLayoutChanged();
 }
 
 void MainViewModel::setChannelsPerReceiver(int value)
 {
-    if (m_cfg_channels_per_rcvr == value)
+    if (m_settings_channels_per_rcvr == value)
         return;
-    m_cfg_channels_per_rcvr = value;
+    m_settings_channels_per_rcvr = value;
     for (int i = 0; i < m_receiver_states.size(); i++)
         m_receiver_states[i].fill(true, value);
     emit receiverLayoutChanged();
@@ -220,44 +220,44 @@ SettingsData MainViewModel::getSettingsData() const
     SettingsData data;
     data.timeChannelId = m_reader->getCurrentTimeChannelID();
     data.pcmChannelId = m_reader->getCurrentPCMChannelID();
-    data.frameSync = m_cfg_frame_sync;
-    data.negativePolarity = m_cfg_neg_polarity;
-    data.scaleIndex = m_cfg_scale_idx;
-    data.range = m_cfg_range;
+    data.frameSync = m_settings_frame_sync;
+    data.negativePolarity = m_settings_neg_polarity;
+    data.scaleIndex = m_settings_scale_idx;
+    data.range = m_settings_range;
     data.extractAllTime = m_extract_all_time;
     data.sampleRateIndex = m_sample_rate_index;
-    data.receiverCount = m_cfg_receiver_count;
-    data.channelsPerReceiver = m_cfg_channels_per_rcvr;
+    data.receiverCount = m_settings_receiver_count;
+    data.channelsPerReceiver = m_settings_channels_per_rcvr;
     return data;
 }
 
 void MainViewModel::applySettingsData(const SettingsData& data)
 {
-    m_cfg_frame_sync = data.frameSync;
-    m_cfg_neg_polarity = data.negativePolarity;
-    m_cfg_scale_idx = data.scaleIndex;
-    m_cfg_range = data.range;
+    m_settings_frame_sync = data.frameSync;
+    m_settings_neg_polarity = data.negativePolarity;
+    m_settings_scale_idx = data.scaleIndex;
+    m_settings_range = data.range;
 
-    int old_receiver_count = m_cfg_receiver_count;
-    int old_channel_count = m_cfg_channels_per_rcvr;
-    m_cfg_receiver_count = data.receiverCount;
-    m_cfg_channels_per_rcvr = data.channelsPerReceiver;
+    int old_receiver_count = m_settings_receiver_count;
+    int old_channel_count = m_settings_channels_per_rcvr;
+    m_settings_receiver_count = data.receiverCount;
+    m_settings_channels_per_rcvr = data.channelsPerReceiver;
 
     m_extract_all_time = data.extractAllTime;
     m_sample_rate_index = data.sampleRateIndex;
 
-    if (m_cfg_receiver_count != old_receiver_count ||
-        m_cfg_channels_per_rcvr != old_channel_count)
+    if (m_settings_receiver_count != old_receiver_count ||
+        m_settings_channels_per_rcvr != old_channel_count)
     {
-        m_receiver_states.resize(m_cfg_receiver_count);
-        for (int i = 0; i < m_cfg_receiver_count; i++)
-            m_receiver_states[i].fill(true, m_cfg_channels_per_rcvr);
+        m_receiver_states.resize(m_settings_receiver_count);
+        for (int i = 0; i < m_settings_receiver_count; i++)
+            m_receiver_states[i].fill(true, m_settings_channels_per_rcvr);
         emit receiverLayoutChanged();
     }
 
     emit extractAllTimeChanged();
     emit sampleRateIndexChanged();
-    emit configChanged();
+    emit settingsChanged();
 }
 
 void MainViewModel::loadFrameSetupFrom(const QString& filename)
@@ -267,13 +267,13 @@ void MainViewModel::loadFrameSetupFrom(const QString& filename)
     if (m_frame_setup->length() == 0)
         return;
 
-    int expected_count = m_cfg_receiver_count * m_cfg_channels_per_rcvr;
+    int expected_count = m_settings_receiver_count * m_settings_channels_per_rcvr;
     if (m_frame_setup->length() != expected_count)
     {
         qWarning() << "Frame setup has" << m_frame_setup->length()
                     << "parameters but expected" << expected_count
-                    << "(" << m_cfg_receiver_count << "receivers x"
-                    << m_cfg_channels_per_rcvr << "channels)";
+                    << "(" << m_settings_receiver_count << "receivers x"
+                    << m_settings_channels_per_rcvr << "channels)";
     }
 
     // Build name -> index map for O(1) parameter lookup
@@ -419,30 +419,30 @@ void MainViewModel::startProcessing(const QString& output_file,
     launchWorkerThread(params);
 }
 
-void MainViewModel::applyConfig(const QString& frame_sync, bool neg_polarity,
+void MainViewModel::applySettings(const QString& frame_sync, bool neg_polarity,
                                  int scale_idx, const QString& range,
                                  int receiver_count, int channels_per_rcvr)
 {
-    m_cfg_frame_sync = frame_sync;
-    m_cfg_neg_polarity = neg_polarity;
-    m_cfg_scale_idx = scale_idx;
-    m_cfg_range = range;
+    m_settings_frame_sync = frame_sync;
+    m_settings_neg_polarity = neg_polarity;
+    m_settings_scale_idx = scale_idx;
+    m_settings_range = range;
 
-    int old_receiver_count = m_cfg_receiver_count;
-    int old_channel_count = m_cfg_channels_per_rcvr;
-    m_cfg_receiver_count = receiver_count;
-    m_cfg_channels_per_rcvr = channels_per_rcvr;
+    int old_receiver_count = m_settings_receiver_count;
+    int old_channel_count = m_settings_channels_per_rcvr;
+    m_settings_receiver_count = receiver_count;
+    m_settings_channels_per_rcvr = channels_per_rcvr;
 
-    if (m_cfg_receiver_count != old_receiver_count ||
-        m_cfg_channels_per_rcvr != old_channel_count)
+    if (m_settings_receiver_count != old_receiver_count ||
+        m_settings_channels_per_rcvr != old_channel_count)
     {
-        m_receiver_states.resize(m_cfg_receiver_count);
-        for (int i = 0; i < m_cfg_receiver_count; i++)
-            m_receiver_states[i].fill(true, m_cfg_channels_per_rcvr);
+        m_receiver_states.resize(m_settings_receiver_count);
+        for (int i = 0; i < m_settings_receiver_count; i++)
+            m_receiver_states[i].fill(true, m_settings_channels_per_rcvr);
         emit receiverLayoutChanged();
     }
 
-    emit configChanged();
+    emit settingsChanged();
 }
 
 void MainViewModel::loadSettings(const QString& filename)
@@ -458,12 +458,12 @@ void MainViewModel::saveSettings(const QString& filename)
 void MainViewModel::clearState()
 {
     QSettings config(m_app_root + "/config/default.ini", QSettings::IniFormat);
-    m_cfg_frame_sync = config.value("Defaults/FrameSync", PCMConstants::kDefaultFrameSync).toString();
-    m_cfg_neg_polarity = false;
-    m_cfg_scale_idx = config.value("Parameters/Scale", UIConstants::kDefaultScaleIndex).toInt();
-    m_cfg_range = config.value("Parameters/Range", UIConstants::kDefaultRange).toString();
-    m_cfg_receiver_count = config.value("Receivers/Count", UIConstants::kDefaultReceiverCount).toInt();
-    m_cfg_channels_per_rcvr =
+    m_settings_frame_sync = config.value("Defaults/FrameSync", PCMConstants::kDefaultFrameSync).toString();
+    m_settings_neg_polarity = false;
+    m_settings_scale_idx = config.value("Parameters/Scale", UIConstants::kDefaultScaleIndex).toInt();
+    m_settings_range = config.value("Parameters/Range", UIConstants::kDefaultRange).toString();
+    m_settings_receiver_count = config.value("Receivers/Count", UIConstants::kDefaultReceiverCount).toInt();
+    m_settings_channels_per_rcvr =
         config.value("Receivers/ChannelsPerReceiver", UIConstants::kDefaultChannelsPerReceiver).toInt();
 
     m_input_filename.clear();
@@ -476,9 +476,9 @@ void MainViewModel::clearState()
     m_extract_all_time = true;
     m_sample_rate_index = 0;
 
-    m_receiver_states.resize(m_cfg_receiver_count);
-    for (int i = 0; i < m_cfg_receiver_count; i++)
-        m_receiver_states[i].fill(true, m_cfg_channels_per_rcvr);
+    m_receiver_states.resize(m_settings_receiver_count);
+    for (int i = 0; i < m_settings_receiver_count; i++)
+        m_receiver_states[i].fill(true, m_settings_channels_per_rcvr);
 
     m_reader->clearSettings();
     m_frame_setup->clearParameters();
@@ -490,7 +490,7 @@ void MainViewModel::clearState()
     emit progressPercentChanged();
     emit processingChanged();
     emit controlsEnabledChanged();
-    emit configChanged();
+    emit settingsChanged();
     emit receiverLayoutChanged();
 }
 
@@ -544,14 +544,14 @@ bool MainViewModel::validateProcessingInputs(ProcessingParams& params,
     }
 
     bool frame_sync_ok;
-    params.frame_sync = m_cfg_frame_sync.toULongLong(&frame_sync_ok, 16);
+    params.frame_sync = m_settings_frame_sync.toULongLong(&frame_sync_ok, 16);
     if (!frame_sync_ok)
     {
         emit errorOccurred("Invalid frame sync.");
         return false;
     }
 
-    params.sync_pattern_length = m_cfg_frame_sync.length() * 4;
+    params.sync_pattern_length = m_settings_frame_sync.length() * 4;
     if (params.sync_pattern_length <= 0)
     {
         emit errorOccurred("Frame sync pattern is empty.");
@@ -572,13 +572,21 @@ bool MainViewModel::validateProcessingInputs(ProcessingParams& params,
         return false;
     }
 
-    double range_dB = m_cfg_range.toDouble();
+    int expected_param_count = m_settings_receiver_count * m_settings_channels_per_rcvr;
+    if (m_frame_setup->length() != expected_param_count)
+    {
+        emit errorOccurred("Frame setup has " + QString::number(m_frame_setup->length()) +
+                           " parameters but expected " + QString::number(expected_param_count) + ".");
+        return false;
+    }
+
+    double range_dB = m_settings_range.toDouble();
     if (range_dB <= 0)
     {
         emit errorOccurred("Range must be a positive number.");
         return false;
     }
-    int scale_index = m_cfg_scale_idx;
+    int scale_index = m_settings_scale_idx;
     if (scale_index <= 1) // bipolar
     {
         params.scale_lower_bound = -range_dB / 2.0;
@@ -590,7 +598,7 @@ bool MainViewModel::validateProcessingInputs(ProcessingParams& params,
         params.scale_upper_bound = range_dB;
     }
 
-    params.negative_polarity = m_cfg_neg_polarity;
+    params.negative_polarity = m_settings_neg_polarity;
 
     int s_ddd, s_hh, s_mm, s_ss;
     if (!validateTimeFields(start_ddd, start_hh, start_mm, start_ss,

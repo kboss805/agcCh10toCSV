@@ -23,7 +23,7 @@ SOURCES += \
     src/main.cpp \
     src/mainviewmodel.cpp \
     src/mainview.cpp \
-    src/configdialog.cpp \
+    src/settingsdialog.cpp \
     src/frameprocessor.cpp \
     src/settingsmanager.cpp \
     lib/irig106/src/irig106ch10.c \
@@ -49,7 +49,7 @@ HEADERS += \
     include/mainview.h \
     include/frameprocessor.h \
     include/settingsdata.h \
-    include/configdialog.h \
+    include/settingsdialog.h \
     include/settingsmanager.h \
     lib/irig106/include/irig106ch10.h \
     lib/irig106/include/i106_data_stream.h \
@@ -70,8 +70,11 @@ HEADERS += \
 
 RESOURCES += \
     resources/win11-dark.qss \
+    resources/win11-light.qss \
     resources/icon.ico \
-    resources/checkmark.svg
+    resources/checkmark.svg \
+    resources/folder-open.svg \
+    resources/play.svg
 
 RC_ICONS = resources/icon.ico
 
