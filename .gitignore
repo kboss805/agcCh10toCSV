@@ -75,9 +75,6 @@ tests/results*.txt
 tests/run_tests.ps1
 tests/nul
 
-# Runtime-generated config
-config/last_used.ini
-
 # Input and Output files (you may want to keep these)
 *.csv
 

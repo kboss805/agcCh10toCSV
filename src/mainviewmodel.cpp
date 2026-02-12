@@ -26,9 +26,10 @@ MainViewModel::MainViewModel(QObject* parent)
       m_pcm_channel_index(0),
       m_extract_all_time(true),
       m_sample_rate_index(0),
+      m_settings_frame_sync(PCMConstants::kDefaultFrameSync),
       m_settings_neg_polarity(false),
-      m_settings_scale_idx(UIConstants::kDefaultScaleIndex),
-      m_settings_range(UIConstants::kDefaultRange),
+      m_settings_slope_idx(UIConstants::kDefaultSlopeIndex),
+      m_settings_scale(UIConstants::kDefaultScale),
       m_settings_receiver_count(UIConstants::kDefaultReceiverCount),
       m_settings_channels_per_rcvr(UIConstants::kDefaultChannelsPerReceiver)
 {
@@ -37,12 +38,30 @@ MainViewModel::MainViewModel(QObject* parent)
     m_frame_setup = new FrameSetup(this);
     m_settings = new SettingsManager(this);
 
+    QSettings app_settings(UIConstants::kOrganizationName, UIConstants::kApplicationName);
+    m_last_settings_file = app_settings.value(UIConstants::kSettingsKeyLastIni).toString();
+
+    QSettings config(m_app_root + "/settings/default.ini", QSettings::IniFormat);
+    QString ini_sync = config.value("Frame/FrameSync").toString();
+    if (!ini_sync.isEmpty())
+        m_settings_frame_sync = ini_sync;
+    m_settings_neg_polarity = config.value("Parameters/NegativePolarity").toBool();
+    m_settings_slope_idx = config.value("Parameters/Slope", UIConstants::kDefaultSlopeIndex).toInt();
+    QString ini_range = config.value("Parameters/Scale").toString();
+    if (!ini_range.isEmpty())
+        m_settings_scale = ini_range;
+    m_settings_receiver_count = config.value("Receivers/Count", UIConstants::kDefaultReceiverCount).toInt();
+    m_settings_channels_per_rcvr =
+        config.value("Receivers/ChannelsPerReceiver", UIConstants::kDefaultChannelsPerReceiver).toInt();
+
     m_receiver_states.resize(m_settings_receiver_count);
     for (int i = 0; i < m_settings_receiver_count; i++)
         m_receiver_states[i].fill(true, m_settings_channels_per_rcvr);
 
     connect(m_reader, &Chapter10Reader::displayErrorMessage,
             this, &MainViewModel::errorOccurred);
+    connect(m_settings, &SettingsManager::logMessage,
+            this, &MainViewModel::logMessageReceived);
 }
 
 MainViewModel::~MainViewModel()
@@ -86,8 +105,8 @@ int MainViewModel::stopSecond() const { return m_reader->getStopSecond(); }
 
 QString MainViewModel::frameSync() const { return m_settings_frame_sync; }
 bool MainViewModel::negativePolarity() const { return m_settings_neg_polarity; }
-int MainViewModel::scaleIndex() const { return m_settings_scale_idx; }
-QString MainViewModel::range() const { return m_settings_range; }
+int MainViewModel::slopeIndex() const { return m_settings_slope_idx; }
+QString MainViewModel::scale() const { return m_settings_scale; }
 int MainViewModel::receiverCount() const { return m_settings_receiver_count; }
 int MainViewModel::channelsPerReceiver() const { return m_settings_channels_per_rcvr; }
 
@@ -146,19 +165,19 @@ void MainViewModel::setNegativePolarity(bool value)
     emit settingsChanged();
 }
 
-void MainViewModel::setScaleIndex(int value)
+void MainViewModel::setSlopeIndex(int value)
 {
-    if (m_settings_scale_idx == value)
+    if (m_settings_slope_idx == value)
         return;
-    m_settings_scale_idx = value;
+    m_settings_slope_idx = value;
     emit settingsChanged();
 }
 
-void MainViewModel::setRange(const QString& value)
+void MainViewModel::setScale(const QString& value)
 {
-    if (m_settings_range == value)
+    if (m_settings_scale == value)
         return;
-    m_settings_range = value;
+    m_settings_scale = value;
     emit settingsChanged();
 }
 
@@ -227,8 +246,8 @@ SettingsData MainViewModel::getSettingsData() const
     data.pcmChannelId = m_reader->getCurrentPCMChannelID();
     data.frameSync = m_settings_frame_sync;
     data.negativePolarity = m_settings_neg_polarity;
-    data.scaleIndex = m_settings_scale_idx;
-    data.range = m_settings_range;
+    data.slopeIndex = m_settings_slope_idx;
+    data.scale = m_settings_scale;
     data.extractAllTime = m_extract_all_time;
     data.sampleRateIndex = m_sample_rate_index;
     data.receiverCount = m_settings_receiver_count;
@@ -240,8 +259,8 @@ void MainViewModel::applySettingsData(const SettingsData& data)
 {
     m_settings_frame_sync = data.frameSync;
     m_settings_neg_polarity = data.negativePolarity;
-    m_settings_scale_idx = data.scaleIndex;
-    m_settings_range = data.range;
+    m_settings_slope_idx = data.slopeIndex;
+    m_settings_scale = data.scale;
 
     int old_receiver_count = m_settings_receiver_count;
     int old_channel_count = m_settings_channels_per_rcvr;
@@ -267,7 +286,8 @@ void MainViewModel::applySettingsData(const SettingsData& data)
 
 void MainViewModel::loadFrameSetupFrom(const QString& filename)
 {
-    m_frame_setup->tryLoadingFile(filename, PCMConstants::kWordsInMinorFrame);
+    int words_in_frame = m_settings_receiver_count * m_settings_channels_per_rcvr + 1;
+    m_frame_setup->tryLoadingFile(filename, words_in_frame);
 
     if (m_frame_setup->length() == 0)
         return;
@@ -359,6 +379,7 @@ QString MainViewModel::generateOutputFilename() const
 Chapter10Reader* MainViewModel::reader() const { return m_reader; }
 FrameSetup* MainViewModel::frameSetup() const { return m_frame_setup; }
 QString MainViewModel::appRoot() const { return m_app_root; }
+QString MainViewModel::lastSettingsFile() const { return m_last_settings_file; }
 
 ////////////////////////////////////////////////////////////////////////////////
 //                              COMMANDS                                      //
@@ -382,7 +403,7 @@ void MainViewModel::openFile(const QString& filename)
     emit fileTimesChanged();
     emit fileLoadedChanged();
 
-    m_settings->loadFile(m_app_root + "/config/default.ini");
+    m_settings->loadFile(m_app_root + "/settings/default.ini");
 }
 
 void MainViewModel::startProcessing(const QString& output_file,
@@ -419,19 +440,17 @@ void MainViewModel::startProcessing(const QString& output_file,
     emit controlsEnabledChanged();
     emit progressPercentChanged();
 
-    m_settings->saveFile(m_app_root + "/config/last_used.ini");
-
     launchWorkerThread(params);
 }
 
 void MainViewModel::applySettings(const QString& frame_sync, bool neg_polarity,
-                                 int scale_idx, const QString& range,
+                                 int slope_idx, const QString& scale,
                                  int receiver_count, int channels_per_rcvr)
 {
     m_settings_frame_sync = frame_sync;
     m_settings_neg_polarity = neg_polarity;
-    m_settings_scale_idx = scale_idx;
-    m_settings_range = range;
+    m_settings_slope_idx = slope_idx;
+    m_settings_scale = scale;
 
     int old_receiver_count = m_settings_receiver_count;
     int old_channel_count = m_settings_channels_per_rcvr;
@@ -453,6 +472,9 @@ void MainViewModel::applySettings(const QString& frame_sync, bool neg_polarity,
 void MainViewModel::loadSettings(const QString& filename)
 {
     m_settings->loadFile(filename);
+    m_last_settings_file = filename;
+    QSettings app_settings(UIConstants::kOrganizationName, UIConstants::kApplicationName);
+    app_settings.setValue(UIConstants::kSettingsKeyLastIni, filename);
 }
 
 void MainViewModel::saveSettings(const QString& filename)
@@ -462,11 +484,15 @@ void MainViewModel::saveSettings(const QString& filename)
 
 void MainViewModel::clearState()
 {
-    QSettings config(m_app_root + "/config/default.ini", QSettings::IniFormat);
-    m_settings_frame_sync = config.value("Defaults/FrameSync", PCMConstants::kDefaultFrameSync).toString();
-    m_settings_neg_polarity = false;
-    m_settings_scale_idx = config.value("Parameters/Scale", UIConstants::kDefaultScaleIndex).toInt();
-    m_settings_range = config.value("Parameters/Range", UIConstants::kDefaultRange).toString();
+    QSettings config(m_app_root + "/settings/default.ini", QSettings::IniFormat);
+    m_settings_frame_sync = config.value("Frame/FrameSync").toString();
+    if (m_settings_frame_sync.isEmpty())
+        m_settings_frame_sync = PCMConstants::kDefaultFrameSync;
+    m_settings_neg_polarity = config.value("Parameters/NegativePolarity").toBool();
+    m_settings_slope_idx = config.value("Parameters/Slope", UIConstants::kDefaultSlopeIndex).toInt();
+    m_settings_scale = config.value("Parameters/Scale").toString();
+    if (m_settings_scale.isEmpty())
+        m_settings_scale = UIConstants::kDefaultScale;
     m_settings_receiver_count = config.value("Receivers/Count", UIConstants::kDefaultReceiverCount).toInt();
     m_settings_channels_per_rcvr =
         config.value("Receivers/ChannelsPerReceiver", UIConstants::kDefaultChannelsPerReceiver).toInt();
@@ -562,12 +588,17 @@ bool MainViewModel::validateProcessingInputs(ProcessingParams& params,
         emit errorOccurred("Frame sync pattern is empty.");
         return false;
     }
-    if (params.sync_pattern_length > PCMConstants::kBitsInMinorFrame)
+
+    int data_words = m_settings_receiver_count * m_settings_channels_per_rcvr;
+    params.words_in_minor_frame = data_words + 1;
+    params.bits_in_minor_frame = data_words * PCMConstants::kCommonWordLen + params.sync_pattern_length;
+
+    if (params.sync_pattern_length > params.bits_in_minor_frame)
     {
         emit errorOccurred("Frame sync pattern (" +
                             QString::number(params.sync_pattern_length) +
                             " bits) exceeds frame length (" +
-                            QString::number(PCMConstants::kBitsInMinorFrame) + " bits).");
+                            QString::number(params.bits_in_minor_frame) + " bits).");
         return false;
     }
 
@@ -585,23 +616,24 @@ bool MainViewModel::validateProcessingInputs(ProcessingParams& params,
         return false;
     }
 
-    double range_dB = m_settings_range.toDouble();
-    if (range_dB <= 0)
+    double scale_dB_per_V = m_settings_scale.toDouble();
+    if (scale_dB_per_V <= 0)
     {
         emit errorOccurred("Range must be a positive number.");
         return false;
     }
-    int scale_index = m_settings_scale_idx;
-    if (scale_index <= 1) // bipolar
+
+    int scale_index = m_settings_slope_idx;
+    if (scale_index < 0 || scale_index > UIConstants::kMaxSlopeIndex)
     {
-        params.scale_lower_bound = -range_dB / 2.0;
-        params.scale_upper_bound = range_dB / 2.0;
+        emit errorOccurred("Invalid scale index.");
+        return false;
     }
-    else // unipolar
-    {
-        params.scale_lower_bound = 0;
-        params.scale_upper_bound = range_dB;
-    }
+
+    double voltage_lower = UIConstants::kSlopeVoltageLower[scale_index];
+    double voltage_upper = UIConstants::kSlopeVoltageUpper[scale_index];
+    params.scale_lower_bound = voltage_lower * scale_dB_per_V;
+    params.scale_upper_bound = voltage_upper * scale_dB_per_V;
 
     params.negative_polarity = m_settings_neg_polarity;
 
@@ -633,7 +665,7 @@ bool MainViewModel::validateProcessingInputs(ProcessingParams& params,
     {
         case 0: params.sample_rate = UIConstants::kSampleRate1Hz; break;
         case 1: params.sample_rate = UIConstants::kSampleRate10Hz; break;
-        case 2: params.sample_rate = UIConstants::kSampleRate20Hz; break;
+        case 2: params.sample_rate = UIConstants::kSampleRate100Hz; break;
         default:
             emit errorOccurred("Invalid sample rate.");
             return false;
@@ -718,6 +750,7 @@ void MainViewModel::launchWorkerThread(const ProcessingParams& params)
         processor->process(params.filename, m_frame_setup, params.outfile,
                            params.time_channel_id, params.pcm_channel_id,
                            params.frame_sync, params.sync_pattern_length,
+                           params.words_in_minor_frame, params.bits_in_minor_frame,
                            params.start_seconds, params.stop_seconds, params.sample_rate);
     });
 

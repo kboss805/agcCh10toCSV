@@ -6,6 +6,7 @@
 #include "tst_framesetup.h"
 #include "tst_mainviewmodel_helpers.h"
 #include "tst_mainviewmodel_state.h"
+#include "tst_settingsdialog.h"
 
 int main(int argc, char* argv[])
 {
@@ -31,6 +32,10 @@ int main(int argc, char* argv[])
     }
     {
         TestFrameSetup test;
+        status |= QTest::qExec(&test, argc, argv);
+    }
+    {
+        TestSettingsDialog test;
         status |= QTest::qExec(&test, argc, argv);
     }
 

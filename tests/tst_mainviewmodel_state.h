@@ -16,8 +16,8 @@ private slots:
     void setFrameSyncEmitsSignal();
     void setFrameSyncNoOpWhenUnchanged();
     void setNegativePolarityEmitsSignal();
-    void setScaleIndexEmitsSignal();
-    void setRangeEmitsSignal();
+    void setSlopeIndexEmitsSignal();
+    void setScaleEmitsSignal();
     void setReceiverCountEmitsSignal();
     void setReceiverCountResizesGrid();
     void setChannelsPerReceiverEmitsSignal();
@@ -30,6 +30,14 @@ private slots:
     void setAllReceiversCheckedFalse();
     void getSettingsDataApplySettingsDataRoundtrip();
     void applySettingsUpdatesProperties();
+
+    // v2.0 additions
+    void constructorDefaultFrameSync();
+    void lastSettingsFileInitiallyEmpty();
+
+    // v2.0.5 — dynamic frame length
+    void loadFrameSetupComputesFrameSizeFromReceiverConfig();
+    void loadFrameSetupSmallConfigAcceptsParams();
 };
 
 #endif // TST_MAINVIEWMODEL_STATE_H

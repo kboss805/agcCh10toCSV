@@ -57,16 +57,18 @@ public:
      * channel and averaging samples at the requested rate. Emits
      * progressUpdated() periodically and processingFinished() on completion.
      *
-     * @param[in] filename           Path to the .ch10 input file.
-     * @param[in] frame_setup        Frame parameter definitions (word map, calibration).
-     * @param[in] outfile            Path to the CSV output file.
-     * @param[in] time_channel_id    Time channel ID (resolved, not combo box index).
-     * @param[in] pcm_channel_id     PCM channel ID (resolved, not combo box index).
-     * @param[in] frame_sync         Frame sync pattern as a numeric value.
-     * @param[in] sync_pattern_len   Sync pattern length in bits.
-     * @param[in] start_seconds      Start of the extraction window (IRIG seconds).
-     * @param[in] stop_seconds       End of the extraction window (IRIG seconds).
-     * @param[in] sample_rate        Output sample rate in Hz.
+     * @param[in] filename              Path to the .ch10 input file.
+     * @param[in] frame_setup           Frame parameter definitions (word map, calibration).
+     * @param[in] outfile               Path to the CSV output file.
+     * @param[in] time_channel_id       Time channel ID (resolved, not combo box index).
+     * @param[in] pcm_channel_id        PCM channel ID (resolved, not combo box index).
+     * @param[in] frame_sync            Frame sync pattern as a numeric value.
+     * @param[in] sync_pattern_len      Sync pattern length in bits.
+     * @param[in] words_in_minor_frame  Words per PCM minor frame (data words + 1).
+     * @param[in] bits_in_minor_frame   Total bits per PCM minor frame.
+     * @param[in] start_seconds         Start of the extraction window (IRIG seconds).
+     * @param[in] stop_seconds          End of the extraction window (IRIG seconds).
+     * @param[in] sample_rate           Output sample rate in Hz.
      * @return true if processing completed without errors.
      */
     bool process(const QString& filename,
@@ -76,6 +78,8 @@ public:
                  int pcm_channel_id,
                  uint64_t frame_sync,
                  int sync_pattern_len,
+                 int words_in_minor_frame,
+                 int bits_in_minor_frame,
                  uint64_t start_seconds,
                  uint64_t stop_seconds,
                  int sample_rate);

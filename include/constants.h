@@ -12,7 +12,7 @@
 struct AppVersion {
     static constexpr int kMajor = 2;   ///< Major version number.
     static constexpr int kMinor = 0;   ///< Minor version number.
-    static constexpr int kPatch = 0;   ///< Patch version number.
+    static constexpr int kPatch = 5;   ///< Patch version number.
 
     /// @return Version string in "major.minor.patch" format.
     static QString toString() { return QString("%1.%2.%3").arg(kMajor).arg(kMinor).arg(kPatch); }
@@ -20,9 +20,7 @@ struct AppVersion {
 
 /// @brief Constants for PCM frame structure and channel type identifiers.
 namespace PCMConstants {
-    inline constexpr int kWordsInMinorFrame   = 49;    ///< Words per PCM minor frame.
     inline constexpr int kCommonWordLen        = 16;    ///< Bits per word.
-    inline constexpr int kBitsInMinorFrame     = 800;   ///< Total bits per minor frame.
     inline constexpr int kNumMinorFrames       = 1;     ///< Minor frames per major frame.
     inline constexpr int kMaxChannelCount      = 0x10000; ///< Maximum channel ID range.
     inline constexpr const char* kDefaultFrameSync = "FE6B2840"; ///< Default frame sync hex pattern.
@@ -54,6 +52,7 @@ namespace UIConstants {
     inline constexpr const char* kApplicationName   = "agcCh10toCSV"; ///< QSettings application name.
     inline constexpr const char* kSettingsKeyTheme  = "Theme";        ///< QSettings key for theme preference.
     inline constexpr const char* kSettingsKeyLastDir = "LastOpenDirectory"; ///< QSettings key for last opened directory.
+    inline constexpr const char* kSettingsKeyLastIni = "LastSettingsFile";  ///< QSettings key for last loaded INI file.
     inline constexpr const char* kThemeDark         = "dark";         ///< Dark theme identifier.
     inline constexpr const char* kThemeLight        = "light";        ///< Light theme identifier.
     /// @}
@@ -64,7 +63,7 @@ namespace UIConstants {
     inline constexpr int kTreeItemHeightFactor  = 28;  ///< Approximate height per tree item in pixels.
     inline constexpr int kTreeHeightBuffer      = 10;  ///< Extra height buffer for tree widgets.
     inline constexpr int kTreeFixedWidth        = 100; ///< Fixed width for receiver tree widgets.
-    inline constexpr int kLogMinimumWidth       = 300; ///< Minimum width for the log window.
+    inline constexpr int kLogMinimumWidth       = 400; ///< Minimum width for the log window.
     /// @}
 
     /// @name Time conversion
@@ -73,10 +72,17 @@ namespace UIConstants {
     inline constexpr int kSecondsPerHour   = 3600;  ///< Seconds in an hour.
     inline constexpr int kSecondsPerMinute = 60;    ///< Seconds in a minute.
     /// @}
-    inline constexpr int kDefaultScaleIndex           = 2;     ///< Default voltage scale combo index.
-    inline constexpr const char* kDefaultRange        = "100"; ///< Default full-scale range in dB.
+    inline constexpr int kDefaultSlopeIndex           = 2;     ///< Default voltage slope combo index.
+    inline constexpr int kMaxSlopeIndex               = 3;     ///< Maximum valid voltage slope combo index.
+    inline constexpr int kMaxSampleRateIndex           = 2;     ///< Maximum valid sample rate combo index.
+    inline constexpr const char* kDefaultScale        = "100"; ///< Default calibration scale in dB per volt.
     inline constexpr int kDefaultReceiverCount        = 16;    ///< Default number of receivers.
+    inline constexpr int kMinReceiverCount            = 1;     ///< Minimum valid number of receivers.
+    inline constexpr int kMaxReceiverCount            = 16;    ///< Maximum valid number of receivers.
     inline constexpr int kDefaultChannelsPerReceiver  = 3;     ///< Default channels per receiver (L, R, C).
+    inline constexpr int kMinChannelsPerReceiver      = 1;     ///< Minimum valid channels per receiver.
+    inline constexpr int kMaxChannelsPerReceiver      = 48;    ///< Maximum valid channels per receiver.
+    inline constexpr int kMaxTotalParameters          = 48;    ///< Maximum total parameter words (receivers x channels).
     inline const char* kChannelPrefixes[]             = {"L", "R", "C"}; ///< Channel prefix labels.
     inline constexpr int kNumKnownPrefixes            = 3;     ///< Number of known channel prefixes.
 
@@ -97,9 +103,21 @@ namespace UIConstants {
 
     /// @name Sample rate options (Hz)
     /// @{
-    inline constexpr int kSampleRate1Hz  = 1;  ///< 1 Hz sample rate.
-    inline constexpr int kSampleRate10Hz = 10; ///< 10 Hz sample rate.
-    inline constexpr int kSampleRate20Hz = 20; ///< 20 Hz sample rate.
+    inline constexpr int kSampleRate1Hz   = 1;   ///< 1 Hz sample rate.
+    inline constexpr int kSampleRate10Hz  = 10;  ///< 10 Hz sample rate.
+    inline constexpr int kSampleRate100Hz = 100; ///< 100 Hz sample rate.
+    /// @}
+
+    /// @name Voltage scale bounds (indexed by scale combo box)
+    /// @{
+    inline constexpr double kSlopeVoltageLower[] = {-10.0, -5.0, 0.0, 0.0}; ///< Lower voltage bound per scale option.
+    inline constexpr double kSlopeVoltageUpper[] = {10.0, 5.0, 10.0, 5.0};  ///< Upper voltage bound per scale option.
+    /// @}
+
+    /// @name Display labels for combo box indices
+    /// @{
+    inline const char* kSlopeLabels[]     = {"+/-10V", "+/-5V", "0-10V", "0-5V"};          ///< Voltage slope display labels.
+    inline const char* kSampleRateLabels[] = {"1 Hz", "10 Hz", "100 Hz"};         ///< Sample rate display labels.
     /// @}
 
     /// @name Output filename format

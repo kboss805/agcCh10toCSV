@@ -123,7 +123,7 @@ agcCH10toCSV/
 │   ├── src/                   # irig106utils C source files
 │   └── include/               # irig106utils C header files
 ├── tests/                      # Qt Test framework unit tests
-├── config/                     # Default and user configuration files
+├── settings/                   # Default and user settings files
 ├── resources/                  # Resources (stylesheets, icons)
 │   ├── win11-dark.qss         # Dark theme stylesheet
 │   ├── win11-light.qss        # Light theme stylesheet

@@ -124,8 +124,8 @@ private:
     MainViewModel* m_view_model;             ///< Owning ViewModel instance.
 
     QVBoxLayout* m_controls_layout;          ///< Left-side vertical controls layout.
-    QDockWidget* m_log_dock;                 ///< Dockable log panel.
-    QPlainTextEdit* m_log_window;            ///< Log output pane.
+    QDockWidget* m_controls_dock;            ///< Fixed left dock for controls panel.
+    QPlainTextEdit* m_log_window;            ///< Log output pane (central widget).
 
     QAction* m_theme_action;                 ///< File > Toggle theme action.
 

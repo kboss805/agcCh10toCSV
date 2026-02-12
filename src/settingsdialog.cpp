@@ -39,17 +39,17 @@ SettingsDialog::SettingsDialog(QWidget* parent)
     m_polarity = new QCheckBox("Negative");
     params_row->addWidget(m_polarity);
 
-    params_row->addWidget(new QLabel("    Scale: "));
-    m_scale = new QComboBox;
-    m_scale->addItem(QString::fromUtf8("\xc2\xb1") + "10V");
-    m_scale->addItem(QString::fromUtf8("\xc2\xb1") + "5V");
-    m_scale->addItem("0-10V");
-    m_scale->addItem("0-5V");
-    params_row->addWidget(m_scale);
+    params_row->addWidget(new QLabel("    Slope: "));
+    m_slope = new QComboBox;
+    m_slope->addItem(QString::fromUtf8("\xc2\xb1") + "10V");
+    m_slope->addItem(QString::fromUtf8("\xc2\xb1") + "5V");
+    m_slope->addItem("0-10V");
+    m_slope->addItem("0-5V");
+    params_row->addWidget(m_slope);
 
-    params_row->addWidget(new QLabel("    Range (dB): "));
-    m_range = new QLineEdit;
-    params_row->addWidget(m_range);
+    params_row->addWidget(new QLabel("    Scale (dB/V): "));
+    m_scale = new QLineEdit;
+    params_row->addWidget(m_scale);
 
     params_layout->addLayout(params_row);
     params_group->setLayout(params_layout);
@@ -113,24 +113,24 @@ bool SettingsDialog::negativePolarity() const
     return m_polarity->isChecked();
 }
 
-void SettingsDialog::setScaleIndex(int value)
+void SettingsDialog::setSlopeIndex(int value)
 {
-    m_scale->setCurrentIndex(value);
+    m_slope->setCurrentIndex(value);
 }
 
-int SettingsDialog::scaleIndex() const
+int SettingsDialog::slopeIndex() const
 {
-    return m_scale->currentIndex();
+    return m_slope->currentIndex();
 }
 
-void SettingsDialog::setRange(const QString& value)
+void SettingsDialog::setScale(const QString& value)
 {
-    m_range->setText(value);
+    m_scale->setText(value);
 }
 
-QString SettingsDialog::range() const
+QString SettingsDialog::scale() const
 {
-    return m_range->text();
+    return m_scale->text();
 }
 
 void SettingsDialog::setReceiverCount(int value)

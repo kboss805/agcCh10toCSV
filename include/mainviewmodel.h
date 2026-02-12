@@ -54,8 +54,8 @@ class MainViewModel : public QObject
     Q_PROPERTY(int sampleRateIndex READ sampleRateIndex WRITE setSampleRateIndex NOTIFY sampleRateIndexChanged)
     Q_PROPERTY(QString frameSync READ frameSync WRITE setFrameSync NOTIFY settingsChanged)
     Q_PROPERTY(bool negativePolarity READ negativePolarity WRITE setNegativePolarity NOTIFY settingsChanged)
-    Q_PROPERTY(int scaleIndex READ scaleIndex WRITE setScaleIndex NOTIFY settingsChanged)
-    Q_PROPERTY(QString range READ range WRITE setRange NOTIFY settingsChanged)
+    Q_PROPERTY(int slopeIndex READ slopeIndex WRITE setSlopeIndex NOTIFY settingsChanged)
+    Q_PROPERTY(QString scale READ scale WRITE setScale NOTIFY settingsChanged)
     Q_PROPERTY(int receiverCount READ receiverCount WRITE setReceiverCount NOTIFY receiverLayoutChanged)
     Q_PROPERTY(int channelsPerReceiver READ channelsPerReceiver WRITE setChannelsPerReceiver NOTIFY receiverLayoutChanged)
 
@@ -89,8 +89,8 @@ public:
 
     QString frameSync() const;                   ///< @return Frame sync hex string.
     bool negativePolarity() const;               ///< @return True if AGC polarity is negative.
-    int scaleIndex() const;                      ///< @return Voltage scale combo box index.
-    QString range() const;                       ///< @return Full-scale range in dB.
+    int slopeIndex() const;                      ///< @return Voltage slope combo box index.
+    QString scale() const;                       ///< @return Calibration scale in dB per volt.
     int receiverCount() const;                   ///< @return Number of receivers.
     int channelsPerReceiver() const;             ///< @return Number of channels per receiver.
     /// @}
@@ -103,8 +103,8 @@ public:
     void setSampleRateIndex(int value);           ///< Sets the sample rate combo box index.
     void setFrameSync(const QString& value);      ///< Sets the frame sync hex string.
     void setNegativePolarity(bool value);          ///< Sets the AGC polarity.
-    void setScaleIndex(int value);                ///< Sets the voltage scale combo box index.
-    void setRange(const QString& value);          ///< Sets the full-scale range in dB.
+    void setSlopeIndex(int value);                ///< Sets the voltage slope combo box index.
+    void setScale(const QString& value);          ///< Sets the calibration scale in dB per volt.
     void setReceiverCount(int value);             ///< Sets the number of receivers and resizes the grid.
     void setChannelsPerReceiver(int value);       ///< Sets channels per receiver and resizes the grid.
     /// @}
@@ -149,6 +149,7 @@ public:
     Chapter10Reader* reader() const;             ///< @return Pointer to the Chapter10Reader instance.
     FrameSetup* frameSetup() const;              ///< @return Pointer to the FrameSetup instance.
     QString appRoot() const;                     ///< @return Application root directory path.
+    QString lastSettingsFile() const;            ///< @return Path to the last loaded settings INI file.
     /// @}
 
 public slots:
@@ -177,7 +178,7 @@ public slots:
 
     /// Applies settings values from the SettingsDialog.
     void applySettings(const QString& frame_sync, bool neg_polarity,
-                       int scale_idx, const QString& range,
+                       int slope_idx, const QString& scale,
                        int receiver_count, int channels_per_rcvr);
 
     /// Loads settings from an INI file and applies them.
@@ -220,8 +221,10 @@ private:
         int pcm_channel_id;            ///< Resolved PCM channel ID.
         uint64_t frame_sync;           ///< Frame sync pattern as a numeric value.
         int sync_pattern_length;       ///< Sync pattern length in bits.
-        double scale_lower_bound;      ///< Lower bound of the voltage scale.
-        double scale_upper_bound;      ///< Upper bound of the voltage scale.
+        int words_in_minor_frame;      ///< Words per PCM minor frame (data words + 1).
+        int bits_in_minor_frame;       ///< Total bits per PCM minor frame.
+        double scale_lower_bound;      ///< Lower dB bound (voltage_lower * range_dB_per_V).
+        double scale_upper_bound;      ///< Upper dB bound (voltage_upper * range_dB_per_V).
         bool negative_polarity;        ///< True if AGC polarity is negative.
         uint64_t start_seconds;        ///< Start of extraction window (IRIG seconds).
         uint64_t stop_seconds;         ///< End of extraction window (IRIG seconds).
@@ -265,6 +268,7 @@ private:
     QString m_app_root;                      ///< Application root directory.
     QString m_input_filename;                ///< Path to the loaded .ch10 file.
     QString m_last_output_file;              ///< Path to the last generated CSV file.
+    QString m_last_settings_file;            ///< Path to the last loaded settings INI file.
     bool m_file_loaded;                      ///< True when a .ch10 file is loaded.
     int m_progress_percent;                  ///< Processing progress (0--100).
     bool m_processing;                       ///< True while background processing is running.
@@ -277,8 +281,8 @@ private:
 
     QString m_settings_frame_sync;                ///< Frame sync hex pattern.
     bool m_settings_neg_polarity;                 ///< True if AGC polarity is negative.
-    int m_settings_scale_idx;                     ///< Voltage scale combo box index.
-    QString m_settings_range;                     ///< Full-scale range in dB.
+    int m_settings_slope_idx;                     ///< Voltage slope combo box index.
+    QString m_settings_scale;                     ///< Calibration scale in dB per volt.
     int m_settings_receiver_count;                ///< Number of receivers.
     int m_settings_channels_per_rcvr;             ///< Channels per receiver.
 

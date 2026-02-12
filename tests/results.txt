@@ -11,6 +11,10 @@ PASS   : TestFrameSetup::tryLoadingFileOutOfBoundsWord()
 PASS   : TestFrameSetup::tryLoadingFileWordZeroFails()
 PASS   : TestFrameSetup::tryLoadingFileWordEqualsFrameSize()
 PASS   : TestFrameSetup::saveToSettingsWritesCorrectData()
+PASS   : TestFrameSetup::tryLoadingFileSmallerFrameAccepts()
+PASS   : TestFrameSetup::tryLoadingFileSmallerFrameRejectsBoundary()
+PASS   : TestFrameSetup::tryLoadingFileLargerFrameAccepts()
+PASS   : TestFrameSetup::tryLoadingFileSingleChannelFrameSize()
 PASS   : TestFrameSetup::cleanupTestCase()
-Totals: 12 passed, 0 failed, 0 skipped, 0 blacklisted, 16ms
+Totals: 16 passed, 0 failed, 0 skipped, 0 blacklisted, 12ms
 ********* Finished testing of TestFrameSetup *********

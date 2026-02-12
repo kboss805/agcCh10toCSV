@@ -4,16 +4,6 @@
 
 #include "constants.h"
 
-void TestConstants::pcmWordsInMinorFrame()
-{
-    QCOMPARE(PCMConstants::kWordsInMinorFrame, 49);
-}
-
-void TestConstants::pcmBitsInMinorFrame()
-{
-    QCOMPARE(PCMConstants::kBitsInMinorFrame, 800);
-}
-
 void TestConstants::pcmMaxChannelCount()
 {
     QCOMPARE(PCMConstants::kMaxChannelCount, 0x10000);
@@ -55,14 +45,14 @@ void TestConstants::uiDefaultChannelsPerReceiver()
     QCOMPARE(UIConstants::kDefaultChannelsPerReceiver, 3);
 }
 
-void TestConstants::uiDefaultScaleIndex()
+void TestConstants::uiDefaultSlopeIndex()
 {
-    QCOMPARE(UIConstants::kDefaultScaleIndex, 2);
+    QCOMPARE(UIConstants::kDefaultSlopeIndex, 2);
 }
 
-void TestConstants::uiDefaultRange()
+void TestConstants::uiDefaultScale()
 {
-    QCOMPARE(QString(UIConstants::kDefaultRange), QString("100"));
+    QCOMPARE(QString(UIConstants::kDefaultScale), QString("100"));
 }
 
 void TestConstants::uiTimeValidationLimits()
@@ -78,7 +68,27 @@ void TestConstants::uiSampleRates()
 {
     QCOMPARE(UIConstants::kSampleRate1Hz, 1);
     QCOMPARE(UIConstants::kSampleRate10Hz, 10);
-    QCOMPARE(UIConstants::kSampleRate20Hz, 20);
+    QCOMPARE(UIConstants::kSampleRate100Hz, 100);
+}
+
+void TestConstants::uiMaxSampleRateIndex()
+{
+    QCOMPARE(UIConstants::kMaxSampleRateIndex, 2);
+}
+
+void TestConstants::uiSlopeLabels()
+{
+    QCOMPARE(QString(UIConstants::kSlopeLabels[0]), QString("+/-10V"));
+    QCOMPARE(QString(UIConstants::kSlopeLabels[1]), QString("+/-5V"));
+    QCOMPARE(QString(UIConstants::kSlopeLabels[2]), QString("0-10V"));
+    QCOMPARE(QString(UIConstants::kSlopeLabels[3]), QString("0-5V"));
+}
+
+void TestConstants::uiSampleRateLabels()
+{
+    QCOMPARE(QString(UIConstants::kSampleRateLabels[0]), QString("1 Hz"));
+    QCOMPARE(QString(UIConstants::kSampleRateLabels[1]), QString("10 Hz"));
+    QCOMPARE(QString(UIConstants::kSampleRateLabels[2]), QString("100 Hz"));
 }
 
 void TestConstants::uiChannelPrefixes()
@@ -104,4 +114,64 @@ void TestConstants::uiButtonText()
 {
     QCOMPARE(QString(UIConstants::kButtonTextStart), QString("Process"));
     QCOMPARE(QString(UIConstants::kButtonTextProcessing), QString("Processing..."));
+}
+
+// v2.0 additions
+
+void TestConstants::appVersionValues()
+{
+    QCOMPARE(AppVersion::kMajor, 2);
+    QCOMPARE(AppVersion::kMinor, 0);
+    QCOMPARE(AppVersion::kPatch, 5);
+}
+
+void TestConstants::appVersionToString()
+{
+    QCOMPARE(AppVersion::toString(), QString("2.0.5"));
+}
+
+void TestConstants::pcmMaxRawSampleValue()
+{
+    QCOMPARE(PCMConstants::kMaxRawSampleValue, static_cast<uint16_t>(0xFFFF));
+}
+
+void TestConstants::pcmDefaultBufferSize()
+{
+    QCOMPARE(PCMConstants::kDefaultBufferSize, 65536UL);
+}
+
+void TestConstants::pcmProgressReportInterval()
+{
+    QCOMPARE(PCMConstants::kProgressReportInterval, 100);
+}
+
+void TestConstants::uiQSettingsKeys()
+{
+    QCOMPARE(QString(UIConstants::kOrganizationName), QString("agcCh10toCSV"));
+    QCOMPARE(QString(UIConstants::kApplicationName), QString("agcCh10toCSV"));
+    QCOMPARE(QString(UIConstants::kSettingsKeyTheme), QString("Theme"));
+    QCOMPARE(QString(UIConstants::kSettingsKeyLastDir), QString("LastOpenDirectory"));
+    QCOMPARE(QString(UIConstants::kSettingsKeyLastIni), QString("LastSettingsFile"));
+}
+
+void TestConstants::uiThemeIdentifiers()
+{
+    QCOMPARE(QString(UIConstants::kThemeDark), QString("dark"));
+    QCOMPARE(QString(UIConstants::kThemeLight), QString("light"));
+}
+
+void TestConstants::uiLayoutConstants()
+{
+    QCOMPARE(UIConstants::kReceiverGridColumns, 4);
+    QCOMPARE(UIConstants::kTreeItemHeightFactor, 28);
+    QCOMPARE(UIConstants::kTreeHeightBuffer, 10);
+    QCOMPARE(UIConstants::kTreeFixedWidth, 100);
+    QCOMPARE(UIConstants::kLogMinimumWidth, 400);
+}
+
+void TestConstants::uiTimeConversionConstants()
+{
+    QCOMPARE(UIConstants::kSecondsPerDay, 86400);
+    QCOMPARE(UIConstants::kSecondsPerHour, 3600);
+    QCOMPARE(UIConstants::kSecondsPerMinute, 60);
 }

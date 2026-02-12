@@ -77,21 +77,21 @@ void MainView::setUpMainLayout()
     m_controls_layout->addWidget(m_progress_bar);
     m_controls_layout->addStretch(1);
 
-    // Central widget is just the controls
-    QWidget* controls_widget = new QWidget;
-    controls_widget->setLayout(m_controls_layout);
-    setCentralWidget(controls_widget);
-
-    // Log in a dock widget (right side)
+    // Log is the central widget so it stretches on resize
     m_log_window = new QPlainTextEdit;
     m_log_window->setReadOnly(true);
     m_log_window->setMinimumWidth(UIConstants::kLogMinimumWidth);
+    setCentralWidget(m_log_window);
 
-    m_log_dock = new QDockWidget("Log", this);
-    m_log_dock->setWidget(m_log_window);
-    m_log_dock->setFeatures(QDockWidget::DockWidgetMovable |
-                             QDockWidget::DockWidgetFloatable);
-    addDockWidget(Qt::RightDockWidgetArea, m_log_dock);
+    // Controls in a fixed left dock widget
+    QWidget* controls_widget = new QWidget;
+    controls_widget->setLayout(m_controls_layout);
+    controls_widget->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
+
+    m_controls_dock = new QDockWidget("Controls", this);
+    m_controls_dock->setWidget(controls_widget);
+    m_controls_dock->setFeatures(QDockWidget::NoDockWidgetFeatures);
+    addDockWidget(Qt::LeftDockWidgetArea, m_controls_dock);
 
     // additional settings
     setWindowTitle("Chapter 10 to CSV AGC Converter");
@@ -335,7 +335,7 @@ void MainView::setUpTimeSection()
     m_sample_rate = new QComboBox;
     m_sample_rate->addItem(QString::number(UIConstants::kSampleRate1Hz) + " Hz");
     m_sample_rate->addItem(QString::number(UIConstants::kSampleRate10Hz) + " Hz");
-    m_sample_rate->addItem(QString::number(UIConstants::kSampleRate20Hz) + " Hz");
+    m_sample_rate->addItem(QString::number(UIConstants::kSampleRate100Hz) + " Hz");
 
     m_start_time = new QLineEdit;
     m_start_time->setInputMask("000:00:00:00;_");
@@ -350,12 +350,12 @@ void MainView::setUpTimeSection()
     // Row 0: Extract All Time (spans 0-1) | <stretch> | Sample Rate: | combo
     // Row 1: Start | start input          | <stretch> | Stop         | stop input
     time_grid->addWidget(m_time_all,                0, 0, 1, 2);
-    time_grid->addWidget(new QLabel("Sample Rate:"), 0, 3);
+    time_grid->addWidget(new QLabel("Sample Rate"), 0, 3, Qt::AlignRight);
     time_grid->addWidget(m_sample_rate,             0, 4);
     time_grid->addWidget(new QLabel("Start"),       1, 0);
     time_grid->addWidget(m_start_time,              1, 1);
-    time_grid->addWidget(new QLabel("Stop"),        1, 3);
-    time_grid->addWidget(m_stop_time,               1, 4);
+    time_grid->addWidget(new QLabel("Stop"),        1, 3, Qt::AlignRight);
+    time_grid->addWidget(m_stop_time,               1, 4, Qt::AlignLeft);
 
     time_grid->setColumnStretch(2, 1);
     m_time_section->setLayout(time_grid);
@@ -598,14 +598,17 @@ void MainView::onSettings()
     SettingsDialog dialog(this);
     dialog.setFrameSync(m_view_model->frameSync());
     dialog.setNegativePolarity(m_view_model->negativePolarity());
-    dialog.setScaleIndex(m_view_model->scaleIndex());
-    dialog.setRange(m_view_model->range());
+    dialog.setSlopeIndex(m_view_model->slopeIndex());
+    dialog.setScale(m_view_model->scale());
     dialog.setReceiverCount(m_view_model->receiverCount());
     dialog.setChannelsPerReceiver(m_view_model->channelsPerReceiver());
 
     connect(&dialog, &SettingsDialog::loadRequested, this, [this, &dialog]() {
+        QString start_dir = m_view_model->lastSettingsFile().isEmpty()
+            ? m_view_model->appRoot() + "/settings"
+            : m_view_model->lastSettingsFile();
         QString filename = QFileDialog::getOpenFileName(this, tr("Open File"),
-                                                        m_view_model->appRoot() + "/config",
+                                                        start_dir,
                                                         tr("Configuration Settings Files (*.ini)"));
         if (filename.isEmpty())
             return;
@@ -615,19 +618,22 @@ void MainView::onSettings()
         // Update dialog fields from newly loaded config values
         dialog.setFrameSync(m_view_model->frameSync());
         dialog.setNegativePolarity(m_view_model->negativePolarity());
-        dialog.setScaleIndex(m_view_model->scaleIndex());
-        dialog.setRange(m_view_model->range());
+        dialog.setSlopeIndex(m_view_model->slopeIndex());
+        dialog.setScale(m_view_model->scale());
         dialog.setReceiverCount(m_view_model->receiverCount());
         dialog.setChannelsPerReceiver(m_view_model->channelsPerReceiver());
     });
 
     connect(&dialog, &SettingsDialog::saveAsRequested, this, [this, &dialog]() {
         m_view_model->applySettings(dialog.frameSync(), dialog.negativePolarity(),
-                                   dialog.scaleIndex(), dialog.range(),
+                                   dialog.slopeIndex(), dialog.scale(),
                                    dialog.receiverCount(), dialog.channelsPerReceiver());
 
+        QString save_dir = m_view_model->lastSettingsFile().isEmpty()
+            ? m_view_model->appRoot() + "/settings"
+            : QFileInfo(m_view_model->lastSettingsFile()).absolutePath();
         QString filename = QFileDialog::getSaveFileName(this, tr("Save File"),
-                                                        m_view_model->appRoot() + "/config",
+                                                        save_dir,
                                                         tr("Configuration Settings Files (*.ini)"));
         if (!filename.isEmpty())
             m_view_model->saveSettings(filename);
@@ -636,7 +642,7 @@ void MainView::onSettings()
     if (dialog.exec() == QDialog::Accepted)
     {
         m_view_model->applySettings(dialog.frameSync(), dialog.negativePolarity(),
-                                   dialog.scaleIndex(), dialog.range(),
+                                   dialog.slopeIndex(), dialog.scale(),
                                    dialog.receiverCount(), dialog.channelsPerReceiver());
     }
 }

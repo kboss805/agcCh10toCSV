@@ -1,9 +1,12 @@
 #include "tst_mainviewmodel_state.h"
 
+#include <QSettings>
 #include <QSignalSpy>
+#include <QTemporaryFile>
 #include <QtTest>
 
 #include "constants.h"
+#include "framesetup.h"
 #include "mainviewmodel.h"
 #include "settingsdata.h"
 
@@ -17,8 +20,8 @@ void TestMainViewModelState::constructorDefaults()
     QCOMPARE(vm.extractAllTime(), true);
     QCOMPARE(vm.sampleRateIndex(), 0);
     QCOMPARE(vm.negativePolarity(), false);
-    QCOMPARE(vm.scaleIndex(), UIConstants::kDefaultScaleIndex);
-    QCOMPARE(vm.range(), QString(UIConstants::kDefaultRange));
+    QCOMPARE(vm.slopeIndex(), UIConstants::kDefaultSlopeIndex);
+    QCOMPARE(vm.scale(), QString(UIConstants::kDefaultScale));
     QCOMPARE(vm.receiverCount(), UIConstants::kDefaultReceiverCount);
     QCOMPARE(vm.channelsPerReceiver(), UIConstants::kDefaultChannelsPerReceiver);
     QCOMPARE(vm.timeChannelIndex(), 0);
@@ -101,26 +104,26 @@ void TestMainViewModelState::setNegativePolarityEmitsSignal()
     QCOMPARE(vm.negativePolarity(), true);
 }
 
-void TestMainViewModelState::setScaleIndexEmitsSignal()
+void TestMainViewModelState::setSlopeIndexEmitsSignal()
 {
     MainViewModel vm;
     QSignalSpy spy(&vm, &MainViewModel::settingsChanged);
 
-    vm.setScaleIndex(0); // default is kDefaultScaleIndex (2)
+    vm.setSlopeIndex(0); // default is kDefaultSlopeIndex (2)
 
     QCOMPARE(spy.count(), 1);
-    QCOMPARE(vm.scaleIndex(), 0);
+    QCOMPARE(vm.slopeIndex(), 0);
 }
 
-void TestMainViewModelState::setRangeEmitsSignal()
+void TestMainViewModelState::setScaleEmitsSignal()
 {
     MainViewModel vm;
     QSignalSpy spy(&vm, &MainViewModel::settingsChanged);
 
-    vm.setRange("200");
+    vm.setScale("200");
 
     QCOMPARE(spy.count(), 1);
-    QCOMPARE(vm.range(), QString("200"));
+    QCOMPARE(vm.scale(), QString("200"));
 }
 
 void TestMainViewModelState::setReceiverCountEmitsSignal()
@@ -238,8 +241,8 @@ void TestMainViewModelState::getSettingsDataApplySettingsDataRoundtrip()
 
     vm.setFrameSync("DEADBEEF");
     vm.setNegativePolarity(true);
-    vm.setScaleIndex(1);
-    vm.setRange("50");
+    vm.setSlopeIndex(1);
+    vm.setScale("50");
     vm.setExtractAllTime(false);
     vm.setSampleRateIndex(2);
     vm.setReceiverCount(8);
@@ -252,8 +255,8 @@ void TestMainViewModelState::getSettingsDataApplySettingsDataRoundtrip()
 
     QCOMPARE(vm2.frameSync(), QString("DEADBEEF"));
     QCOMPARE(vm2.negativePolarity(), true);
-    QCOMPARE(vm2.scaleIndex(), 1);
-    QCOMPARE(vm2.range(), QString("50"));
+    QCOMPARE(vm2.slopeIndex(), 1);
+    QCOMPARE(vm2.scale(), QString("50"));
     QCOMPARE(vm2.extractAllTime(), false);
     QCOMPARE(vm2.sampleRateIndex(), 2);
     QCOMPARE(vm2.receiverCount(), 8);
@@ -268,8 +271,75 @@ void TestMainViewModelState::applySettingsUpdatesProperties()
 
     QCOMPARE(vm.frameSync(), QString("11223344"));
     QCOMPARE(vm.negativePolarity(), true);
-    QCOMPARE(vm.scaleIndex(), 3);
-    QCOMPARE(vm.range(), QString("75"));
+    QCOMPARE(vm.slopeIndex(), 3);
+    QCOMPARE(vm.scale(), QString("75"));
     QCOMPARE(vm.receiverCount(), 4);
     QCOMPARE(vm.channelsPerReceiver(), 2);
+}
+
+// v2.0 additions
+
+void TestMainViewModelState::constructorDefaultFrameSync()
+{
+    MainViewModel vm;
+    QCOMPARE(vm.frameSync(), QString(PCMConstants::kDefaultFrameSync));
+}
+
+void TestMainViewModelState::lastSettingsFileInitiallyEmpty()
+{
+    // Clear any persisted value from previous app runs
+    QSettings app_settings(UIConstants::kOrganizationName, UIConstants::kApplicationName);
+    app_settings.remove(UIConstants::kSettingsKeyLastIni);
+    app_settings.sync();
+
+    MainViewModel vm;
+    QVERIFY(vm.lastSettingsFile().isEmpty());
+}
+
+// v2.0.5 — dynamic frame length
+
+void TestMainViewModelState::loadFrameSetupComputesFrameSizeFromReceiverConfig()
+{
+    // With default 16 receivers x 3 channels, words_in_frame = 48 + 1 = 49.
+    // A parameter at Word=48 (max data word) should be accepted.
+    QTemporaryFile tmp;
+    tmp.setAutoRemove(true);
+    if (!tmp.open())
+        QSKIP("Could not create temporary file");
+
+    // Write INI content directly to avoid QSettings lock issues on Windows.
+    tmp.write("[L_RCVR1]\nWord=48\nEnabled=true\n");
+    tmp.flush();
+    tmp.close();
+
+    MainViewModel vm;
+    // Default: 16 receivers x 3 channels = 48 data words, frame = 49
+    vm.loadFrameSetupFrom(tmp.fileName());
+    QCOMPARE(vm.frameSetup()->length(), 1);
+    QCOMPARE(vm.frameSetup()->getParameter(0)->word, 47); // stored as 0-based
+}
+
+void TestMainViewModelState::loadFrameSetupSmallConfigAcceptsParams()
+{
+    // With 2 receivers x 1 channel, words_in_frame = 2 + 1 = 3.
+    // Word=1 and Word=2 should be accepted; Word=3 would be rejected.
+    QTemporaryFile tmp;
+    tmp.setAutoRemove(true);
+    if (!tmp.open())
+        QSKIP("Could not create temporary file");
+
+    // Write INI content directly to avoid QSettings lock issues on Windows.
+    tmp.write("[L_RCVR1]\nWord=1\nEnabled=true\n\n[L_RCVR2]\nWord=2\nEnabled=true\n");
+    tmp.flush();
+    tmp.close();
+
+    MainViewModel vm;
+    vm.setReceiverCount(2);
+    vm.setChannelsPerReceiver(1);
+    // Frame = 2 data words + 1 = 3
+
+    vm.loadFrameSetupFrom(tmp.fileName());
+    QCOMPARE(vm.frameSetup()->length(), 2);
+    QCOMPARE(vm.frameSetup()->getParameter(0)->word, 0);
+    QCOMPARE(vm.frameSetup()->getParameter(1)->word, 1);
 }

@@ -8,8 +8,6 @@ class TestConstants : public QObject
     Q_OBJECT
 
 private slots:
-    void pcmWordsInMinorFrame();
-    void pcmBitsInMinorFrame();
     void pcmMaxChannelCount();
     void pcmDefaultFrameSync();
     void pcmCommonWordLen();
@@ -18,14 +16,28 @@ private slots:
     void pcmChannelTypeIdentifiers();
     void uiDefaultReceiverCount();
     void uiDefaultChannelsPerReceiver();
-    void uiDefaultScaleIndex();
-    void uiDefaultRange();
+    void uiDefaultSlopeIndex();
+    void uiDefaultScale();
     void uiTimeValidationLimits();
     void uiSampleRates();
+    void uiMaxSampleRateIndex();
+    void uiSlopeLabels();
+    void uiSampleRateLabels();
     void uiChannelPrefixes();
     void uiNumKnownPrefixes();
     void uiOutputFormatConstants();
     void uiButtonText();
+
+    // v2.0 additions
+    void appVersionValues();
+    void appVersionToString();
+    void pcmMaxRawSampleValue();
+    void pcmDefaultBufferSize();
+    void pcmProgressReportInterval();
+    void uiQSettingsKeys();
+    void uiThemeIdentifiers();
+    void uiLayoutConstants();
+    void uiTimeConversionConstants();
 };
 
 #endif // TST_CONSTANTS_H

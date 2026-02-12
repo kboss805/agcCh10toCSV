@@ -224,6 +224,8 @@ bool FrameProcessor::process(const QString& filename,
                                 int pcm_channel_id,
                                 uint64_t frame_sync,
                                 int sync_pattern_len,
+                                int words_in_minor_frame,
+                                int bits_in_minor_frame,
                                 uint64_t start_seconds,
                                 uint64_t stop_seconds,
                                 int sample_rate)
@@ -348,8 +350,8 @@ bool FrameProcessor::process(const QString& filename,
                               -1, // lParityType
                               -1, // lParityTransferOrder
                               PCMConstants::kNumMinorFrames,
-                              PCMConstants::kWordsInMinorFrame,
-                              PCMConstants::kBitsInMinorFrame,
+                              words_in_minor_frame,
+                              bits_in_minor_frame,
                               -1, // lMinorFrameSyncType
                               sync_pattern_len,
                               frame_sync, // llMinorFrameSyncPat

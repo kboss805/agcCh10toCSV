@@ -18,6 +18,12 @@ private slots:
     void tryLoadingFileWordZeroFails();
     void tryLoadingFileWordEqualsFrameSize();
     void saveToSettingsWritesCorrectData();
+
+    // Dynamic frame size tests
+    void tryLoadingFileSmallerFrameAccepts();
+    void tryLoadingFileSmallerFrameRejectsBoundary();
+    void tryLoadingFileLargerFrameAccepts();
+    void tryLoadingFileSingleChannelFrameSize();
 };
 
 #endif // TST_FRAMESETUP_H

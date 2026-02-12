@@ -24,10 +24,14 @@ public:
     /// @param[in] view_model Pointer to the owning MainViewModel.
     SettingsManager(MainViewModel* view_model);
 
-    /// Loads settings from @p filename and applies them to the MainViewModel.
+    /// Loads settings from @p filename, validates values, and applies them to the MainViewModel.
     void loadFile(const QString& filename);
     /// Captures current MainViewModel state and saves it to @p filename.
     void saveFile(const QString& filename);
+
+signals:
+    /// Emitted to report load/save status to the log window.
+    void logMessage(const QString& message);
 
 private:
     MainViewModel* m_view_model; ///< Owning MainViewModel instance.

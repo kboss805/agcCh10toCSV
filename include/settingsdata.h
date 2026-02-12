@@ -21,8 +21,8 @@ struct SettingsData
     int pcmChannelId;         ///< Selected PCM channel ID.
     QString frameSync;        ///< Frame sync pattern as a hex string.
     bool negativePolarity;    ///< True if AGC polarity is negative.
-    int scaleIndex;           ///< Voltage scale combo box index.
-    QString range;            ///< Full-scale range in dB as a string.
+    int slopeIndex;           ///< Voltage slope combo box index.
+    QString scale;            ///< Calibration scale in dB/V as a string.
     bool extractAllTime;      ///< True to extract the full time duration.
     int sampleRateIndex;      ///< Sample rate combo box index.
     int receiverCount;        ///< Number of receivers.
