@@ -19,7 +19,7 @@ void TestMainViewModelState::constructorDefaults()
     QCOMPARE(vm.progressPercent(), 0);
     QCOMPARE(vm.extractAllTime(), true);
     QCOMPARE(vm.sampleRateIndex(), 0);
-    QCOMPARE(vm.negativePolarity(), false);
+    QCOMPARE(vm.polarityIndex(), 0);
     QCOMPARE(vm.slopeIndex(), UIConstants::kDefaultSlopeIndex);
     QCOMPARE(vm.scale(), QString(UIConstants::kDefaultScale));
     QCOMPARE(vm.receiverCount(), UIConstants::kDefaultReceiverCount);
@@ -93,15 +93,15 @@ void TestMainViewModelState::setFrameSyncNoOpWhenUnchanged()
     QCOMPARE(spy.count(), 0);
 }
 
-void TestMainViewModelState::setNegativePolarityEmitsSignal()
+void TestMainViewModelState::setPolarityIndexEmitsSignal()
 {
     MainViewModel vm;
     QSignalSpy spy(&vm, &MainViewModel::settingsChanged);
 
-    vm.setNegativePolarity(true);
+    vm.setPolarityIndex(1);
 
     QCOMPARE(spy.count(), 1);
-    QCOMPARE(vm.negativePolarity(), true);
+    QCOMPARE(vm.polarityIndex(), 1);
 }
 
 void TestMainViewModelState::setSlopeIndexEmitsSignal()
@@ -240,7 +240,7 @@ void TestMainViewModelState::getSettingsDataApplySettingsDataRoundtrip()
     MainViewModel vm;
 
     vm.setFrameSync("DEADBEEF");
-    vm.setNegativePolarity(true);
+    vm.setPolarityIndex(1);
     vm.setSlopeIndex(1);
     vm.setScale("50");
     vm.setExtractAllTime(false);
@@ -254,7 +254,7 @@ void TestMainViewModelState::getSettingsDataApplySettingsDataRoundtrip()
     vm2.applySettingsData(data);
 
     QCOMPARE(vm2.frameSync(), QString("DEADBEEF"));
-    QCOMPARE(vm2.negativePolarity(), true);
+    QCOMPARE(vm2.polarityIndex(), 1);
     QCOMPARE(vm2.slopeIndex(), 1);
     QCOMPARE(vm2.scale(), QString("50"));
     QCOMPARE(vm2.extractAllTime(), false);
@@ -267,10 +267,10 @@ void TestMainViewModelState::applySettingsUpdatesProperties()
 {
     MainViewModel vm;
 
-    vm.applySettings("11223344", true, 3, "75", 4, 2);
+    vm.applySettings("11223344", 1, 3, "75", 4, 2);
 
     QCOMPARE(vm.frameSync(), QString("11223344"));
-    QCOMPARE(vm.negativePolarity(), true);
+    QCOMPARE(vm.polarityIndex(), 1);
     QCOMPARE(vm.slopeIndex(), 3);
     QCOMPARE(vm.scale(), QString("75"));
     QCOMPARE(vm.receiverCount(), 4);
@@ -285,15 +285,15 @@ void TestMainViewModelState::constructorDefaultFrameSync()
     QCOMPARE(vm.frameSync(), QString(PCMConstants::kDefaultFrameSync));
 }
 
-void TestMainViewModelState::lastSettingsFileInitiallyEmpty()
+void TestMainViewModelState::lastIniDirDefaultsToSettings()
 {
     // Clear any persisted value from previous app runs
     QSettings app_settings(UIConstants::kOrganizationName, UIConstants::kApplicationName);
-    app_settings.remove(UIConstants::kSettingsKeyLastIni);
+    app_settings.remove(UIConstants::kSettingsKeyLastIniDir);
     app_settings.sync();
 
     MainViewModel vm;
-    QVERIFY(vm.lastSettingsFile().isEmpty());
+    QVERIFY(vm.lastIniDir().endsWith("/settings"));
 }
 
 // v2.0.5 — dynamic frame length
@@ -308,7 +308,7 @@ void TestMainViewModelState::loadFrameSetupComputesFrameSizeFromReceiverConfig()
         QSKIP("Could not create temporary file");
 
     // Write INI content directly to avoid QSettings lock issues on Windows.
-    tmp.write("[L_RCVR1]\nWord=48\nEnabled=true\n");
+    tmp.write("[L_RCVR1]\nWord=48\n");
     tmp.flush();
     tmp.close();
 
@@ -329,7 +329,7 @@ void TestMainViewModelState::loadFrameSetupSmallConfigAcceptsParams()
         QSKIP("Could not create temporary file");
 
     // Write INI content directly to avoid QSettings lock issues on Windows.
-    tmp.write("[L_RCVR1]\nWord=1\nEnabled=true\n\n[L_RCVR2]\nWord=2\nEnabled=true\n");
+    tmp.write("[L_RCVR1]\nWord=1\n\n[L_RCVR2]\nWord=2\n");
     tmp.flush();
     tmp.close();
 

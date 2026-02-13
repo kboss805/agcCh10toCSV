@@ -8,6 +8,8 @@
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QDebug>
+#include <QDir>
+#include <QFileInfo>
 #include <QMap>
 
 #include "chapter10reader.h"
@@ -27,25 +29,27 @@ MainViewModel::MainViewModel(QObject* parent)
       m_extract_all_time(true),
       m_sample_rate_index(0),
       m_settings_frame_sync(PCMConstants::kDefaultFrameSync),
-      m_settings_neg_polarity(false),
+      m_settings_polarity_idx(0),
       m_settings_slope_idx(UIConstants::kDefaultSlopeIndex),
       m_settings_scale(UIConstants::kDefaultScale),
       m_settings_receiver_count(UIConstants::kDefaultReceiverCount),
       m_settings_channels_per_rcvr(UIConstants::kDefaultChannelsPerReceiver)
 {
-    m_app_root = QCoreApplication::applicationDirPath() + "/..";
+    m_app_root = QDir::cleanPath(QCoreApplication::applicationDirPath() + "/..");
     m_reader = new Chapter10Reader();
     m_frame_setup = new FrameSetup(this);
     m_settings = new SettingsManager(this);
 
     QSettings app_settings(UIConstants::kOrganizationName, UIConstants::kApplicationName);
-    m_last_settings_file = app_settings.value(UIConstants::kSettingsKeyLastIni).toString();
+    m_last_ini_dir = app_settings.value(UIConstants::kSettingsKeyLastIniDir).toString();
+    if (m_last_ini_dir.isEmpty())
+        m_last_ini_dir = m_app_root + "/settings";
 
     QSettings config(m_app_root + "/settings/default.ini", QSettings::IniFormat);
     QString ini_sync = config.value("Frame/FrameSync").toString();
     if (!ini_sync.isEmpty())
         m_settings_frame_sync = ini_sync;
-    m_settings_neg_polarity = config.value("Parameters/NegativePolarity").toBool();
+    m_settings_polarity_idx = config.value("Parameters/Polarity", 0).toInt();
     m_settings_slope_idx = config.value("Parameters/Slope", UIConstants::kDefaultSlopeIndex).toInt();
     QString ini_range = config.value("Parameters/Scale").toString();
     if (!ini_range.isEmpty())
@@ -57,6 +61,8 @@ MainViewModel::MainViewModel(QObject* parent)
     m_receiver_states.resize(m_settings_receiver_count);
     for (int i = 0; i < m_settings_receiver_count; i++)
         m_receiver_states[i].fill(true, m_settings_channels_per_rcvr);
+
+    loadFrameSetupFrom(m_app_root + "/settings/default.ini");
 
     connect(m_reader, &Chapter10Reader::displayErrorMessage,
             this, &MainViewModel::errorOccurred);
@@ -104,7 +110,7 @@ int MainViewModel::stopMinute() const { return m_reader->getStopMinute(); }
 int MainViewModel::stopSecond() const { return m_reader->getStopSecond(); }
 
 QString MainViewModel::frameSync() const { return m_settings_frame_sync; }
-bool MainViewModel::negativePolarity() const { return m_settings_neg_polarity; }
+int MainViewModel::polarityIndex() const { return m_settings_polarity_idx; }
 int MainViewModel::slopeIndex() const { return m_settings_slope_idx; }
 QString MainViewModel::scale() const { return m_settings_scale; }
 int MainViewModel::receiverCount() const { return m_settings_receiver_count; }
@@ -157,11 +163,11 @@ void MainViewModel::setFrameSync(const QString& value)
     emit settingsChanged();
 }
 
-void MainViewModel::setNegativePolarity(bool value)
+void MainViewModel::setPolarityIndex(int value)
 {
-    if (m_settings_neg_polarity == value)
+    if (m_settings_polarity_idx == value)
         return;
-    m_settings_neg_polarity = value;
+    m_settings_polarity_idx = value;
     emit settingsChanged();
 }
 
@@ -242,10 +248,8 @@ void MainViewModel::setAllReceiversChecked(bool checked)
 SettingsData MainViewModel::getSettingsData() const
 {
     SettingsData data;
-    data.timeChannelId = m_reader->getCurrentTimeChannelID();
-    data.pcmChannelId = m_reader->getCurrentPCMChannelID();
     data.frameSync = m_settings_frame_sync;
-    data.negativePolarity = m_settings_neg_polarity;
+    data.polarityIndex = m_settings_polarity_idx;
     data.slopeIndex = m_settings_slope_idx;
     data.scale = m_settings_scale;
     data.extractAllTime = m_extract_all_time;
@@ -258,7 +262,7 @@ SettingsData MainViewModel::getSettingsData() const
 void MainViewModel::applySettingsData(const SettingsData& data)
 {
     m_settings_frame_sync = data.frameSync;
-    m_settings_neg_polarity = data.negativePolarity;
+    m_settings_polarity_idx = data.polarityIndex;
     m_settings_slope_idx = data.slopeIndex;
     m_settings_scale = data.scale;
 
@@ -288,48 +292,11 @@ void MainViewModel::loadFrameSetupFrom(const QString& filename)
 {
     int words_in_frame = m_settings_receiver_count * m_settings_channels_per_rcvr + 1;
     m_frame_setup->tryLoadingFile(filename, words_in_frame);
-
-    if (m_frame_setup->length() == 0)
-        return;
-
-    int expected_count = m_settings_receiver_count * m_settings_channels_per_rcvr;
-    if (m_frame_setup->length() != expected_count)
-    {
-        qWarning() << "Frame setup has" << m_frame_setup->length()
-                    << "parameters but expected" << expected_count
-                    << "(" << m_settings_receiver_count << "receivers x"
-                    << m_settings_channels_per_rcvr << "channels)";
-    }
-
-    // Build name -> index map for O(1) parameter lookup
-    QMap<QString, int> param_map;
-    for (int j = 0; j < m_frame_setup->length(); j++)
-        param_map.insert(m_frame_setup->getParameter(j)->name, j);
-
-    // Sync receiver states from loaded parameter Enabled states
-    for (int receiver_index = 0; receiver_index < m_receiver_states.size(); receiver_index++)
-    {
-        for (int channel_index = 0;
-             channel_index < m_receiver_states[receiver_index].size();
-             channel_index++)
-        {
-            QString name = parameterName(channel_index, receiver_index);
-            bool enabled = true;
-            auto it = param_map.constFind(name);
-            if (it != param_map.constEnd())
-                enabled = m_frame_setup->getParameter(it.value())->is_enabled;
-            m_receiver_states[receiver_index][channel_index] = enabled;
-            emit receiverCheckedChanged(receiver_index, channel_index, enabled);
-        }
-    }
 }
 
 void MainViewModel::saveFrameSetupTo(QSettings& settings)
 {
-    // Build name -> index map for O(1) parameter lookup
-    QMap<QString, int> param_map;
-    for (int j = 0; j < m_frame_setup->length(); j++)
-        param_map.insert(m_frame_setup->getParameter(j)->name, j);
+    QMap<QString, int> param_map = buildParameterMap();
 
     // Sync receiver states to parameter Enabled before saving
     for (int receiver_index = 0; receiver_index < m_receiver_states.size(); receiver_index++)
@@ -352,6 +319,14 @@ void MainViewModel::saveFrameSetupTo(QSettings& settings)
 ////////////////////////////////////////////////////////////////////////////////
 //                               HELPERS                                      //
 ////////////////////////////////////////////////////////////////////////////////
+
+QMap<QString, int> MainViewModel::buildParameterMap() const
+{
+    QMap<QString, int> param_map;
+    for (int i = 0; i < m_frame_setup->length(); i++)
+        param_map.insert(m_frame_setup->getParameter(i)->name, i);
+    return param_map;
+}
 
 QString MainViewModel::channelPrefix(int index) const
 {
@@ -379,17 +354,30 @@ QString MainViewModel::generateOutputFilename() const
 Chapter10Reader* MainViewModel::reader() const { return m_reader; }
 FrameSetup* MainViewModel::frameSetup() const { return m_frame_setup; }
 QString MainViewModel::appRoot() const { return m_app_root; }
-QString MainViewModel::lastSettingsFile() const { return m_last_settings_file; }
+QString MainViewModel::lastIniDir() const { return m_last_ini_dir; }
 
 ////////////////////////////////////////////////////////////////////////////////
 //                              COMMANDS                                      //
 ////////////////////////////////////////////////////////////////////////////////
+
+void MainViewModel::logStartupInfo()
+{
+    emit logMessageReceived("Startup settings loaded from default.ini");
+    emit logMessageReceived("  FrameSync=" + m_settings_frame_sync +
+        ", Polarity=" + QString(UIConstants::kPolarityLabels[m_settings_polarity_idx]) +
+        ", Slope=" + QString(UIConstants::kSlopeLabels[m_settings_slope_idx]) +
+        ", Scale=" + m_settings_scale + " dB/V");
+    emit logMessageReceived("  Receivers=" + QString::number(m_settings_receiver_count) +
+        ", Channels=" + QString::number(m_settings_channels_per_rcvr) +
+        ", Frame setup=" + QString::number(m_frame_setup->length()) + " parameters");
+}
 
 void MainViewModel::openFile(const QString& filename)
 {
     clearState();
 
     m_input_filename = filename;
+    emit logMessageReceived("Opening: " + QFileInfo(filename).fileName());
 
     if (!m_reader->loadChannels(filename))
     {
@@ -397,13 +385,44 @@ void MainViewModel::openFile(const QString& filename)
         return;
     }
 
+    // Log channels found
+    QStringList time_list = m_reader->getTimeChannelComboBoxList();
+    QStringList pcm_list = m_reader->getPCMChannelComboBoxList();
+    emit logMessageReceived("  Time channels: " + (time_list.isEmpty() ? "none" : QString::number(time_list.size())));
+    for (const QString& ch : time_list)
+        emit logMessageReceived("    " + ch);
+    emit logMessageReceived("  PCM channels: " + (pcm_list.isEmpty() ? "none" : QString::number(pcm_list.size())));
+    for (const QString& ch : pcm_list)
+        emit logMessageReceived("    " + ch);
+
+    // Log file time range
+    emit logMessageReceived("  Time range: " +
+        QString("%1:%2:%3:%4")
+            .arg(m_reader->getStartDayOfYear(), 3, 10, QChar('0'))
+            .arg(m_reader->getStartHour(), 2, 10, QChar('0'))
+            .arg(m_reader->getStartMinute(), 2, 10, QChar('0'))
+            .arg(m_reader->getStartSecond(), 2, 10, QChar('0')) +
+        " - " +
+        QString("%1:%2:%3:%4")
+            .arg(m_reader->getStopDayOfYear(), 3, 10, QChar('0'))
+            .arg(m_reader->getStopHour(), 2, 10, QChar('0'))
+            .arg(m_reader->getStopMinute(), 2, 10, QChar('0'))
+            .arg(m_reader->getStopSecond(), 2, 10, QChar('0')));
+
+    // Log current frame settings
+    emit logMessageReceived("  FrameSync=" + m_settings_frame_sync +
+        ", Polarity=" + QString(UIConstants::kPolarityLabels[m_settings_polarity_idx]) +
+        ", Slope=" + QString(UIConstants::kSlopeLabels[m_settings_slope_idx]) +
+        ", Scale=" + m_settings_scale + " dB/V");
+    emit logMessageReceived("  Receivers=" + QString::number(m_settings_receiver_count) +
+        ", Channels=" + QString::number(m_settings_channels_per_rcvr) +
+        ", Frame setup=" + QString::number(m_frame_setup->length()) + " parameters");
+
     m_file_loaded = true;
     emit inputFilenameChanged();
     emit channelListsChanged();
     emit fileTimesChanged();
     emit fileLoadedChanged();
-
-    m_settings->loadFile(m_app_root + "/settings/default.ini");
 }
 
 void MainViewModel::startProcessing(const QString& output_file,
@@ -443,12 +462,12 @@ void MainViewModel::startProcessing(const QString& output_file,
     launchWorkerThread(params);
 }
 
-void MainViewModel::applySettings(const QString& frame_sync, bool neg_polarity,
+void MainViewModel::applySettings(const QString& frame_sync, int polarity_idx,
                                  int slope_idx, const QString& scale,
                                  int receiver_count, int channels_per_rcvr)
 {
     m_settings_frame_sync = frame_sync;
-    m_settings_neg_polarity = neg_polarity;
+    m_settings_polarity_idx = polarity_idx;
     m_settings_slope_idx = slope_idx;
     m_settings_scale = scale;
 
@@ -472,31 +491,21 @@ void MainViewModel::applySettings(const QString& frame_sync, bool neg_polarity,
 void MainViewModel::loadSettings(const QString& filename)
 {
     m_settings->loadFile(filename);
-    m_last_settings_file = filename;
+    m_last_ini_dir = QFileInfo(filename).absolutePath();
     QSettings app_settings(UIConstants::kOrganizationName, UIConstants::kApplicationName);
-    app_settings.setValue(UIConstants::kSettingsKeyLastIni, filename);
+    app_settings.setValue(UIConstants::kSettingsKeyLastIniDir, m_last_ini_dir);
 }
 
 void MainViewModel::saveSettings(const QString& filename)
 {
     m_settings->saveFile(filename);
+    m_last_ini_dir = QFileInfo(filename).absolutePath();
+    QSettings app_settings(UIConstants::kOrganizationName, UIConstants::kApplicationName);
+    app_settings.setValue(UIConstants::kSettingsKeyLastIniDir, m_last_ini_dir);
 }
 
 void MainViewModel::clearState()
 {
-    QSettings config(m_app_root + "/settings/default.ini", QSettings::IniFormat);
-    m_settings_frame_sync = config.value("Frame/FrameSync").toString();
-    if (m_settings_frame_sync.isEmpty())
-        m_settings_frame_sync = PCMConstants::kDefaultFrameSync;
-    m_settings_neg_polarity = config.value("Parameters/NegativePolarity").toBool();
-    m_settings_slope_idx = config.value("Parameters/Slope", UIConstants::kDefaultSlopeIndex).toInt();
-    m_settings_scale = config.value("Parameters/Scale").toString();
-    if (m_settings_scale.isEmpty())
-        m_settings_scale = UIConstants::kDefaultScale;
-    m_settings_receiver_count = config.value("Receivers/Count", UIConstants::kDefaultReceiverCount).toInt();
-    m_settings_channels_per_rcvr =
-        config.value("Receivers/ChannelsPerReceiver", UIConstants::kDefaultChannelsPerReceiver).toInt();
-
     m_input_filename.clear();
     m_last_output_file.clear();
     m_file_loaded = false;
@@ -504,15 +513,8 @@ void MainViewModel::clearState()
     m_processing = false;
     m_time_channel_index = 0;
     m_pcm_channel_index = 0;
-    m_extract_all_time = true;
-    m_sample_rate_index = 0;
-
-    m_receiver_states.resize(m_settings_receiver_count);
-    for (int i = 0; i < m_settings_receiver_count; i++)
-        m_receiver_states[i].fill(true, m_settings_channels_per_rcvr);
 
     m_reader->clearSettings();
-    m_frame_setup->clearParameters();
 
     emit inputFilenameChanged();
     emit channelListsChanged();
@@ -521,8 +523,6 @@ void MainViewModel::clearState()
     emit progressPercentChanged();
     emit processingChanged();
     emit controlsEnabledChanged();
-    emit settingsChanged();
-    emit receiverLayoutChanged();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -589,7 +589,7 @@ bool MainViewModel::validateProcessingInputs(ProcessingParams& params,
         return false;
     }
 
-    int data_words = m_settings_receiver_count * m_settings_channels_per_rcvr;
+    int data_words = m_frame_setup->length();
     params.words_in_minor_frame = data_words + 1;
     params.bits_in_minor_frame = data_words * PCMConstants::kCommonWordLen + params.sync_pattern_length;
 
@@ -608,25 +608,17 @@ bool MainViewModel::validateProcessingInputs(ProcessingParams& params,
         return false;
     }
 
-    int expected_param_count = m_settings_receiver_count * m_settings_channels_per_rcvr;
-    if (m_frame_setup->length() != expected_param_count)
-    {
-        emit errorOccurred("Frame setup has " + QString::number(m_frame_setup->length()) +
-                           " parameters but expected " + QString::number(expected_param_count) + ".");
-        return false;
-    }
-
     double scale_dB_per_V = m_settings_scale.toDouble();
     if (scale_dB_per_V <= 0)
     {
-        emit errorOccurred("Range must be a positive number.");
+        emit errorOccurred("Scale must be a positive number.");
         return false;
     }
 
     int scale_index = m_settings_slope_idx;
     if (scale_index < 0 || scale_index > UIConstants::kMaxSlopeIndex)
     {
-        emit errorOccurred("Invalid scale index.");
+        emit errorOccurred("Invalid slope index.");
         return false;
     }
 
@@ -635,7 +627,7 @@ bool MainViewModel::validateProcessingInputs(ProcessingParams& params,
     params.scale_lower_bound = voltage_lower * scale_dB_per_V;
     params.scale_upper_bound = voltage_upper * scale_dB_per_V;
 
-    params.negative_polarity = m_settings_neg_polarity;
+    params.negative_polarity = (m_settings_polarity_idx == 1);
 
     int s_ddd, s_hh, s_mm, s_ss;
     if (!validateTimeFields(start_ddd, start_hh, start_mm, start_ss,
@@ -678,19 +670,26 @@ bool MainViewModel::prepareFrameSetupParameters(double scale_lower_bound,
                                                   double scale_upper_bound,
                                                   bool negative_polarity)
 {
-    QMap<QString, int> param_map;
     bool any_enabled = false;
 
     for (int i = 0; i < m_frame_setup->length(); i++)
     {
         ParameterInfo* param = m_frame_setup->getParameter(i);
         param->slope = (scale_upper_bound - scale_lower_bound) / PCMConstants::kMaxRawSampleValue;
-        param->scale = scale_lower_bound / (scale_upper_bound - scale_lower_bound) * PCMConstants::kMaxRawSampleValue;
         if (negative_polarity)
-            param->scale *= -1;
-        param->is_enabled = true;
-        param_map.insert(param->name, i);
+        {
+            param->slope *= -1;
+            param->scale = -scale_upper_bound / (scale_upper_bound - scale_lower_bound) * PCMConstants::kMaxRawSampleValue;
+        }
+        else
+        {
+            param->scale = scale_lower_bound / (scale_upper_bound - scale_lower_bound) * PCMConstants::kMaxRawSampleValue;
+        }
+        param->is_enabled = false;
     }
+
+    // Enable only parameters that correspond to checked receivers in the grid
+    QMap<QString, int> param_map = buildParameterMap();
 
     for (int receiver_index = 0; receiver_index < m_receiver_states.size(); receiver_index++)
     {
@@ -698,24 +697,19 @@ bool MainViewModel::prepareFrameSetupParameters(double scale_lower_bound,
              channel_index < m_receiver_states[receiver_index].size();
              channel_index++)
         {
-            if (!m_receiver_states[receiver_index][channel_index])
+            if (m_receiver_states[receiver_index][channel_index])
             {
                 QString name = parameterName(channel_index, receiver_index);
                 auto it = param_map.constFind(name);
                 if (it != param_map.constEnd())
-                    m_frame_setup->getParameter(it.value())->is_enabled = false;
+                {
+                    m_frame_setup->getParameter(it.value())->is_enabled = true;
+                    any_enabled = true;
+                }
             }
         }
     }
 
-    for (int i = 0; i < m_frame_setup->length(); i++)
-    {
-        if (m_frame_setup->getParameter(i)->is_enabled)
-        {
-            any_enabled = true;
-            break;
-        }
-    }
     return any_enabled;
 }
 

@@ -36,7 +36,9 @@ SettingsDialog::SettingsDialog(QWidget* parent)
 
     QHBoxLayout* params_row = new QHBoxLayout;
     params_row->addWidget(new QLabel("Polarity: "));
-    m_polarity = new QCheckBox("Negative");
+    m_polarity = new QComboBox;
+    m_polarity->addItem("Positive");
+    m_polarity->addItem("Negative");
     params_row->addWidget(m_polarity);
 
     params_row->addWidget(new QLabel("    Slope: "));
@@ -103,14 +105,14 @@ QString SettingsDialog::frameSync() const
     return m_frame_sync->text();
 }
 
-void SettingsDialog::setNegativePolarity(bool value)
+void SettingsDialog::setPolarityIndex(int value)
 {
-    m_polarity->setChecked(value);
+    m_polarity->setCurrentIndex(value);
 }
 
-bool SettingsDialog::negativePolarity() const
+int SettingsDialog::polarityIndex() const
 {
-    return m_polarity->isChecked();
+    return m_polarity->currentIndex();
 }
 
 void SettingsDialog::setSlopeIndex(int value)

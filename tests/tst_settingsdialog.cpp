@@ -14,10 +14,10 @@ void TestSettingsDialog::defaultFrameSyncIsEmpty()
     QCOMPARE(dlg.frameSync(), QString(""));
 }
 
-void TestSettingsDialog::defaultPolarityIsFalse()
+void TestSettingsDialog::defaultPolarityIndexIsZero()
 {
     SettingsDialog dlg;
-    QCOMPARE(dlg.negativePolarity(), false);
+    QCOMPARE(dlg.polarityIndex(), 0);
 }
 
 void TestSettingsDialog::defaultSlopeIndexIsZero()
@@ -56,14 +56,14 @@ void TestSettingsDialog::setGetFrameSync()
     QCOMPARE(dlg.frameSync(), QString("ABCD"));
 }
 
-void TestSettingsDialog::setGetNegativePolarity()
+void TestSettingsDialog::setGetPolarityIndex()
 {
     SettingsDialog dlg;
-    dlg.setNegativePolarity(true);
-    QCOMPARE(dlg.negativePolarity(), true);
+    dlg.setPolarityIndex(1);
+    QCOMPARE(dlg.polarityIndex(), 1);
 
-    dlg.setNegativePolarity(false);
-    QCOMPARE(dlg.negativePolarity(), false);
+    dlg.setPolarityIndex(0);
+    QCOMPARE(dlg.polarityIndex(), 0);
 }
 
 void TestSettingsDialog::setGetSlopeIndex()

@@ -80,7 +80,8 @@ SOURCES += \
     tst_mainviewmodel_helpers.cpp \
     tst_mainviewmodel_state.cpp \
     tst_framesetup.cpp \
-    tst_settingsdialog.cpp
+    tst_settingsdialog.cpp \
+    tst_settingsmanager.cpp
 
 # Test headers (needed for MOC processing)
 HEADERS += \
@@ -89,4 +90,5 @@ HEADERS += \
     tst_mainviewmodel_helpers.h \
     tst_mainviewmodel_state.h \
     tst_framesetup.h \
-    tst_settingsdialog.h
+    tst_settingsdialog.h \
+    tst_settingsmanager.h

@@ -18,8 +18,11 @@ This application reads IRIG 106 Chapter 10 (.ch10) files, extracts telemetry dat
 - **CSV Export**: Output processed data in CSV format with auto-generated timestamped filenames
 - **Dark & Light Themes**: Windows 11 / WinUI 3 styled dark and light themes with runtime toggle
 - **Drag-and-Drop**: Drop .ch10 files directly onto the application window
-- **Persistent Directory**: Remembers the last opened folder between sessions
-- **Sample Rate Options**: 1 Hz, 10 Hz, or 20 Hz output sample rates
+- **Per-File-Type Directory Persistence**: Independently remembers the last used directory for Ch10, CSV, and INI file dialogs between sessions
+- **Inline Log Window**: Persistent, scrollable log with timestamped entries; errors in red, warnings in dark yellow; replaces modal dialog boxes for errors and warnings
+- **Startup & File Logging**: Logs default.ini settings at startup, channel/time/frame info when opening Ch10 files, and INI validation details when loading settings
+- **INI Validation**: Warns when parameter section count in INI files does not match receiver/channel configuration
+- **Sample Rate Options**: 1 Hz, 10 Hz, or 100 Hz output sample rates
 
 ## System Requirements
 

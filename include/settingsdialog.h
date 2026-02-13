@@ -8,7 +8,6 @@
 
 #include <QDialog>
 #include <QLineEdit>
-#include <QCheckBox>
 #include <QComboBox>
 #include <QGroupBox>
 
@@ -29,8 +28,8 @@ public:
     void setFrameSync(const QString& value);   ///< Sets the frame sync hex string.
     QString frameSync() const;                  ///< @return Current frame sync hex string.
 
-    void setNegativePolarity(bool value);       ///< Sets the polarity checkbox state.
-    bool negativePolarity() const;              ///< @return True if negative polarity is selected.
+    void setPolarityIndex(int value);            ///< Sets the polarity combo box index.
+    int polarityIndex() const;                  ///< @return Polarity combo box index (0=Positive, 1=Negative).
 
     void setSlopeIndex(int value);              ///< Sets the voltage slope combo box index.
     int slopeIndex() const;                     ///< @return Voltage slope combo box index.
@@ -50,7 +49,7 @@ signals:
 
 private:
     QLineEdit* m_frame_sync;             ///< Frame sync hex pattern input.
-    QCheckBox* m_polarity;               ///< Negative-polarity toggle.
+    QComboBox* m_polarity;               ///< Polarity selector (Positive/Negative).
     QComboBox* m_slope;                  ///< Voltage slope selector.
     QLineEdit* m_scale;                  ///< Scale input (dB/V).
     QLineEdit* m_receiver_count;         ///< Receiver count input.

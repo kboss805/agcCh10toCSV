@@ -121,13 +121,13 @@ void TestConstants::uiButtonText()
 void TestConstants::appVersionValues()
 {
     QCOMPARE(AppVersion::kMajor, 2);
-    QCOMPARE(AppVersion::kMinor, 0);
-    QCOMPARE(AppVersion::kPatch, 5);
+    QCOMPARE(AppVersion::kMinor, 1);
+    QCOMPARE(AppVersion::kPatch, 0);
 }
 
 void TestConstants::appVersionToString()
 {
-    QCOMPARE(AppVersion::toString(), QString("2.0.5"));
+    QCOMPARE(AppVersion::toString(), QString("2.1.0"));
 }
 
 void TestConstants::pcmMaxRawSampleValue()
@@ -150,8 +150,9 @@ void TestConstants::uiQSettingsKeys()
     QCOMPARE(QString(UIConstants::kOrganizationName), QString("agcCh10toCSV"));
     QCOMPARE(QString(UIConstants::kApplicationName), QString("agcCh10toCSV"));
     QCOMPARE(QString(UIConstants::kSettingsKeyTheme), QString("Theme"));
-    QCOMPARE(QString(UIConstants::kSettingsKeyLastDir), QString("LastOpenDirectory"));
-    QCOMPARE(QString(UIConstants::kSettingsKeyLastIni), QString("LastSettingsFile"));
+    QCOMPARE(QString(UIConstants::kSettingsKeyLastCh10Dir), QString("LastCh10Directory"));
+    QCOMPARE(QString(UIConstants::kSettingsKeyLastCsvDir), QString("LastCsvDirectory"));
+    QCOMPARE(QString(UIConstants::kSettingsKeyLastIniDir), QString("LastIniDirectory"));
 }
 
 void TestConstants::uiThemeIdentifiers()
@@ -174,4 +175,12 @@ void TestConstants::uiTimeConversionConstants()
     QCOMPARE(UIConstants::kSecondsPerDay, 86400);
     QCOMPARE(UIConstants::kSecondsPerHour, 3600);
     QCOMPARE(UIConstants::kSecondsPerMinute, 60);
+}
+
+void TestConstants::uiPolarityConstants()
+{
+    QCOMPARE(UIConstants::kDefaultPolarityIndex, 1);
+    QCOMPARE(UIConstants::kMaxPolarityIndex, 1);
+    QCOMPARE(QString(UIConstants::kPolarityLabels[0]), QString("Positive"));
+    QCOMPARE(QString(UIConstants::kPolarityLabels[1]), QString("Negative"));
 }

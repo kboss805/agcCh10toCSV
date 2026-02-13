@@ -15,7 +15,7 @@ private slots:
     void setSampleRateIndexNoOpWhenUnchanged();
     void setFrameSyncEmitsSignal();
     void setFrameSyncNoOpWhenUnchanged();
-    void setNegativePolarityEmitsSignal();
+    void setPolarityIndexEmitsSignal();
     void setSlopeIndexEmitsSignal();
     void setScaleEmitsSignal();
     void setReceiverCountEmitsSignal();
@@ -33,7 +33,7 @@ private slots:
 
     // v2.0 additions
     void constructorDefaultFrameSync();
-    void lastSettingsFileInitiallyEmpty();
+    void lastIniDirDefaultsToSettings();
 
     // v2.0.5 — dynamic frame length
     void loadFrameSetupComputesFrameSizeFromReceiverConfig();

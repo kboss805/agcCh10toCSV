@@ -74,6 +74,8 @@ desktop.ini
 tests/results*.txt
 tests/run_tests.ps1
 tests/nul
+tests/stderr.txt
+tests/data/*.ch10
 
 # Input and Output files (you may want to keep these)
 *.csv

@@ -9,14 +9,14 @@ class TestSettingsDialog : public QObject
 
 private slots:
     void defaultFrameSyncIsEmpty();
-    void defaultPolarityIsFalse();
+    void defaultPolarityIndexIsZero();
     void defaultSlopeIndexIsZero();
     void defaultScaleIsEmpty();
     void defaultReceiverCountIsZero();
     void defaultChannelsPerReceiverIsZero();
 
     void setGetFrameSync();
-    void setGetNegativePolarity();
+    void setGetPolarityIndex();
     void setGetSlopeIndex();
     void setGetScale();
     void setGetReceiverCount();

@@ -10,7 +10,7 @@
 #include <QTextStream>
 
 const QStringList FrameSetup::kSettingsGroups = {
-    "Defaults", "Channels", "Frame", "Parameters", "Time", "Receivers", "Bounds"
+    "Defaults", "Frame", "Parameters", "Time", "Receivers", "Bounds"
 };
 
 QStringList FrameSetup::readGroupsInFileOrder(const QString& filename) const
@@ -79,7 +79,7 @@ bool FrameSetup::tryLoadingFile(const QString& filename, int num_words_in_minor_
         parameter.word = parameter_word;
         parameter.slope = 0;
         parameter.scale = 0;
-        parameter.is_enabled = settings.value("Enabled", true).toBool();
+        parameter.is_enabled = true;
         parameter.sample_sum = 0;
 
         m_parameters.append(parameter);
@@ -120,7 +120,6 @@ void FrameSetup::saveToSettings(QSettings& settings)
     {
         settings.beginGroup(param.name);
         settings.setValue("Word", param.word + 1);
-        settings.setValue("Enabled", param.is_enabled);
         settings.endGroup();
     }
 }

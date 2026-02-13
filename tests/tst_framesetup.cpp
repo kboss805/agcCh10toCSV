@@ -83,7 +83,7 @@ void TestFrameSetup::tryLoadingFileValidFile()
     QVERIFY(p2 != nullptr);
     QCOMPARE(p2->name, QString("C_RCVR1"));
     QCOMPARE(p2->word, 2);  // INI Word=3, stored as 2
-    QCOMPARE(p2->is_enabled, false);
+    QCOMPARE(p2->is_enabled, true);
 }
 
 void TestFrameSetup::tryLoadingFileMissingWordKey()
@@ -168,12 +168,12 @@ void TestFrameSetup::saveToSettingsWritesCorrectData()
 
     in_settings.beginGroup("L_RCVR1");
     QCOMPARE(in_settings.value("Word").toInt(), 1);
-    QCOMPARE(in_settings.value("Enabled").toBool(), true);
+    QVERIFY(!in_settings.contains("Enabled"));
     in_settings.endGroup();
 
     in_settings.beginGroup("C_RCVR1");
     QCOMPARE(in_settings.value("Word").toInt(), 3);
-    QCOMPARE(in_settings.value("Enabled").toBool(), false);
+    QVERIFY(!in_settings.contains("Enabled"));
     in_settings.endGroup();
 }
 
@@ -229,7 +229,7 @@ void TestFrameSetup::tryLoadingFileSingleChannelFrameSize()
         QSKIP("Could not create temporary file");
 
     // Write INI content directly to avoid QSettings lock issues on Windows.
-    tmp.write("[L_RCVR1]\nWord=1\nEnabled=true\n");
+    tmp.write("[L_RCVR1]\nWord=1\n");
     tmp.flush();
     tmp.close();
 

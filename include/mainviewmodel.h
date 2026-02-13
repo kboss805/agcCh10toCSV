@@ -53,7 +53,7 @@ class MainViewModel : public QObject
     Q_PROPERTY(bool extractAllTime READ extractAllTime WRITE setExtractAllTime NOTIFY extractAllTimeChanged)
     Q_PROPERTY(int sampleRateIndex READ sampleRateIndex WRITE setSampleRateIndex NOTIFY sampleRateIndexChanged)
     Q_PROPERTY(QString frameSync READ frameSync WRITE setFrameSync NOTIFY settingsChanged)
-    Q_PROPERTY(bool negativePolarity READ negativePolarity WRITE setNegativePolarity NOTIFY settingsChanged)
+    Q_PROPERTY(int polarityIndex READ polarityIndex WRITE setPolarityIndex NOTIFY settingsChanged)
     Q_PROPERTY(int slopeIndex READ slopeIndex WRITE setSlopeIndex NOTIFY settingsChanged)
     Q_PROPERTY(QString scale READ scale WRITE setScale NOTIFY settingsChanged)
     Q_PROPERTY(int receiverCount READ receiverCount WRITE setReceiverCount NOTIFY receiverLayoutChanged)
@@ -88,7 +88,7 @@ public:
     int stopSecond() const;                      ///< @return File stop second.
 
     QString frameSync() const;                   ///< @return Frame sync hex string.
-    bool negativePolarity() const;               ///< @return True if AGC polarity is negative.
+    int polarityIndex() const;                    ///< @return Polarity combo box index (0=Positive, 1=Negative).
     int slopeIndex() const;                      ///< @return Voltage slope combo box index.
     QString scale() const;                       ///< @return Calibration scale in dB per volt.
     int receiverCount() const;                   ///< @return Number of receivers.
@@ -102,7 +102,7 @@ public:
     void setExtractAllTime(bool value);           ///< Sets whether to extract the full time range.
     void setSampleRateIndex(int value);           ///< Sets the sample rate combo box index.
     void setFrameSync(const QString& value);      ///< Sets the frame sync hex string.
-    void setNegativePolarity(bool value);          ///< Sets the AGC polarity.
+    void setPolarityIndex(int value);              ///< Sets the polarity combo box index.
     void setSlopeIndex(int value);                ///< Sets the voltage slope combo box index.
     void setScale(const QString& value);          ///< Sets the calibration scale in dB per volt.
     void setReceiverCount(int value);             ///< Sets the number of receivers and resizes the grid.
@@ -149,10 +149,12 @@ public:
     Chapter10Reader* reader() const;             ///< @return Pointer to the Chapter10Reader instance.
     FrameSetup* frameSetup() const;              ///< @return Pointer to the FrameSetup instance.
     QString appRoot() const;                     ///< @return Application root directory path.
-    QString lastSettingsFile() const;            ///< @return Path to the last loaded settings INI file.
+    QString lastIniDir() const;                  ///< @return Last directory used in INI file dialogs.
     /// @}
 
 public slots:
+    /// Logs startup configuration to the log window.
+    void logStartupInfo();
     /// Opens a .ch10 file and populates channel lists.
     void openFile(const QString& filename);
 
@@ -177,7 +179,7 @@ public slots:
                          int sample_rate_index);
 
     /// Applies settings values from the SettingsDialog.
-    void applySettings(const QString& frame_sync, bool neg_polarity,
+    void applySettings(const QString& frame_sync, int polarity_idx,
                        int slope_idx, const QString& scale,
                        int receiver_count, int channels_per_rcvr);
 
@@ -245,6 +247,9 @@ private:
                              const QString& mm, const QString& ss,
                              int& out_ddd, int& out_hh, int& out_mm, int& out_ss) const;
 
+    /// Builds a name-to-index map for O(1) parameter lookup in the frame setup.
+    QMap<QString, int> buildParameterMap() const;
+
     /// Applies calibration slope/scale to each enabled frame parameter.
     bool prepareFrameSetupParameters(double scale_lower_bound,
                                       double scale_upper_bound,
@@ -268,7 +273,7 @@ private:
     QString m_app_root;                      ///< Application root directory.
     QString m_input_filename;                ///< Path to the loaded .ch10 file.
     QString m_last_output_file;              ///< Path to the last generated CSV file.
-    QString m_last_settings_file;            ///< Path to the last loaded settings INI file.
+    QString m_last_ini_dir;                  ///< Last directory used in INI file dialogs.
     bool m_file_loaded;                      ///< True when a .ch10 file is loaded.
     int m_progress_percent;                  ///< Processing progress (0--100).
     bool m_processing;                       ///< True while background processing is running.
@@ -280,7 +285,7 @@ private:
     int m_sample_rate_index;                 ///< Selected sample rate combo box index.
 
     QString m_settings_frame_sync;                ///< Frame sync hex pattern.
-    bool m_settings_neg_polarity;                 ///< True if AGC polarity is negative.
+    int m_settings_polarity_idx;                  ///< Polarity combo box index (0=Positive, 1=Negative).
     int m_settings_slope_idx;                     ///< Voltage slope combo box index.
     QString m_settings_scale;                     ///< Calibration scale in dB per volt.
     int m_settings_receiver_count;                ///< Number of receivers.

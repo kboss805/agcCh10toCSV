@@ -34,12 +34,6 @@ void SettingsManager::loadFile(const QString& filename)
 
     SettingsData data;
 
-    // --- Channels ---
-    loaded_settings.beginGroup("Channels");
-    data.timeChannelId = loaded_settings.value("TimeChannel").toInt();
-    data.pcmChannelId = loaded_settings.value("PCMChannel").toInt();
-    loaded_settings.endGroup();
-
     // --- Frame sync (hex string) ---
     loaded_settings.beginGroup("Frame");
     data.frameSync = loaded_settings.value("FrameSync").toString().trimmed();
@@ -53,7 +47,14 @@ void SettingsManager::loadFile(const QString& filename)
 
     // --- Parameters ---
     loaded_settings.beginGroup("Parameters");
-    data.negativePolarity = loaded_settings.value("NegativePolarity").toBool();
+    bool polarity_ok;
+    data.polarityIndex = loaded_settings.value("Polarity").toInt(&polarity_ok);
+    if (!polarity_ok || data.polarityIndex < 0 || data.polarityIndex > UIConstants::kMaxPolarityIndex)
+    {
+        emit logMessage("  WARNING: Invalid Polarity " + loaded_settings.value("Polarity").toString() +
+                        ", using default " + QString::number(UIConstants::kDefaultPolarityIndex));
+        data.polarityIndex = UIConstants::kDefaultPolarityIndex;
+    }
 
     bool slope_ok;
     data.slopeIndex = loaded_settings.value("Slope").toInt(&slope_ok);
@@ -127,7 +128,7 @@ void SettingsManager::loadFile(const QString& filename)
     loaded_settings.endGroup();
 
     emit logMessage("  FrameSync=" + data.frameSync +
-                    ", Polarity=" + (data.negativePolarity ? "Negative" : "Positive") +
+                    ", Polarity=" + QString(UIConstants::kPolarityLabels[data.polarityIndex]) +
                     ", Slope=" + QString(UIConstants::kSlopeLabels[data.slopeIndex]) +
                     ", Scale=" + data.scale + " dB/V");
     emit logMessage("  Receivers=" + QString::number(data.receiverCount) +
@@ -137,14 +138,31 @@ void SettingsManager::loadFile(const QString& filename)
                     ", Frame=" + QString::number(data.receiverCount * data.channelsPerReceiver * PCMConstants::kCommonWordLen +
                                                   data.frameSync.length() * 4) + " bits");
 
-    m_view_model->applySettingsData(data);
-    m_view_model->loadFrameSetupFrom(filename);
+    // Count parameter sections in the INI file (groups with a "Word" key, excluding reserved groups)
+    static const QStringList reserved_groups = {"Defaults", "Frame", "Parameters", "Time", "Receivers", "Bounds"};
+    int ini_param_count = 0;
+    for (const QString& group : loaded_settings.childGroups())
+    {
+        if (reserved_groups.contains(group))
+            continue;
+        loaded_settings.beginGroup(group);
+        if (loaded_settings.contains("Word"))
+            ini_param_count++;
+        loaded_settings.endGroup();
+    }
 
-    int param_count = m_view_model->frameSetup()->length();
-    if (param_count > 0)
-        emit logMessage("  Frame setup loaded: " + QString::number(param_count) + " parameters");
-    else
-        emit logMessage("  WARNING: No frame parameters found in file");
+    int expected_params = data.receiverCount * data.channelsPerReceiver;
+    if (ini_param_count != expected_params)
+    {
+        emit logMessage("  WARNING: INI file has " + QString::number(ini_param_count) +
+                        " parameter sections but Receivers (" + QString::number(data.receiverCount) +
+                        ") x Channels (" + QString::number(data.channelsPerReceiver) +
+                        ") = " + QString::number(expected_params));
+    }
+
+    m_view_model->applySettingsData(data);
+    emit logMessage("  Frame setup: " + QString::number(m_view_model->frameSetup()->length()) +
+                    " parameters (from startup config)");
 }
 
 void SettingsManager::saveFile(const QString& filename)
@@ -154,17 +172,12 @@ void SettingsManager::saveFile(const QString& filename)
 
     SettingsData data = m_view_model->getSettingsData();
 
-    saved_settings.beginGroup("Channels");
-    saved_settings.setValue("TimeChannel", data.timeChannelId);
-    saved_settings.setValue("PCMChannel", data.pcmChannelId);
-    saved_settings.endGroup();
-
     saved_settings.beginGroup("Frame");
     saved_settings.setValue("FrameSync", data.frameSync);
     saved_settings.endGroup();
 
     saved_settings.beginGroup("Parameters");
-    saved_settings.setValue("NegativePolarity", data.negativePolarity);
+    saved_settings.setValue("Polarity", data.polarityIndex);
     saved_settings.setValue("Slope", data.slopeIndex);
     saved_settings.setValue("Scale", data.scale);
     saved_settings.endGroup();
@@ -180,4 +193,16 @@ void SettingsManager::saveFile(const QString& filename)
     saved_settings.endGroup();
 
     m_view_model->saveFrameSetupTo(saved_settings);
+
+    int param_count = m_view_model->frameSetup()->length();
+    emit logMessage("Settings saved: " + QFileInfo(filename).fileName());
+    emit logMessage("  FrameSync=" + data.frameSync +
+                    ", Polarity=" + QString(UIConstants::kPolarityLabels[data.polarityIndex]) +
+                    ", Slope=" + QString(UIConstants::kSlopeLabels[data.slopeIndex]) +
+                    ", Scale=" + data.scale + " dB/V");
+    emit logMessage("  Receivers=" + QString::number(data.receiverCount) +
+                    ", Channels=" + QString::number(data.channelsPerReceiver) +
+                    ", SampleRate=" + QString(UIConstants::kSampleRateLabels[data.sampleRateIndex]) +
+                    ", Parameters=" + QString::number(param_count));
+    emit logMessage("  These settings are active and will be used for the next process.");
 }

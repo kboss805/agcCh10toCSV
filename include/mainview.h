@@ -118,7 +118,10 @@ private:
     void setAllStartStopTimesEnabled(bool enabled);     ///< Enables or disables start/stop time fields.
     void fillAllStartStopTimes();                       ///< Populates time fields from ViewModel file times.
     void clearAllStartStopTimes();                      ///< Clears all start/stop time fields.
-    void saveLastDir();                                  ///< Persists m_last_dir to QSettings.
+    void saveLastCh10Dir();                              ///< Persists m_last_ch10_dir to QSettings.
+    void saveLastCsvDir();                               ///< Persists m_last_csv_dir to QSettings.
+    void logError(const QString& message);               ///< Appends a red error entry to the log window.
+    void logWarning(const QString& message);             ///< Appends a dark-yellow warning entry to the log window.
     /// @}
 
     MainViewModel* m_view_model;             ///< Owning ViewModel instance.
@@ -152,7 +155,8 @@ private:
 
     QProgressBar* m_progress_bar;            ///< Processing progress bar.
 
-    QString m_last_dir;                      ///< Last directory used in file dialogs.
+    QString m_last_ch10_dir;                 ///< Last directory used in Ch10 file dialogs.
+    QString m_last_csv_dir;                  ///< Last directory used in CSV file dialogs.
 
     bool m_updating_from_viewmodel;          ///< Guard flag to prevent signal loops during ViewModel sync.
 };

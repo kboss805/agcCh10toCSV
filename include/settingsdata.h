@@ -17,10 +17,8 @@
  */
 struct SettingsData
 {
-    int timeChannelId;        ///< Selected time channel ID.
-    int pcmChannelId;         ///< Selected PCM channel ID.
     QString frameSync;        ///< Frame sync pattern as a hex string.
-    bool negativePolarity;    ///< True if AGC polarity is negative.
+    int polarityIndex;        ///< Polarity combo box index (0=Positive, 1=Negative).
     int slopeIndex;           ///< Voltage slope combo box index.
     QString scale;            ///< Calibration scale in dB/V as a string.
     bool extractAllTime;      ///< True to extract the full time duration.

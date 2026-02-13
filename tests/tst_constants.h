@@ -38,6 +38,7 @@ private slots:
     void uiThemeIdentifiers();
     void uiLayoutConstants();
     void uiTimeConversionConstants();
+    void uiPolarityConstants();
 };
 
 #endif // TST_CONSTANTS_H

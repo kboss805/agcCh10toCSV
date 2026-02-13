@@ -11,8 +11,8 @@
 /// @brief Application version information.
 struct AppVersion {
     static constexpr int kMajor = 2;   ///< Major version number.
-    static constexpr int kMinor = 0;   ///< Minor version number.
-    static constexpr int kPatch = 5;   ///< Patch version number.
+    static constexpr int kMinor = 1;   ///< Minor version number.
+    static constexpr int kPatch = 0;   ///< Patch version number.
 
     /// @return Version string in "major.minor.patch" format.
     static QString toString() { return QString("%1.%2.%3").arg(kMajor).arg(kMinor).arg(kPatch); }
@@ -51,8 +51,9 @@ namespace UIConstants {
     inline constexpr const char* kOrganizationName  = "agcCh10toCSV"; ///< QSettings organization name.
     inline constexpr const char* kApplicationName   = "agcCh10toCSV"; ///< QSettings application name.
     inline constexpr const char* kSettingsKeyTheme  = "Theme";        ///< QSettings key for theme preference.
-    inline constexpr const char* kSettingsKeyLastDir = "LastOpenDirectory"; ///< QSettings key for last opened directory.
-    inline constexpr const char* kSettingsKeyLastIni = "LastSettingsFile";  ///< QSettings key for last loaded INI file.
+    inline constexpr const char* kSettingsKeyLastCh10Dir = "LastCh10Directory"; ///< QSettings key for last Ch10 file dialog directory.
+    inline constexpr const char* kSettingsKeyLastCsvDir  = "LastCsvDirectory";  ///< QSettings key for last CSV file dialog directory.
+    inline constexpr const char* kSettingsKeyLastIniDir  = "LastIniDirectory";  ///< QSettings key for last INI file dialog directory.
     inline constexpr const char* kThemeDark         = "dark";         ///< Dark theme identifier.
     inline constexpr const char* kThemeLight        = "light";        ///< Light theme identifier.
     /// @}
@@ -118,6 +119,13 @@ namespace UIConstants {
     /// @{
     inline const char* kSlopeLabels[]     = {"+/-10V", "+/-5V", "0-10V", "0-5V"};          ///< Voltage slope display labels.
     inline const char* kSampleRateLabels[] = {"1 Hz", "10 Hz", "100 Hz"};         ///< Sample rate display labels.
+    /// @}
+
+    /// @name Polarity combo box
+    /// @{
+    inline constexpr int kDefaultPolarityIndex = 1;  ///< Default polarity combo index (Negative).
+    inline constexpr int kMaxPolarityIndex     = 1;  ///< Maximum valid polarity combo index.
+    inline const char* kPolarityLabels[]       = {"Positive", "Negative"}; ///< Polarity display labels.
     /// @}
 
     /// @name Output filename format

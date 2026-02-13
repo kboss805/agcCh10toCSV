@@ -5,6 +5,7 @@
 
 #include "frameprocessor.h"
 
+#include <ctime>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -292,7 +293,7 @@ bool FrameProcessor::process(const QString& filename,
     }
 
     // Write CSV header
-    output << "Time";
+    output << "Day,Time";
     for (const auto* param : enabled_params)
         output << "," << param->name.toUtf8().constData();
     output << "\n";
@@ -677,17 +678,21 @@ void FrameProcessor::writeTimeSample(std::ofstream& output,
                                          int n_samples,
                                          const std::vector<ParameterInfo*>& enabled_params)
 {
-    SuIrig106Time irig_time;
     // add 0.5 ms to time sample so that it rounds up. nicer this way, accounts for floating point imprecision
     double rounded_time = current_time_sample + PCMConstants::kTimeRoundingOffset;
     uint64_t whole_time = (uint64_t) rounded_time;
-    unsigned int frac_time =
-        (rounded_time - (double) whole_time) * 10000000;
-    irig_time.ulSecs = whole_time;
-    irig_time.ulFrac = frac_time;
-    irig_time.enFmt = I106_DATEFMT_DAY;
-    char* szTime = IrigTime2String(&irig_time);
-    std::string row(szTime);
+    unsigned int millis =
+        (unsigned int)((rounded_time - (double) whole_time) * 1000);
+
+    time_t epoch = (time_t) whole_time;
+    struct tm* t = gmtime(&epoch);
+
+    // Day-of-year as integer, time as HH:MM:SS.mmm (Excel-compatible)
+    char time_buf[30];
+    snprintf(time_buf, sizeof(time_buf), "%d,%02d:%02d:%02d.%03u",
+             t->tm_yday + 1,
+             t->tm_hour, t->tm_min, t->tm_sec, millis);
+    std::string row(time_buf);
     for (auto* param : enabled_params)
     {
         row += ',';

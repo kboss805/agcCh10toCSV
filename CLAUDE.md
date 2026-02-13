@@ -7,7 +7,7 @@ This file provides context and guidelines for AI assistants working on the agcCh
 - **Qt Version**: 6.10.2
 - **MinGW Version**: 13.1.0
 - **C++ Standard**: C++17
-- **Project Version**: 2.0.0 — defined in `AppVersion` struct in `include/constants.h`
+- **Project Version**: 2.1.0 — defined in `AppVersion` struct in `include/constants.h`
 
 - **Target Users:** Telemetry engineers and data analysts who need to convert RCC IRIG 106 chapter 10 formated files that include automatic gain control (AGC) signals information from telmetery receivers to comma separated values so AGC signals can be plotted and analyzed in capplications like Microsoft Excel or Matlab. 
 
@@ -95,6 +95,20 @@ This file provides context and guidelines for AI assistants working on the agcCh
 - ✅ Full Doxygen @file/@brief documentation on all source files
 - ✅ Version defined in AppVersion struct (no more #defines)
 
+### v2.1.0 — Logging, Validation & UX
+- ✅ Per-file-type directory persistence (Ch10, CSV, INI remember directories independently)
+- ✅ Inline log window with colored entries: errors in red, warnings in dark yellow (#DAA520)
+- ✅ Replaced QMessageBox error/warning dialogs with inline log entries (kept About and success dialogs)
+- ✅ Persistent log window — no longer cleared between processing runs; auto-scrolls on new entries
+- ✅ Startup logging — logs default.ini settings (FrameSync, Polarity, Slope, Scale, Receivers, Channels, Frame setup count)
+- ✅ Ch10 file opening logging — logs channel info, time range, and current frame settings
+- ✅ INI load/save logging — logs all settings values when loading or saving INI files
+- ✅ INI parameter section count validation — warns when parameter sections don't match receiver x channel count
+- ✅ Dynamic frame length — frame size computed from receiver configuration instead of hardcoded
+- ✅ Frame structure separated from channel selection — frame setup from default.ini defines PCM frame; receiver grid controls output
+- ✅ Negative polarity calibration fix
+- ✅ Excel-compatible time format in CSV output
+
 ## Future Version Functions
 
 ### v2.1 — Usability Improvements
@@ -156,6 +170,9 @@ The application follows the **MVVM (Model-View-ViewModel)** pattern:
    - Thin GUI layer; creates and lays out all Qt widgets
    - Binds to MainViewModel Q_PROPERTYs and connects signals/slots
    - Contains no business logic; delegates all actions to the ViewModel
+   - `logError()` / `logWarning()` append colored HTML entries (red / #DAA520) to the log window via `appendHtml()`
+   - Errors and warnings are shown inline in the log; QMessageBox reserved for About dialog and success notification only
+   - Log window is persistent (never cleared) with auto-scroll on new entries
 
 2. **SettingsDialog** (`src/settingsdialog.cpp`, `include/settingsdialog.h`) — *View*
    - Modal dialog for frame sync, polarity, scale, range, and receiver settings
@@ -167,6 +184,8 @@ The application follows the **MVVM (Model-View-ViewModel)** pattern:
    - `validateProcessingInputs()`, `prepareFrameSetupParameters()`, `launchWorkerThread()` orchestrate the processing pipeline
    - `validateTimeFields()` shared by start/stop time validation; `generateOutputFilename()` shared by input-success and processing-finished flows
    - Creates a fresh `FrameProcessor` per processing run on a worker thread
+   - `logStartupInfo()` emits default.ini settings at application startup (called after signal connections are established)
+   - `openFile()` logs channel info, time range, and current frame settings when a Ch10 file is loaded
 
 4. **Chapter10Reader** (`src/chapter10reader.cpp`, `include/chapter10reader.h`) — *Model*
    - Reads IRIG 106 Chapter 10 file metadata and manages channel selection
@@ -184,6 +203,9 @@ The application follows the **MVVM (Model-View-ViewModel)** pattern:
 6. **SettingsManager** (`src/settingsmanager.cpp`, `include/settingsmanager.h`) — *Model*
    - Handles saving/loading user preferences using QSettings
    - Persists UI state between sessions via `MainViewModel*`
+   - Validates all INI values on load (FrameSync hex, Polarity, Slope, Scale, receiver count/channels)
+   - Validates parameter section count against receiver x channel configuration
+   - Emits `logMessage()` for load/save status, warnings, and errors routed to the log window
 
 7. **FrameSetup** (`src/framesetup.cpp`, `include/framesetup.h`) — *Model*
    - Manages frame configuration parameters (word map, calibration)
@@ -360,10 +382,30 @@ Tasks are defined in `.vscode/tasks.json`:
 
 ## Testing
 
-Currently no automated tests are configured. When adding tests:
-- Consider using Qt Test framework
-- Add test sources to separate directory
-- Update .pro file with test configuration
+Automated unit tests use the **Qt Test** framework. Test sources are in the `tests/` directory with a separate `tests/tests.pro` project file.
+
+### Test Suites
+- **TestChannelData** (`tst_channeldata`) — ChannelData model object tests
+- **TestConstants** (`tst_constants`) — Verifies all PCMConstants, UIConstants, and AppVersion values
+- **TestMainViewModelHelpers** (`tst_mainviewmodel_helpers`) — ViewModel helper methods (channelPrefix, parameterName, generateOutputFilename)
+- **TestMainViewModelState** (`tst_mainviewmodel_state`) — ViewModel property defaults, setters, signals, receiver grid, SettingsData roundtrip, frame setup loading
+- **TestFrameSetup** (`tst_framesetup`) — Frame parameter loading, word map, calibration
+- **TestSettingsDialog** (`tst_settingsdialog`) — SettingsDialog widget defaults, setter/getter roundtrips, signal emission
+- **TestSettingsManager** (`tst_settingsmanager`) — INI load/save validation (invalid FrameSync, Slope, Scale, Polarity, receiver counts, parameter count mismatch, roundtrip, frame setup preservation)
+
+### Running Tests
+```bash
+cd tests
+qmake tests.pro -spec win32-g++
+mingw32-make -f Makefile.Debug
+./debug/agcCh10toCSV_tests.exe -o results.txt,txt
+```
+
+### Adding a New Test
+1. Create `tst_newtest.h` with `Q_OBJECT` and private slots for each test case
+2. Create `tst_newtest.cpp` with test implementations
+3. Add both files to `tests/tests.pro` under `SOURCES +=` and `HEADERS +=`
+4. Add `#include "tst_newtest.h"` and a `QTest::qExec()` block in `tests/main.cpp`
 
 ## Additional Resources
 

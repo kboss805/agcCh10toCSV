@@ -30,19 +30,27 @@ MainView::MainView(QWidget *parent)
     setUpMainLayout();
 
     QSettings app_settings(UIConstants::kOrganizationName, UIConstants::kApplicationName);
-    m_last_dir = app_settings.value(UIConstants::kSettingsKeyLastDir).toString();
+    m_last_ch10_dir = app_settings.value(UIConstants::kSettingsKeyLastCh10Dir).toString();
+    m_last_csv_dir  = app_settings.value(UIConstants::kSettingsKeyLastCsvDir).toString();
 
     setUpConnections();
+    m_view_model->logStartupInfo();
 }
 
 MainView::~MainView()
 {
 }
 
-void MainView::saveLastDir()
+void MainView::saveLastCh10Dir()
 {
     QSettings app_settings(UIConstants::kOrganizationName, UIConstants::kApplicationName);
-    app_settings.setValue(UIConstants::kSettingsKeyLastDir, m_last_dir);
+    app_settings.setValue(UIConstants::kSettingsKeyLastCh10Dir, m_last_ch10_dir);
+}
+
+void MainView::saveLastCsvDir()
+{
+    QSettings app_settings(UIConstants::kOrganizationName, UIConstants::kApplicationName);
+    app_settings.setValue(UIConstants::kSettingsKeyLastCsvDir, m_last_csv_dir);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -489,7 +497,6 @@ void MainView::onProcessingChanged()
     if (m_view_model->processing())
     {
         setAllControlsEnabled(false);
-        m_log_window->clear();
         m_progress_bar->setValue(0);
     }
     else
@@ -510,8 +517,14 @@ void MainView::onProcessingFinished(bool success, const QString& output_file)
 
 void MainView::onLogMessage(const QString& message)
 {
-    m_log_window->appendPlainText(
-        QTime::currentTime().toString("HH:mm:ss") + "  " + message);
+    if (message.contains("ERROR"))
+        logError(message);
+    else if (message.contains("WARNING"))
+        logWarning(message);
+    else
+        m_log_window->appendPlainText(
+            QTime::currentTime().toString("HH:mm:ss") + "  " + message);
+    m_log_window->verticalScrollBar()->setValue(m_log_window->verticalScrollBar()->maximum());
 }
 
 void MainView::onReceiverLayoutChanged()
@@ -576,20 +589,20 @@ void MainView::onReceiverCheckedChanged(int receiver_index, int channel_index, b
 
 void MainView::displayErrorMessage(const QString& message)
 {
-    QMessageBox::critical(this, "Error", message);
+    logError(message);
 }
 
 void MainView::inputFileButtonPressed()
 {
     QString filename = QFileDialog::getOpenFileName(this, tr("Open File"),
-                                                    m_last_dir,
+                                                    m_last_ch10_dir,
                                                     tr("Chapter 10 Files (*.ch10);;All Files (*.*)"));
 
     if (filename.isEmpty())
         return;
 
-    m_last_dir = QFileInfo(filename).absolutePath();
-    saveLastDir();
+    m_last_ch10_dir = QFileInfo(filename).absolutePath();
+    saveLastCh10Dir();
     m_view_model->openFile(filename);
 }
 
@@ -597,16 +610,14 @@ void MainView::onSettings()
 {
     SettingsDialog dialog(this);
     dialog.setFrameSync(m_view_model->frameSync());
-    dialog.setNegativePolarity(m_view_model->negativePolarity());
+    dialog.setPolarityIndex(m_view_model->polarityIndex());
     dialog.setSlopeIndex(m_view_model->slopeIndex());
     dialog.setScale(m_view_model->scale());
     dialog.setReceiverCount(m_view_model->receiverCount());
     dialog.setChannelsPerReceiver(m_view_model->channelsPerReceiver());
 
     connect(&dialog, &SettingsDialog::loadRequested, this, [this, &dialog]() {
-        QString start_dir = m_view_model->lastSettingsFile().isEmpty()
-            ? m_view_model->appRoot() + "/settings"
-            : m_view_model->lastSettingsFile();
+        QString start_dir = m_view_model->lastIniDir();
         QString filename = QFileDialog::getOpenFileName(this, tr("Open File"),
                                                         start_dir,
                                                         tr("Configuration Settings Files (*.ini)"));
@@ -617,7 +628,7 @@ void MainView::onSettings()
 
         // Update dialog fields from newly loaded config values
         dialog.setFrameSync(m_view_model->frameSync());
-        dialog.setNegativePolarity(m_view_model->negativePolarity());
+        dialog.setPolarityIndex(m_view_model->polarityIndex());
         dialog.setSlopeIndex(m_view_model->slopeIndex());
         dialog.setScale(m_view_model->scale());
         dialog.setReceiverCount(m_view_model->receiverCount());
@@ -625,13 +636,11 @@ void MainView::onSettings()
     });
 
     connect(&dialog, &SettingsDialog::saveAsRequested, this, [this, &dialog]() {
-        m_view_model->applySettings(dialog.frameSync(), dialog.negativePolarity(),
+        m_view_model->applySettings(dialog.frameSync(), dialog.polarityIndex(),
                                    dialog.slopeIndex(), dialog.scale(),
                                    dialog.receiverCount(), dialog.channelsPerReceiver());
 
-        QString save_dir = m_view_model->lastSettingsFile().isEmpty()
-            ? m_view_model->appRoot() + "/settings"
-            : QFileInfo(m_view_model->lastSettingsFile()).absolutePath();
+        QString save_dir = m_view_model->lastIniDir();
         QString filename = QFileDialog::getSaveFileName(this, tr("Save File"),
                                                         save_dir,
                                                         tr("Configuration Settings Files (*.ini)"));
@@ -641,7 +650,7 @@ void MainView::onSettings()
 
     if (dialog.exec() == QDialog::Accepted)
     {
-        m_view_model->applySettings(dialog.frameSync(), dialog.negativePolarity(),
+        m_view_model->applySettings(dialog.frameSync(), dialog.polarityIndex(),
                                    dialog.slopeIndex(), dialog.scale(),
                                    dialog.receiverCount(), dialog.channelsPerReceiver());
     }
@@ -693,30 +702,27 @@ void MainView::progressProcessButtonPressed()
 
         if (start_parts.size() != 4 || stop_parts.size() != 4)
         {
-            QMessageBox::warning(this, "Invalid Time",
-                "Start and stop times must be in DDD:HH:MM:SS format.");
+            logWarning("Start and stop times must be in DDD:HH:MM:SS format.");
             return;
         }
 
         bool ok = false;
-        int s_ddd = start_parts[0].toInt(&ok); if (!ok) { QMessageBox::warning(this, "Invalid Time", "Start day is not a valid number."); return; }
-        int s_hh  = start_parts[1].toInt(&ok); if (!ok) { QMessageBox::warning(this, "Invalid Time", "Start hour is not a valid number."); return; }
-        int s_mm  = start_parts[2].toInt(&ok); if (!ok) { QMessageBox::warning(this, "Invalid Time", "Start minute is not a valid number."); return; }
-        int s_ss  = start_parts[3].toInt(&ok); if (!ok) { QMessageBox::warning(this, "Invalid Time", "Start second is not a valid number."); return; }
+        int s_ddd = start_parts[0].toInt(&ok); if (!ok) { logWarning("Start day is not a valid number."); return; }
+        int s_hh  = start_parts[1].toInt(&ok); if (!ok) { logWarning("Start hour is not a valid number."); return; }
+        int s_mm  = start_parts[2].toInt(&ok); if (!ok) { logWarning("Start minute is not a valid number."); return; }
+        int s_ss  = start_parts[3].toInt(&ok); if (!ok) { logWarning("Start second is not a valid number."); return; }
 
-        int e_ddd = stop_parts[0].toInt(&ok); if (!ok) { QMessageBox::warning(this, "Invalid Time", "Stop day is not a valid number."); return; }
-        int e_hh  = stop_parts[1].toInt(&ok); if (!ok) { QMessageBox::warning(this, "Invalid Time", "Stop hour is not a valid number."); return; }
-        int e_mm  = stop_parts[2].toInt(&ok); if (!ok) { QMessageBox::warning(this, "Invalid Time", "Stop minute is not a valid number."); return; }
-        int e_ss  = stop_parts[3].toInt(&ok); if (!ok) { QMessageBox::warning(this, "Invalid Time", "Stop second is not a valid number."); return; }
+        int e_ddd = stop_parts[0].toInt(&ok); if (!ok) { logWarning("Stop day is not a valid number."); return; }
+        int e_hh  = stop_parts[1].toInt(&ok); if (!ok) { logWarning("Stop hour is not a valid number."); return; }
+        int e_mm  = stop_parts[2].toInt(&ok); if (!ok) { logWarning("Stop minute is not a valid number."); return; }
+        int e_ss  = stop_parts[3].toInt(&ok); if (!ok) { logWarning("Stop second is not a valid number."); return; }
 
         if (s_ddd < UIConstants::kMinDayOfYear || s_ddd > UIConstants::kMaxDayOfYear ||
             s_hh < 0 || s_hh > UIConstants::kMaxHour ||
             s_mm < 0 || s_mm > UIConstants::kMaxMinute ||
             s_ss < 0 || s_ss > UIConstants::kMaxSecond)
         {
-            QMessageBox::warning(this, "Invalid Time",
-                "Start time is out of range.\n"
-                "Day: 1-366, Hour: 0-23, Minute: 0-59, Second: 0-59.");
+            logWarning("Start time is out of range. Day: 1-366, Hour: 0-23, Minute: 0-59, Second: 0-59.");
             return;
         }
 
@@ -725,9 +731,7 @@ void MainView::progressProcessButtonPressed()
             e_mm < 0 || e_mm > UIConstants::kMaxMinute ||
             e_ss < 0 || e_ss > UIConstants::kMaxSecond)
         {
-            QMessageBox::warning(this, "Invalid Time",
-                "Stop time is out of range.\n"
-                "Day: 1-366, Hour: 0-23, Minute: 0-59, Second: 0-59.");
+            logWarning("Stop time is out of range. Day: 1-366, Hour: 0-23, Minute: 0-59, Second: 0-59.");
             return;
         }
 
@@ -736,20 +740,19 @@ void MainView::progressProcessButtonPressed()
         long long stop_total  = e_ddd * (long long)UIConstants::kSecondsPerDay + e_hh * (long long)UIConstants::kSecondsPerHour + e_mm * (long long)UIConstants::kSecondsPerMinute + e_ss;
         if (stop_total <= start_total)
         {
-            QMessageBox::warning(this, "Invalid Time",
-                "Stop time must be after start time.");
+            logWarning("Stop time must be after start time.");
             return;
         }
     }
 
     QString outfile = QFileDialog::getSaveFileName(this, tr("Save File"),
-                                                    m_last_dir + "/" + m_view_model->generateOutputFilename(),
+                                                    m_last_csv_dir + "/" + m_view_model->generateOutputFilename(),
                                                     tr("CSV Files (*.csv);;All Files (*.*)"));
     if (outfile.isEmpty())
         return;
 
-    m_last_dir = QFileInfo(outfile).absolutePath();
-    saveLastDir();
+    m_last_csv_dir = QFileInfo(outfile).absolutePath();
+    saveLastCsvDir();
 
     QStringList start_parts = m_start_time->text().split(":");
     QStringList stop_parts = m_stop_time->text().split(":");
@@ -789,8 +792,8 @@ void MainView::dropEvent(QDropEvent* event)
         QString file = url.toLocalFile();
         if (file.endsWith(".ch10", Qt::CaseInsensitive))
         {
-            m_last_dir = QFileInfo(file).absolutePath();
-            saveLastDir();
+            m_last_ch10_dir = QFileInfo(file).absolutePath();
+            saveLastCh10Dir();
             m_view_model->openFile(file);
             return;
         }
@@ -871,4 +874,20 @@ void MainView::clearAllStartStopTimes()
 {
     m_start_time->clear();
     m_stop_time->clear();
+}
+
+void MainView::logError(const QString& message)
+{
+    QString timestamp = QTime::currentTime().toString("HH:mm:ss");
+    m_log_window->appendHtml(
+        "<span style='color: red;'>" + timestamp + "  " +
+        message.toHtmlEscaped() + "</span>");
+}
+
+void MainView::logWarning(const QString& message)
+{
+    QString timestamp = QTime::currentTime().toString("HH:mm:ss");
+    m_log_window->appendHtml(
+        "<span style='color: #DAA520;'>" + timestamp + "  " +
+        message.toHtmlEscaped() + "</span>");
 }
