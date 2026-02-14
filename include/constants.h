@@ -11,7 +11,7 @@
 /// @brief Application version information.
 struct AppVersion {
     static constexpr int kMajor = 2;   ///< Major version number.
-    static constexpr int kMinor = 2;   ///< Minor version number.
+    static constexpr int kMinor = 3;   ///< Minor version number.
     static constexpr int kPatch = 0;   ///< Patch version number.
 
     /// @return Version string in "major.minor.patch" format.
@@ -138,6 +138,13 @@ namespace UIConstants {
     inline constexpr const char* kOutputTimestampFormat = "MMddyyhhmmss"; ///< Timestamp format for output filenames.
     inline constexpr const char* kOutputPrefix          = "output";       ///< Output filename prefix.
     inline constexpr const char* kOutputExtension       = ".csv";         ///< Output file extension.
+    /// @}
+
+    /// @name Deployment / portable mode
+    /// @{
+    inline constexpr const char* kPortableMarkerFilename = "portable";    ///< Marker file name for portable mode detection.
+    inline constexpr const char* kSettingsDirName         = "settings";   ///< Settings directory name relative to app root.
+    inline constexpr const char* kDefaultIniFilename      = "default.ini"; ///< Default INI configuration filename.
     /// @}
 }
 

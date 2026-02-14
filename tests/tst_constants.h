@@ -42,6 +42,9 @@ private slots:
 
     // v2.2 additions
     void uiRecentFilesConstants();
+
+    // v2.3 additions
+    void uiDeploymentConstants();
 };
 
 #endif // TST_CONSTANTS_H

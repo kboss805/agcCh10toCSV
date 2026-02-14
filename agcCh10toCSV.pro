@@ -85,7 +85,7 @@ RESOURCES += \
     resources/play.svg \
     resources/stop.svg
 
-RC_ICONS = resources/icon.ico
+RC_FILE = agcCh10toCSV_resource.rc
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

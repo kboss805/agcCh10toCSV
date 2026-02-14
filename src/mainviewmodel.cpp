@@ -36,7 +36,11 @@ MainViewModel::MainViewModel(QObject* parent)
       m_settings_receiver_count(UIConstants::kDefaultReceiverCount),
       m_settings_channels_per_rcvr(UIConstants::kDefaultChannelsPerReceiver)
 {
-    m_app_root = QDir::cleanPath(QCoreApplication::applicationDirPath() + "/..");
+    QString app_dir = QCoreApplication::applicationDirPath();
+    if (QDir(app_dir + "/" + UIConstants::kSettingsDirName).exists())
+        m_app_root = app_dir;
+    else
+        m_app_root = QDir::cleanPath(app_dir + "/..");
     m_reader = new Chapter10Reader();
     m_frame_setup = new FrameSetup(this);
     m_settings = new SettingsManager(this);
@@ -44,9 +48,9 @@ MainViewModel::MainViewModel(QObject* parent)
     QSettings app_settings;
     m_last_ini_dir = app_settings.value(UIConstants::kSettingsKeyLastIniDir).toString();
     if (m_last_ini_dir.isEmpty())
-        m_last_ini_dir = m_app_root + "/settings";
+        m_last_ini_dir = m_app_root + "/" + UIConstants::kSettingsDirName;
 
-    QSettings config(m_app_root + "/settings/default.ini", QSettings::IniFormat);
+    QSettings config(m_app_root + "/" + UIConstants::kSettingsDirName + "/" + UIConstants::kDefaultIniFilename, QSettings::IniFormat);
     QString ini_sync = config.value("Frame/FrameSync").toString();
     if (!ini_sync.isEmpty())
         m_settings_frame_sync = ini_sync;
@@ -63,7 +67,7 @@ MainViewModel::MainViewModel(QObject* parent)
     for (int i = 0; i < m_settings_receiver_count; i++)
         m_receiver_states[i].fill(true, m_settings_channels_per_rcvr);
 
-    loadFrameSetupFrom(m_app_root + "/settings/default.ini");
+    loadFrameSetupFrom(m_app_root + "/" + UIConstants::kSettingsDirName + "/" + UIConstants::kDefaultIniFilename);
 
     // Load recent files, pruning non-existent entries
     QStringList saved_recent = app_settings.value(UIConstants::kSettingsKeyRecentFiles).toStringList();

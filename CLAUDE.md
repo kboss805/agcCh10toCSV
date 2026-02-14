@@ -7,7 +7,7 @@ This file provides context and guidelines for AI assistants working on the agcCh
 - **Qt Version**: 6.10.2 (minimum: Qt 6.0.0)
 - **MinGW Version**: 13.1.0 (minimum: GCC/MinGW 7.0)
 - **C++ Standard**: C++17 (required — `inline constexpr` used throughout constants.h)
-- **Project Version**: 2.2.0 — defined in `AppVersion` struct in `include/constants.h`
+- **Project Version**: 2.3.0 — defined in `AppVersion` struct in `include/constants.h`
 
 - **Target Users:** Telemetry engineers and data analysts who need to convert RCC IRIG 106 chapter 10 formated files that include automatic gain control (AGC) signals information from telmetery receivers to comma separated values so AGC signals can be plotted and analyzed in capplications like Microsoft Excel or Matlab. 
 
@@ -156,13 +156,17 @@ This file provides context and guidelines for AI assistants working on the agcCh
 - ✅ Removed success QMessageBox dialog — output path and folder link in log replace it
 - ✅ Drag-and-drop Ch10 files (completed in v2.0)
 
-## Future Version Functions
+### v2.3.0 — Easy Deployment (US7)
+- ✅ Inno Setup EXE installer with admin/non-admin install mode (`PrivilegesRequiredOverridesAllowed=dialog`)
+- ✅ Installer shows install progress (built into Inno Setup)
+- ✅ INI file upgrade logic — post-install Pascal script merges old `default.ini` values into new, backs up as `default_old.ini`
+- ✅ Portable ZIP distribution — flat layout with `portable` marker file for truly portable mode (QSettings stored locally)
+- ✅ App root auto-detection — supports dev (`release/`), installed (`bin/`), and portable (flat) directory layouts
+- ✅ Code signing support — `build_release.cmd` signs exe via `signtool` when `SIGN_CERT_PATH` is set
+- ✅ Fixed resource file — version 2.3.0, `VFT_APP` file type, proper metadata and relative icon path
+- ✅ Build automation script (`deploy/build_release.cmd`) — builds, stages, signs, and packages both artifacts
 
-### v2.3 — Easy Deployment (US7)
-- [ ] Signed application binary
-- [ ] Install to "Program Files" with admin, or user-selected directory without admin
-- [ ] Installer shows install progress
-- [ ] INI file upgrade logic — preserve existing user INI, merge new fields, save as "new_x.INI" if conflicts
+## Future Version Functions
 
 ### v3.0 — Analysis and Visualization (US6)
 - [ ] Dockable plot window with AGC samples vs. time
@@ -284,7 +288,7 @@ The application follows the **MVVM (Model-View-ViewModel)** pattern:
 
 - **`AppVersion`** struct (in `include/constants.h`) — Version information with `kMajor`, `kMinor`, `kPatch` and `toString()`
 - **`PCMConstants`** namespace (in `include/constants.h`) — Named constants for PCM frame parameters (word count, frame length, sync pattern length, time rounding, channel type identifiers, max raw sample value, default buffer size, progress report interval)
-- **`UIConstants`** namespace (in `include/constants.h`) — Named constants for UI configuration (QSettings keys, theme identifiers, receiver grid layout, time conversion, receiver count, default slope/scale, button text, time validation limits, sample rates, output filename format)
+- **`UIConstants`** namespace (in `include/constants.h`) — Named constants for UI configuration (QSettings keys, theme identifiers, receiver grid layout, time conversion, receiver count, default slope/scale, button text, time validation limits, sample rates, output filename format, deployment/portable mode constants)
 - **`SettingsData`** struct (in `include/settingsdata.h`) — Value type used to transfer UI state between MainViewModel and SettingsManager without `friend class` coupling
 - **`SuChanInfo`** typedef (in `include/frameprocessor.h`) — Per-channel bookkeeping struct for the irig106 C helper layer
 
@@ -387,6 +391,15 @@ Tasks are defined in `.vscode/tasks.json`:
 - "Build (Release)" - Compiles release build
 - "Clean" - Cleans build artifacts
 - "Rebuild" - Clean + Build
+
+### Deployment & Packaging
+- **Build automation**: `deploy/build_release.cmd` — builds release, runs `windeployqt`, stages installer and portable layouts, signs exe, creates ZIP
+- **Inno Setup installer**: `deploy/agcCh10toCSV.iss` — EXE installer with admin/non-admin support, INI merge logic, Start Menu/desktop shortcuts
+- **Portable ZIP**: Flat layout with `portable` marker file; QSettings redirected to app directory via `QSettings::setPath()` in `main.cpp`
+- **App root auto-detection** (`mainviewmodel.cpp`): Checks if `settings/` exists next to the exe (portable) or one level up (installed/dev)
+- **Installed layout**: `{install}/bin/agcCh10toCSV.exe` + `{install}/settings/default.ini`
+- **Portable layout**: `agcCh10toCSV.exe` + `settings/default.ini` + `portable` marker in same directory
+- **Code signing**: Optional via `SIGN_CERT_PATH` and `SIGN_CERT_PASS` environment variables
 
 ## Important Implementation Notes
 

@@ -121,13 +121,13 @@ void TestConstants::uiButtonText()
 void TestConstants::appVersionValues()
 {
     QCOMPARE(AppVersion::kMajor, 2);
-    QCOMPARE(AppVersion::kMinor, 2);
+    QCOMPARE(AppVersion::kMinor, 3);
     QCOMPARE(AppVersion::kPatch, 0);
 }
 
 void TestConstants::appVersionToString()
 {
-    QCOMPARE(AppVersion::toString(), QString("2.2.0"));
+    QCOMPARE(AppVersion::toString(), QString("2.3.0"));
 }
 
 void TestConstants::pcmMaxRawSampleValue()
@@ -191,4 +191,13 @@ void TestConstants::uiRecentFilesConstants()
 {
     QCOMPARE(QString(UIConstants::kSettingsKeyRecentFiles), QString("RecentFiles"));
     QCOMPARE(UIConstants::kMaxRecentFiles, 5);
+}
+
+// v2.3 additions
+
+void TestConstants::uiDeploymentConstants()
+{
+    QCOMPARE(QString(UIConstants::kPortableMarkerFilename), QString("portable"));
+    QCOMPARE(QString(UIConstants::kSettingsDirName), QString("settings"));
+    QCOMPARE(QString(UIConstants::kDefaultIniFilename), QString("default.ini"));
 }

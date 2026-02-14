@@ -50,6 +50,11 @@ lib/
 *.VC.opendb
 *.bat
 
+# Deployment staging and output
+deploy/staging/
+deploy/*.zip
+deploy/*.exe
+
 # Claude Code settings
 .claude/
 .claudeignore
@@ -76,6 +81,14 @@ tests/run_tests.ps1
 tests/nul
 tests/stderr.txt
 tests/data/*.ch10
+
+# User-specific INI configurations
+settings/RASA.ini
+settings/TRC.ini
+settings/airborne.ini
+
+# Source artwork (only icon.ico is needed by the build)
+resources/icon_image.png
 
 # Input and Output files (you may want to keep these)
 *.csv

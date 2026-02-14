@@ -7,6 +7,7 @@
 
 #include <QApplication>
 #include <QFile>
+#include <QFileInfo>
 #include <QIcon>
 #include <QSettings>
 #include <QStyleFactory>
@@ -19,6 +20,12 @@ int main(int argc, char *argv[])
     a.setOrganizationName(UIConstants::kOrganizationName);
     a.setApplicationName(UIConstants::kApplicationName);
     QSettings::setDefaultFormat(QSettings::IniFormat);
+
+    // Portable mode: if a "portable" marker file exists next to the executable,
+    // redirect QSettings storage to the application directory instead of %APPDATA%.
+    QString exe_dir = QCoreApplication::applicationDirPath();
+    if (QFileInfo::exists(exe_dir + "/" + UIConstants::kPortableMarkerFilename))
+        QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, exe_dir);
 
     QSettings app_settings;
     QString theme = app_settings.value(UIConstants::kSettingsKeyTheme, UIConstants::kThemeDark).toString();
