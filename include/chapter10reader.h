@@ -90,6 +90,7 @@ public:
     int getPCMChannelIndex(int channel_id) const;
     int getCurrentTimeChannelID() const; ///< @return Currently selected time channel ID.
     int getCurrentPCMChannelID() const;  ///< @return Currently selected PCM channel ID.
+    int getFirstPCMChannelID() const;    ///< @return Channel ID of the first PCM channel, or -1 if none.
 
 signals:
     /// Emitted when an error occurs during file operations.

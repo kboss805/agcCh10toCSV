@@ -20,7 +20,9 @@ SOURCES += \
     $$PWD/../src/framesetup.cpp \
     $$PWD/../src/mainviewmodel.cpp \
     $$PWD/../src/mainview.cpp \
+    $$PWD/../src/receivergridwidget.cpp \
     $$PWD/../src/settingsdialog.cpp \
+    $$PWD/../src/timeextractionwidget.cpp \
     $$PWD/../src/frameprocessor.cpp \
     $$PWD/../src/settingsmanager.cpp
 
@@ -32,9 +34,11 @@ HEADERS += \
     $$PWD/../include/framesetup.h \
     $$PWD/../include/mainviewmodel.h \
     $$PWD/../include/mainview.h \
+    $$PWD/../include/receivergridwidget.h \
     $$PWD/../include/frameprocessor.h \
     $$PWD/../include/settingsdata.h \
     $$PWD/../include/settingsdialog.h \
+    $$PWD/../include/timeextractionwidget.h \
     $$PWD/../include/settingsmanager.h
 
 # irig106 library sources

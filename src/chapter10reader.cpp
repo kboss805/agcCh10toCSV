@@ -356,3 +356,10 @@ int Chapter10Reader::getCurrentPCMChannelID() const
 {
     return m_current_pcm_channel;
 }
+
+int Chapter10Reader::getFirstPCMChannelID() const
+{
+    if (m_pcm_channels.isEmpty())
+        return -1;
+    return m_pcm_channels[0]->channelID();
+}

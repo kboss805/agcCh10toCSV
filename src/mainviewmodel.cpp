@@ -21,6 +21,7 @@
 MainViewModel::MainViewModel(QObject* parent)
     : QObject(parent),
       m_worker_thread(nullptr),
+      m_current_processor(nullptr),
       m_file_loaded(false),
       m_progress_percent(0),
       m_processing(false),
@@ -40,7 +41,7 @@ MainViewModel::MainViewModel(QObject* parent)
     m_frame_setup = new FrameSetup(this);
     m_settings = new SettingsManager(this);
 
-    QSettings app_settings(UIConstants::kOrganizationName, UIConstants::kApplicationName);
+    QSettings app_settings;
     m_last_ini_dir = app_settings.value(UIConstants::kSettingsKeyLastIniDir).toString();
     if (m_last_ini_dir.isEmpty())
         m_last_ini_dir = m_app_root + "/settings";
@@ -74,6 +75,8 @@ MainViewModel::~MainViewModel()
 {
     if (m_worker_thread && m_worker_thread->isRunning())
     {
+        if (m_current_processor)
+            m_current_processor->requestAbort();
         m_worker_thread->quit();
         m_worker_thread->wait();
     }
@@ -137,6 +140,9 @@ void MainViewModel::setPcmChannelIndex(int index)
     m_pcm_channel_index = index;
     m_reader->pcmChannelChanged(index);
     emit pcmChannelIndexChanged();
+
+    if (m_file_loaded)
+        runPreScan(m_reader->getCurrentPCMChannelID());
 }
 
 void MainViewModel::setExtractAllTime(bool value)
@@ -320,6 +326,29 @@ void MainViewModel::saveFrameSetupTo(QSettings& settings)
 //                               HELPERS                                      //
 ////////////////////////////////////////////////////////////////////////////////
 
+void MainViewModel::runPreScan(int pcm_channel_id)
+{
+    if (pcm_channel_id < 0 || m_settings_frame_sync.isEmpty() || m_frame_setup->length() == 0)
+        return;
+
+    bool sync_ok = false;
+    uint64_t scan_sync = m_settings_frame_sync.toULongLong(&sync_ok, 16);
+    if (!sync_ok)
+        return;
+
+    int scan_sync_len = m_settings_frame_sync.length() * 4;
+    int data_words = m_frame_setup->length();
+    int scan_words = data_words + 1;
+    int scan_bits = data_words * PCMConstants::kCommonWordLen + scan_sync_len;
+
+    FrameProcessor scanner;
+    connect(&scanner, &FrameProcessor::logMessage,
+            this, &MainViewModel::logMessageReceived);
+
+    scanner.preScan(m_input_filename, pcm_channel_id, scan_sync,
+                    scan_sync_len, scan_words, scan_bits);
+}
+
 QMap<QString, int> MainViewModel::buildParameterMap() const
 {
     QMap<QString, int> param_map;
@@ -362,6 +391,7 @@ QString MainViewModel::lastIniDir() const { return m_last_ini_dir; }
 
 void MainViewModel::logStartupInfo()
 {
+    emit logMessageReceived("agcCh10toCSV v" + AppVersion::toString());
     emit logMessageReceived("Startup settings loaded from default.ini");
     emit logMessageReceived("  FrameSync=" + m_settings_frame_sync +
         ", Polarity=" + QString(UIConstants::kPolarityLabels[m_settings_polarity_idx]) +
@@ -377,13 +407,26 @@ void MainViewModel::openFile(const QString& filename)
     clearState();
 
     m_input_filename = filename;
-    emit logMessageReceived("Opening: " + QFileInfo(filename).fileName());
+    QFileInfo file_info(filename);
+    emit logMessageReceived("Opening: " + file_info.fileName());
 
     if (!m_reader->loadChannels(filename))
     {
         m_input_filename.clear();
         return;
     }
+
+    // Log file metadata
+    qint64 file_bytes = file_info.size();
+    QString size_str = (file_bytes >= 1024 * 1024)
+        ? QString::number(file_bytes / (1024.0 * 1024.0), 'f', 1) + " MB"
+        : QString::number(file_bytes / 1024.0, 'f', 1) + " KB";
+    int duration_sec = (m_reader->getStopDayOfYear() - m_reader->getStartDayOfYear()) * 86400
+        + (m_reader->getStopHour() - m_reader->getStartHour()) * 3600
+        + (m_reader->getStopMinute() - m_reader->getStartMinute()) * 60
+        + (m_reader->getStopSecond() - m_reader->getStartSecond());
+    emit logMessageReceived("  File size: " + size_str +
+        ", Recording duration: " + QString::number(duration_sec) + "s");
 
     // Log channels found
     QStringList time_list = m_reader->getTimeChannelComboBoxList();
@@ -462,37 +505,11 @@ void MainViewModel::startProcessing(const QString& output_file,
     launchWorkerThread(params);
 }
 
-void MainViewModel::applySettings(const QString& frame_sync, int polarity_idx,
-                                 int slope_idx, const QString& scale,
-                                 int receiver_count, int channels_per_rcvr)
-{
-    m_settings_frame_sync = frame_sync;
-    m_settings_polarity_idx = polarity_idx;
-    m_settings_slope_idx = slope_idx;
-    m_settings_scale = scale;
-
-    int old_receiver_count = m_settings_receiver_count;
-    int old_channel_count = m_settings_channels_per_rcvr;
-    m_settings_receiver_count = receiver_count;
-    m_settings_channels_per_rcvr = channels_per_rcvr;
-
-    if (m_settings_receiver_count != old_receiver_count ||
-        m_settings_channels_per_rcvr != old_channel_count)
-    {
-        m_receiver_states.resize(m_settings_receiver_count);
-        for (int i = 0; i < m_settings_receiver_count; i++)
-            m_receiver_states[i].fill(true, m_settings_channels_per_rcvr);
-        emit receiverLayoutChanged();
-    }
-
-    emit settingsChanged();
-}
-
 void MainViewModel::loadSettings(const QString& filename)
 {
     m_settings->loadFile(filename);
     m_last_ini_dir = QFileInfo(filename).absolutePath();
-    QSettings app_settings(UIConstants::kOrganizationName, UIConstants::kApplicationName);
+    QSettings app_settings;
     app_settings.setValue(UIConstants::kSettingsKeyLastIniDir, m_last_ini_dir);
 }
 
@@ -500,7 +517,7 @@ void MainViewModel::saveSettings(const QString& filename)
 {
     m_settings->saveFile(filename);
     m_last_ini_dir = QFileInfo(filename).absolutePath();
-    QSettings app_settings(UIConstants::kOrganizationName, UIConstants::kApplicationName);
+    QSettings app_settings;
     app_settings.setValue(UIConstants::kSettingsKeyLastIniDir, m_last_ini_dir);
 }
 
@@ -525,6 +542,12 @@ void MainViewModel::clearState()
     emit controlsEnabledChanged();
 }
 
+void MainViewModel::cancelProcessing()
+{
+    if (m_current_processor)
+        m_current_processor->requestAbort();
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //                        VALIDATION & PROCESSING                             //
 ////////////////////////////////////////////////////////////////////////////////
@@ -544,6 +567,40 @@ bool MainViewModel::validateTimeFields(const QString& ddd, const QString& hh,
            out_hh >= 0 && out_hh <= UIConstants::kMaxHour &&
            out_mm >= 0 && out_mm <= UIConstants::kMaxMinute &&
            out_ss >= 0 && out_ss <= UIConstants::kMaxSecond;
+}
+
+QString MainViewModel::validateTimeRange(const QString& start_text,
+                                          const QString& stop_text) const
+{
+    QStringList start_parts = start_text.split(":");
+    QStringList stop_parts = stop_text.split(":");
+
+    if (start_parts.size() != 4 || stop_parts.size() != 4)
+        return "Start and stop times must be in DDD:HH:MM:SS format.";
+
+    int s_ddd, s_hh, s_mm, s_ss;
+    if (!validateTimeFields(start_parts[0], start_parts[1],
+                             start_parts[2], start_parts[3],
+                             s_ddd, s_hh, s_mm, s_ss))
+        return "Start time is out of valid range. Day: 1-366, Hour: 0-23, Minute: 0-59, Second: 0-59.";
+
+    int e_ddd, e_hh, e_mm, e_ss;
+    if (!validateTimeFields(stop_parts[0], stop_parts[1],
+                             stop_parts[2], stop_parts[3],
+                             e_ddd, e_hh, e_mm, e_ss))
+        return "Stop time is out of valid range. Day: 1-366, Hour: 0-23, Minute: 0-59, Second: 0-59.";
+
+    long long start_total = s_ddd * (long long)UIConstants::kSecondsPerDay
+        + s_hh * (long long)UIConstants::kSecondsPerHour
+        + s_mm * (long long)UIConstants::kSecondsPerMinute + s_ss;
+    long long stop_total = e_ddd * (long long)UIConstants::kSecondsPerDay
+        + e_hh * (long long)UIConstants::kSecondsPerHour
+        + e_mm * (long long)UIConstants::kSecondsPerMinute + e_ss;
+
+    if (stop_total <= start_total)
+        return "Stop time must be after start time.";
+
+    return {};
 }
 
 bool MainViewModel::validateProcessingInputs(ProcessingParams& params,
@@ -726,6 +783,7 @@ void MainViewModel::launchWorkerThread(const ProcessingParams& params)
     m_worker_thread = new QThread;
 
     auto* processor = new FrameProcessor;
+    m_current_processor = processor;
     processor->moveToThread(m_worker_thread);
 
     connect(processor, &FrameProcessor::progressUpdated,
@@ -759,6 +817,8 @@ void MainViewModel::onProgressUpdated(int percent)
 
 void MainViewModel::onProcessingFinished(bool success)
 {
+    m_current_processor = nullptr;
+
     m_worker_thread->quit();
     m_worker_thread->wait();
 

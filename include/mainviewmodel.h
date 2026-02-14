@@ -142,6 +142,14 @@ public:
     QString parameterName(int channel_index, int receiver_index) const;
     /// @return Auto-generated timestamped output CSV filename.
     QString generateOutputFilename() const;
+
+    /// Validates and parses day/hour/minute/second time field strings.
+    bool validateTimeFields(const QString& ddd, const QString& hh,
+                             const QString& mm, const QString& ss,
+                             int& out_ddd, int& out_hh, int& out_mm, int& out_ss) const;
+
+    /// Pre-validates time range strings. Returns empty on success, or a warning message.
+    QString validateTimeRange(const QString& start_text, const QString& stop_text) const;
     /// @}
 
     /// @name Model accessors
@@ -178,11 +186,6 @@ public slots:
                          const QString& stop_mm, const QString& stop_ss,
                          int sample_rate_index);
 
-    /// Applies settings values from the SettingsDialog.
-    void applySettings(const QString& frame_sync, int polarity_idx,
-                       int slope_idx, const QString& scale,
-                       int receiver_count, int channels_per_rcvr);
-
     /// Loads settings from an INI file and applies them.
     void loadSettings(const QString& filename);
     /// Saves the current state to an INI file.
@@ -190,6 +193,8 @@ public slots:
 
     /// Resets all state to defaults and closes the loaded file.
     void clearState();
+    /// Requests cancellation of the current processing run.
+    void cancelProcessing();
 
 signals:
     void inputFilenameChanged();      ///< Emitted when the input file path changes.
@@ -242,10 +247,8 @@ private:
                                    const QString& stop_mm, const QString& stop_ss,
                                    int sample_rate_index);
 
-    /// Validates and parses day/hour/minute/second time field strings.
-    bool validateTimeFields(const QString& ddd, const QString& hh,
-                             const QString& mm, const QString& ss,
-                             int& out_ddd, int& out_hh, int& out_mm, int& out_ss) const;
+    /// Runs a pre-scan on the given PCM channel to detect encoding and verify sync.
+    void runPreScan(int pcm_channel_id);
 
     /// Builds a name-to-index map for O(1) parameter lookup in the frame setup.
     QMap<QString, int> buildParameterMap() const;
@@ -269,6 +272,7 @@ private:
     FrameSetup* m_frame_setup;               ///< Frame parameter definitions.
     SettingsManager* m_settings;             ///< Settings persistence manager.
     QThread* m_worker_thread;                ///< Background processing thread.
+    FrameProcessor* m_current_processor;     ///< Pointer to active processor (for abort).
 
     QString m_app_root;                      ///< Application root directory.
     QString m_input_filename;                ///< Path to the loaded .ch10 file.

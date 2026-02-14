@@ -6,10 +6,12 @@
 #ifndef SETTINGSDIALOG_H
 #define SETTINGSDIALOG_H
 
-#include <QDialog>
-#include <QLineEdit>
 #include <QComboBox>
+#include <QDialog>
 #include <QGroupBox>
+#include <QLineEdit>
+
+#include "settingsdata.h"
 
 /**
  * @brief Modal dialog that lets the user edit frame sync, slope, polarity,
@@ -24,6 +26,9 @@ class SettingsDialog : public QDialog
 
 public:
     SettingsDialog(QWidget* parent = nullptr);
+
+    void setData(const SettingsData& data);    ///< Populates all fields from a SettingsData snapshot.
+    SettingsData getData() const;              ///< Returns current field values as a SettingsData snapshot.
 
     void setFrameSync(const QString& value);   ///< Sets the frame sync hex string.
     QString frameSync() const;                  ///< @return Current frame sync hex string.
@@ -48,6 +53,7 @@ signals:
     void saveAsRequested();  ///< Emitted when the user clicks "Save As...".
 
 private:
+    SettingsData m_data;                 ///< Stored snapshot preserving non-edited fields.
     QLineEdit* m_frame_sync;             ///< Frame sync hex pattern input.
     QComboBox* m_polarity;               ///< Polarity selector (Positive/Negative).
     QComboBox* m_slope;                  ///< Voltage slope selector.

@@ -122,12 +122,12 @@ void TestConstants::appVersionValues()
 {
     QCOMPARE(AppVersion::kMajor, 2);
     QCOMPARE(AppVersion::kMinor, 1);
-    QCOMPARE(AppVersion::kPatch, 0);
+    QCOMPARE(AppVersion::kPatch, 5);
 }
 
 void TestConstants::appVersionToString()
 {
-    QCOMPARE(AppVersion::toString(), QString("2.1.0"));
+    QCOMPARE(AppVersion::toString(), QString("2.1.5"));
 }
 
 void TestConstants::pcmMaxRawSampleValue()

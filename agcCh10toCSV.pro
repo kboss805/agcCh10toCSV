@@ -23,7 +23,9 @@ SOURCES += \
     src/main.cpp \
     src/mainviewmodel.cpp \
     src/mainview.cpp \
+    src/receivergridwidget.cpp \
     src/settingsdialog.cpp \
+    src/timeextractionwidget.cpp \
     src/frameprocessor.cpp \
     src/settingsmanager.cpp \
     lib/irig106/src/irig106ch10.c \
@@ -47,9 +49,11 @@ HEADERS += \
     include/framesetup.h \
     include/mainviewmodel.h \
     include/mainview.h \
+    include/receivergridwidget.h \
     include/frameprocessor.h \
     include/settingsdata.h \
     include/settingsdialog.h \
+    include/timeextractionwidget.h \
     include/settingsmanager.h \
     lib/irig106/include/irig106ch10.h \
     lib/irig106/include/i106_data_stream.h \
@@ -78,7 +82,8 @@ RESOURCES += \
     resources/chevron-down-disabled-dark.svg \
     resources/chevron-down-disabled-light.svg \
     resources/folder-open.svg \
-    resources/play.svg
+    resources/play.svg \
+    resources/stop.svg
 
 RC_ICONS = resources/icon.ico
 

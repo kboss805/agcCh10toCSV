@@ -71,7 +71,7 @@ Thumbs.db
 desktop.ini
 
 # Test artifacts
-tests/results*.txt
+tests/*.txt
 tests/run_tests.ps1
 tests/nul
 tests/stderr.txt

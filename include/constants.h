@@ -12,7 +12,7 @@
 struct AppVersion {
     static constexpr int kMajor = 2;   ///< Major version number.
     static constexpr int kMinor = 1;   ///< Minor version number.
-    static constexpr int kPatch = 0;   ///< Patch version number.
+    static constexpr int kPatch = 5;   ///< Patch version number.
 
     /// @return Version string in "major.minor.patch" format.
     static QString toString() { return QString("%1.%2.%3").arg(kMajor).arg(kMinor).arg(kPatch); }
@@ -36,6 +36,9 @@ namespace PCMConstants {
 
     /// Number of packets between progress position queries.
     inline constexpr int kProgressReportInterval = 100;
+
+    /// Default number of PCM packets to scan during pre-scan encoding detection.
+    inline constexpr int kPreScanMaxPackets = 5;
 
     /// @name Channel type identifiers from TMATS records
     /// @{

@@ -13,6 +13,11 @@ int main(int argc, char* argv[])
 {
     QApplication app(argc, argv);
 
+    // Use separate QSettings scope so tests don't overwrite real app settings
+    app.setOrganizationName("agcCh10toCSV_tests");
+    app.setApplicationName("agcCh10toCSV_tests");
+    QSettings::setDefaultFormat(QSettings::IniFormat);
+
     int status = 0;
 
     {

@@ -16,8 +16,11 @@
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
+    a.setOrganizationName(UIConstants::kOrganizationName);
+    a.setApplicationName(UIConstants::kApplicationName);
+    QSettings::setDefaultFormat(QSettings::IniFormat);
 
-    QSettings app_settings(UIConstants::kOrganizationName, UIConstants::kApplicationName);
+    QSettings app_settings;
     QString theme = app_settings.value(UIConstants::kSettingsKeyTheme, UIConstants::kThemeDark).toString();
     QString qss_path = (theme == UIConstants::kThemeLight)
         ? ":/resources/win11-light.qss"

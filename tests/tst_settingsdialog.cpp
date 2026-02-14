@@ -127,6 +127,52 @@ void TestSettingsDialog::slopeIndexClampedToValidRange()
     QCOMPARE(dlg.slopeIndex(), -1);
 }
 
+// --- SettingsData roundtrip tests ---
+
+void TestSettingsDialog::setGetDataRoundtrip()
+{
+    SettingsDialog dlg;
+    SettingsData input;
+    input.frameSync = "DEADBEEF";
+    input.polarityIndex = 1;
+    input.slopeIndex = 2;
+    input.scale = "50";
+    input.receiverCount = 4;
+    input.channelsPerReceiver = 3;
+    input.extractAllTime = false;
+    input.sampleRateIndex = 1;
+
+    dlg.setData(input);
+    SettingsData output = dlg.getData();
+
+    QCOMPARE(output.frameSync, QString("DEADBEEF"));
+    QCOMPARE(output.polarityIndex, 1);
+    QCOMPARE(output.slopeIndex, 2);
+    QCOMPARE(output.scale, QString("50"));
+    QCOMPARE(output.receiverCount, 4);
+    QCOMPARE(output.channelsPerReceiver, 3);
+}
+
+void TestSettingsDialog::getDataPreservesNonEditedFields()
+{
+    SettingsDialog dlg;
+    SettingsData input;
+    input.frameSync = "ABCD";
+    input.polarityIndex = 0;
+    input.slopeIndex = 0;
+    input.scale = "100";
+    input.receiverCount = 2;
+    input.channelsPerReceiver = 1;
+    input.extractAllTime = false;
+    input.sampleRateIndex = 2;
+
+    dlg.setData(input);
+    SettingsData output = dlg.getData();
+
+    QCOMPARE(output.extractAllTime, false);
+    QCOMPARE(output.sampleRateIndex, 2);
+}
+
 // --- Signal tests ---
 
 void TestSettingsDialog::loadRequestedSignal()

@@ -6,6 +6,7 @@
 #ifndef FRAMEPROCESSOR_H
 #define FRAMEPROCESSOR_H
 
+#include <atomic>
 #include <fstream>
 #include <vector>
 
@@ -83,6 +84,34 @@ public:
                  uint64_t start_seconds,
                  uint64_t stop_seconds,
                  int sample_rate);
+
+    /// Requests a cooperative abort of the current processing run.
+    void requestAbort();
+
+    /**
+     * @brief Scans the first few PCM packets to detect encoding and verify sync.
+     *
+     * Opens the file independently, reads TMATS metadata, and scans up to
+     * @p max_packets PCM packets. Tests the frame sync pattern against both
+     * raw (NRZ-L) and derandomized (RNRZ-L) data, reporting results via
+     * logMessage().
+     *
+     * @param[in] filename          Path to the .ch10 input file.
+     * @param[in] pcm_channel_id   PCM channel ID to scan.
+     * @param[in] frame_sync       Frame sync pattern as a numeric value.
+     * @param[in] sync_pattern_len Sync pattern length in bits.
+     * @param[in] words_in_minor_frame Words per PCM minor frame (data words + 1).
+     * @param[in] bits_in_minor_frame  Total bits per PCM minor frame.
+     * @param[in] max_packets      Maximum number of PCM packets to scan.
+     * @return true if at least one sync pattern was found.
+     */
+    bool preScan(const QString& filename,
+                 int pcm_channel_id,
+                 uint64_t frame_sync,
+                 int sync_pattern_len,
+                 int words_in_minor_frame,
+                 int bits_in_minor_frame,
+                 int max_packets = PCMConstants::kPreScanMaxPackets);
 
 signals:
     /// Emitted periodically during process() with completion percentage.
@@ -175,6 +204,7 @@ private:
     SuChanInfo* m_channel_info[PCMConstants::kMaxChannelCount];  ///< Per-channel attribute table.
     Irig106::SuIrig106Time m_irig_time;                         ///< Reusable IRIG time struct.
     int64_t m_total_file_size;                                  ///< Input file size in bytes (for progress).
+    std::atomic<bool> m_abort_requested;                         ///< Thread-safe abort flag.
 };
 
 #endif // FRAMEPROCESSOR_H

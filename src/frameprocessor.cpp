@@ -11,6 +11,7 @@
 #include <vector>
 
 #include <QDebug>
+#include <QElapsedTimer>
 #include <QFileInfo>
 
 #include "constants.h"
@@ -162,7 +163,8 @@ FrameProcessor::FrameProcessor(QObject* parent)
     : QObject(parent),
       m_buffer(nullptr),
       m_buffer_size(0L),
-      m_total_file_size(0)
+      m_total_file_size(0),
+      m_abort_requested(false)
 {
     putenv("TZ=GMT0");
     tzset();
@@ -178,6 +180,216 @@ FrameProcessor::~FrameProcessor()
     freeChanInfoTable(m_channel_info, PCMConstants::kMaxChannelCount);
     if (m_buffer)
         free(m_buffer);
+}
+
+void FrameProcessor::requestAbort()
+{
+    m_abort_requested.store(true, std::memory_order_relaxed);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//                            PRE-SCAN                                        //
+////////////////////////////////////////////////////////////////////////////////
+
+bool FrameProcessor::preScan(const QString& filename,
+                              int pcm_channel_id,
+                              uint64_t frame_sync,
+                              int sync_pattern_len,
+                              int words_in_minor_frame,
+                              int bits_in_minor_frame,
+                              int max_packets)
+{
+    emit logMessage("Pre-scan: checking frame sync and encoding...");
+
+    if (pcm_channel_id < 0 || pcm_channel_id >= PCMConstants::kMaxChannelCount)
+    {
+        emit logMessage("Pre-scan: skipped — no PCM channel available.");
+        return false;
+    }
+
+    if (!openFile(filename))
+    {
+        emit logMessage("Pre-scan: skipped — could not open file.");
+        return false;
+    }
+
+    // Read TMATS (first packet)
+    m_status = enI106Ch10ReadNextHeader(m_file_handle, &m_header);
+    if (m_status != I106_OK || m_header.ubyDataType != I106CH10_DTYPE_TMATS)
+    {
+        emit logMessage("Pre-scan: skipped — could not read TMATS.");
+        closeFile();
+        return false;
+    }
+
+    if (m_buffer_size < m_header.ulPacketLen)
+    {
+        unsigned char* new_buffer = (unsigned char*)realloc(m_buffer, m_header.ulPacketLen);
+        if (!new_buffer)
+        {
+            emit logMessage("Pre-scan: skipped — memory allocation failed.");
+            closeFile();
+            return false;
+        }
+        m_buffer = new_buffer;
+        m_buffer_size = m_header.ulPacketLen;
+    }
+
+    m_status = enI106Ch10ReadData(m_file_handle, m_buffer_size, m_buffer);
+    if (m_status != I106_OK)
+    {
+        emit logMessage("Pre-scan: skipped — could not read TMATS data.");
+        closeFile();
+        return false;
+    }
+
+    memset(&m_tmats_info, 0, sizeof(m_tmats_info));
+    m_status = enI106_Decode_Tmats(&m_header, m_buffer, &m_tmats_info);
+    if (m_status != I106_OK)
+    {
+        emit logMessage("Pre-scan: skipped — could not decode TMATS.");
+        closeFile();
+        return false;
+    }
+
+    m_status = assembleAttributesFromTMATS(&m_tmats_info, m_channel_info, PCMConstants::kMaxChannelCount);
+    if (m_status != I106_OK)
+    {
+        emit logMessage("Pre-scan: skipped — could not assemble channel attributes.");
+        closeFile();
+        return false;
+    }
+
+    // Set up PCM attributes for the target channel
+    if (m_channel_info[pcm_channel_id] == nullptr)
+    {
+        emit logMessage("Pre-scan: skipped — PCM channel " +
+                        QString::number(pcm_channel_id) + " not found in TMATS.");
+        closeFile();
+        return false;
+    }
+
+    SuPcmF1_Attributes* pcm_attrs =
+        (SuPcmF1_Attributes*)m_channel_info[pcm_channel_id]->psuAttributes;
+    if (pcm_attrs == nullptr)
+    {
+        emit logMessage("Pre-scan: skipped — no PCM attributes for channel.");
+        closeFile();
+        return false;
+    }
+
+    Set_Attributes_Ext_PcmF1(pcm_attrs->psuRDataSrc, pcm_attrs,
+                              -1, -1,
+                              PCMConstants::kCommonWordLen,
+                              -1, -1, -1,
+                              PCMConstants::kNumMinorFrames,
+                              words_in_minor_frame,
+                              bits_in_minor_frame,
+                              -1,
+                              sync_pattern_len,
+                              frame_sync,
+                              -1, -1, -1);
+
+    uint64_t sync_pat  = pcm_attrs->ullMinorFrameSyncPat;
+    uint64_t sync_mask = pcm_attrs->ullMinorFrameSyncMask;
+    uint32_t sync_len  = pcm_attrs->ulMinorFrameSyncPatLen;
+
+    // Scan PCM packets
+    int pcm_packets_scanned = 0;
+    int nrzl_sync_count  = 0;
+    int rnrzl_sync_count = 0;
+
+    while (pcm_packets_scanned < max_packets)
+    {
+        m_status = enI106Ch10ReadNextHeader(m_file_handle, &m_header);
+        if (m_status == I106_EOF || m_status != I106_OK)
+            break;
+
+        if (m_header.ubyDataType != I106CH10_DTYPE_PCM_FMT_1 ||
+            m_header.uChID != pcm_channel_id)
+            continue;
+
+        if (m_buffer_size < m_header.ulPacketLen)
+        {
+            unsigned char* new_buffer = (unsigned char*)realloc(m_buffer, m_header.ulPacketLen);
+            if (!new_buffer)
+                break;
+            m_buffer = new_buffer;
+            m_buffer_size = m_header.ulPacketLen;
+        }
+
+        m_status = enI106Ch10ReadData(m_file_handle, m_buffer_size, m_buffer);
+        if (m_status != I106_OK)
+            break;
+
+        uint32_t data_offset = sizeof(SuPcmF1_ChanSpec);
+        if (m_header.ulDataLen <= data_offset)
+            continue;
+
+        uint8_t* raw_data = m_buffer + data_offset;
+        uint32_t raw_len  = m_header.ulDataLen - data_offset;
+
+        if (!pcm_attrs->bDontSwapRawData)
+            SwapBytes_PcmF1(raw_data, raw_len);
+
+        uint64_t packet_bits = static_cast<uint64_t>(raw_len) * 8;
+
+        // Test NRZ-L: sync pattern in raw data
+        if (hasSyncPattern(raw_data, packet_bits, sync_pat, sync_mask, sync_len))
+            nrzl_sync_count++;
+
+        // Test RNRZ-L: copy, derandomize, then check for sync
+        std::vector<uint8_t> derand_copy(raw_data, raw_data + raw_len);
+        uint16_t test_lfsr = 0;
+        derandomizeBitstream(derand_copy.data(), packet_bits, test_lfsr);
+
+        if (hasSyncPattern(derand_copy.data(), packet_bits, sync_pat, sync_mask, sync_len))
+            rnrzl_sync_count++;
+
+        pcm_packets_scanned++;
+    }
+
+    closeFile();
+
+    // Report findings
+    if (pcm_packets_scanned == 0)
+    {
+        emit logMessage("Pre-scan: no PCM packets found for channel " +
+                        QString::number(pcm_channel_id) + ".");
+        return false;
+    }
+
+    emit logMessage("Pre-scan: scanned " + QString::number(pcm_packets_scanned) +
+                    " PCM packet(s) on channel " + QString::number(pcm_channel_id) + ".");
+    emit logMessage("  NRZ-L  sync found in " + QString::number(nrzl_sync_count) +
+                    " of " + QString::number(pcm_packets_scanned) + " packets.");
+    emit logMessage("  RNRZ-L sync found in " + QString::number(rnrzl_sync_count) +
+                    " of " + QString::number(pcm_packets_scanned) + " packets.");
+
+    bool sync_found = false;
+    if (nrzl_sync_count > 0 && rnrzl_sync_count == 0)
+    {
+        emit logMessage("Pre-scan result: data appears to be NRZ-L (not randomized).");
+        sync_found = true;
+    }
+    else if (rnrzl_sync_count > 0 && nrzl_sync_count == 0)
+    {
+        emit logMessage("Pre-scan result: data appears to be RNRZ-L (randomized).");
+        sync_found = true;
+    }
+    else if (nrzl_sync_count > 0 && rnrzl_sync_count > 0)
+    {
+        emit logMessage("Pre-scan result: sync found in both raw and derandomized data — "
+                        "likely NRZ-L.");
+        sync_found = true;
+    }
+    else
+    {
+        emit logMessage("WARNING: Pre-scan — frame sync pattern NOT found. "
+                        "Verify frame sync and PCM channel.");
+    }
+
+    return sync_found;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -231,6 +443,9 @@ bool FrameProcessor::process(const QString& filename,
                                 uint64_t stop_seconds,
                                 int sample_rate)
 {
+    QElapsedTimer elapsed_timer;
+    elapsed_timer.start();
+
     m_total_file_size = QFileInfo(filename).size();
     int last_reported_percent = -1;
 
@@ -382,6 +597,7 @@ bool FrameProcessor::process(const QString& filename,
     uint64_t total_syncs_found = 0;
     uint64_t total_frames_extracted = 0;
     uint64_t total_bytes_processed = 0;
+    uint64_t rows_written = 0;
 
     std::vector<uint64_t> frame_words(words_in_frame, 0);
 
@@ -399,6 +615,10 @@ bool FrameProcessor::process(const QString& filename,
     PacketTimeRef current_time_ref = {0, 0, 0};
     PacketTimeRef prev_time_ref = {0, 0, 0};
     bool has_time_ref = false;
+
+    // Time gap detection
+    double prev_time_seconds = -1.0;
+    int time_gaps_detected = 0;
 
     // Derandomization state (auto-detected on first PCM packet)
     bool needs_derand = false;
@@ -420,6 +640,13 @@ bool FrameProcessor::process(const QString& filename,
         {
             emit errorOccurred("File read error during data collection.");
             break;
+        }
+
+        if (m_abort_requested.load(std::memory_order_relaxed))
+        {
+            emit logMessage("Processing cancelled by user.");
+            emit processingFinished(false);
+            return false;
         }
 
         // Report progress every N packets to reduce I/O overhead
@@ -462,6 +689,25 @@ bool FrameProcessor::process(const QString& filename,
 
             enI106_Decode_TimeF1(&m_header, m_buffer, &m_irig_time);
             enI106_SetRelTime(m_file_handle, &m_irig_time, m_header.aubyRefTime);
+
+            double pkt_time = m_irig_time.ulSecs + 0.0000001 * m_irig_time.ulFrac;
+            if (prev_time_seconds >= 0)
+            {
+                double gap = pkt_time - prev_time_seconds;
+                if (gap > 2.0)
+                {
+                    time_gaps_detected++;
+                    time_t gap_epoch = static_cast<time_t>(pkt_time);
+                    struct tm* gt = gmtime(&gap_epoch);
+                    emit logMessage(QString("WARNING: Time gap of %1s at DOY %2 %3:%4:%5")
+                        .arg(gap, 0, 'f', 1)
+                        .arg(gt->tm_yday + 1, 3, 10, QChar('0'))
+                        .arg(gt->tm_hour, 2, 10, QChar('0'))
+                        .arg(gt->tm_min, 2, 10, QChar('0'))
+                        .arg(gt->tm_sec, 2, 10, QChar('0')));
+                }
+            }
+            prev_time_seconds = pkt_time;
         }
 
         // Process PCM data from the selected channel
@@ -536,6 +782,13 @@ bool FrameProcessor::process(const QString& filename,
             // Process all bits in this packet through the frame extraction state machine
             for (uint64_t bit_pos = 0; bit_pos < packet_bits; bit_pos++)
             {
+                if ((bit_pos & 0xFFFF) == 0 && m_abort_requested.load(std::memory_order_relaxed))
+                {
+                    emit logMessage("Processing cancelled by user.");
+                    emit processingFinished(false);
+                    return false;
+                }
+
                 uint32_t byte_idx = static_cast<uint32_t>(bit_pos >> 3);
                 uint8_t bit_val = (raw_data[byte_idx] & (0x80 >> (bit_pos & 7))) ? 1 : 0;
 
@@ -575,7 +828,10 @@ bool FrameProcessor::process(const QString& filename,
                                 if (next_time_sample < current_time)
                                 {
                                     if (n_samples > 0)
+                                    {
                                         writeTimeSample(output, current_time_sample, n_samples, enabled_params);
+                                        rows_written++;
+                                    }
 
                                     n_samples = 0;
                                     do
@@ -644,7 +900,10 @@ bool FrameProcessor::process(const QString& filename,
 
     // Flush the last set of accumulated samples
     if (n_samples > 0)
+    {
         writeTimeSample(output, current_time_sample, n_samples, enabled_params);
+        rows_written++;
+    }
 
     output.close();
     emit progressUpdated(100);
@@ -668,7 +927,21 @@ bool FrameProcessor::process(const QString& filename,
         return false;
     }
 
-    emit logMessage("Processing complete.");
+    qint64 elapsed_ms = elapsed_timer.elapsed();
+    double elapsed_sec = elapsed_ms / 1000.0;
+    qint64 output_bytes = QFileInfo(outfile).size();
+    QString output_size_str = (output_bytes >= 1024 * 1024)
+        ? QString::number(output_bytes / (1024.0 * 1024.0), 'f', 1) + " MB"
+        : QString::number(output_bytes / 1024.0, 'f', 1) + " KB";
+
+    emit logMessage(QString("Processing complete — %1 rows written, %2, elapsed %3s.")
+        .arg(rows_written)
+        .arg(output_size_str)
+        .arg(elapsed_sec, 0, 'f', 1));
+
+    if (time_gaps_detected > 0)
+        emit logMessage(QString("WARNING: %1 time gap(s) detected in recording.").arg(time_gaps_detected));
+
     emit processingFinished(true);
     return true;
 }

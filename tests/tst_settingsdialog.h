@@ -25,6 +25,9 @@ private slots:
     void slopeComboBoxHasFourItems();
     void slopeIndexClampedToValidRange();
 
+    void setGetDataRoundtrip();
+    void getDataPreservesNonEditedFields();
+
     void loadRequestedSignal();
     void saveAsRequestedSignal();
 };

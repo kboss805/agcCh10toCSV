@@ -4,10 +4,10 @@ This file provides context and guidelines for AI assistants working on the agcCh
 
 ## Version Information
 
-- **Qt Version**: 6.10.2
-- **MinGW Version**: 13.1.0
-- **C++ Standard**: C++17
-- **Project Version**: 2.1.0 — defined in `AppVersion` struct in `include/constants.h`
+- **Qt Version**: 6.10.2 (minimum: Qt 6.0.0)
+- **MinGW Version**: 13.1.0 (minimum: GCC/MinGW 7.0)
+- **C++ Standard**: C++17 (required — `inline constexpr` used throughout constants.h)
+- **Project Version**: 2.1.5 — defined in `AppVersion` struct in `include/constants.h`
 
 - **Target Users:** Telemetry engineers and data analysts who need to convert RCC IRIG 106 chapter 10 formated files that include automatic gain control (AGC) signals information from telmetery receivers to comma separated values so AGC signals can be plotted and analyzed in capplications like Microsoft Excel or Matlab. 
 
@@ -77,6 +77,35 @@ This file provides context and guidelines for AI assistants working on the agcCh
 - ✅ Uses my defined polarity (positive/negative) and slope (dB/V) to properly convert from integer V to decimal dB
 - ✅ Default polarity and slope values are extracted from a configuraion file
 
+### US6: View AGC samples
+**As an** As a telemetry engineer or data analyst 
+**I want to** I want view the processed agc samples vs. time in a plot window 
+**So that** I can quickly analyze data and export plots to a PDF report equivalent
+
+**Acceptance Criteria:**
+- [ ] Dockable plot window
+- [ ] User defined plot title
+- [ ] Y and X axis labels
+- [ ] Auto set Y axis to min/max values
+- [ ] Auto set X axis to the max time span in the processed csv file
+- [ ] Controls to set a time window; auto zoom and move the x-axis so only this time window is visible
+- [ ] Contol to overide Y axis min/max
+- [ ] Mouse wheel zooms the y-axis
+- [ ] Mouse click and hold pans the axis
+- [ ] Select and Unselect which reciever channel AGC values are visible/exported to PDF
+- [ ] Auto set plot colors by default; channels from the same receiver should be a shades of the same color
+
+### US7: Application Installer
+**As a** developer
+**I want to** create an application installer
+**So that** I can quickly deploy the software/updates to users with all the necessary folders and settings files
+
+**Acceptance Criteria:**
+- [ ] Signed application
+- [ ] Install to "Program Files" and to a user-selected directory for users without admin privileges
+- [ ] Installer shows install progress
+- [ ] Installer should not overwrite INI files; if new fields are in the INI file, alert the user that a new INI file was saved as "new_x.INI" — try to use as many parameters from the old default INI file as possible in the new INI file
+
 ## Version History
 
 ### v1.0 — Initial Release
@@ -109,25 +138,42 @@ This file provides context and guidelines for AI assistants working on the agcCh
 - ✅ Negative polarity calibration fix
 - ✅ Excel-compatible time format in CSV output
 
+### v2.1.5 — MVVM & Log Enhancements
+- ✅ SettingsDialog MVVM data flow — `setData()`/`getData()` with `SettingsData` struct replaces 18 individual getter/setter calls
+- ✅ Removed redundant `applySettings()` 6-parameter method; `applySettingsData()` is now the single entry point
+- ✅ Removed dock widget title bar for cleaner controls panel layout
+- ✅ Pre-scan re-runs automatically when user selects a different PCM channel
+- ✅ Color-coded log messages: green for pre-scan success and processing complete, yellow for warnings, red for errors
+- ✅ SettingsDialog unit tests for `setData()`/`getData()` roundtrip and non-edited field preservation
+
 ## Future Version Functions
 
-### v2.1 — Usability Improvements
-- Recent files list (File menu)
-- Cancel/abort in-progress processing
-- Status bar with file metadata summary
-- Installer / deployment packaging
+### v2.2 — Usability Improvements
+- [ ] Quick receiver selection shortcuts (Select All/None)
+- [ ] Pre-process summary in log (file, channels, time range, output path)
+- [ ] Recent files menu (File > Recent)
+- [ ] Drag-and-drop Ch10 files
+- [ ] Settings visible on main window (collapsible panel)
+- [ ] Clickable output file path in log window
+- [ ] Status bar with file metadata summary
+- [ ] Batch processing of multiple .ch10 files
 
-### v2.2 — Extended Format Support
-- Configurable CSV delimiter (comma, tab, semicolon)
-- Additional PCM code formats beyond NRZ-L and RNRZ-L
-- Export to additional output formats (e.g., JSON, HDF5)
-- Batch processing of multiple .ch10 files
+### v2.3 — Easy Deployment (US7)
+- [ ] Signed application binary
+- [ ] Install to "Program Files" with admin, or user-selected directory without admin
+- [ ] Installer shows install progress
+- [ ] INI file upgrade logic — preserve existing user INI, merge new fields, save as "new_x.INI" if conflicts
 
-### v3.0 — Analysis and Visualization
-- Built-in AGC signal plotting (time-series chart)
-- Real-time preview of AGC data during processing
-- Statistical summary in output (min, max, mean, std dev)
-- Command-line interface (CLI) mode for scripting and automation
+### v3.0 — Analysis and Visualization (US6)
+- [ ] Dockable plot window with AGC samples vs. time
+- [ ] Customizable plot tile
+- [ ] Labeled X (time) and Y (dB) axes
+- [ ] Auto-scale Y axis to min/max values; manual override control
+- [ ] Auto-scale X axis to full time span; time window control with auto-zoom/pan
+- [ ] Mouse wheel zoom (Y axis) and click-drag pan
+- [ ] Per-receiver-channel visibility toggle for plot and PDF export
+- [ ] Auto-assigned plot colors; channels from the same receiver use shades of one color
+- [ ] Export plots to PDF report
 
 ## Tech Stack
 
@@ -168,15 +214,26 @@ The application follows the **MVVM (Model-View-ViewModel)** pattern:
 
 1. **MainView** (`src/mainview.cpp`, `include/mainview.h`) — *View*
    - Thin GUI layer; creates and lays out all Qt widgets
+   - Delegates receiver grid to ReceiverGridWidget, time controls to TimeExtractionWidget
    - Binds to MainViewModel Q_PROPERTYs and connects signals/slots
    - Contains no business logic; delegates all actions to the ViewModel
-   - `logError()` / `logWarning()` append colored HTML entries (red / #DAA520) to the log window via `appendHtml()`
+   - `logError()` / `logWarning()` / `logSuccess()` append colored HTML entries (red / #DAA520 / green) to the log window via `appendHtml()`
    - Errors and warnings are shown inline in the log; QMessageBox reserved for About dialog and success notification only
    - Log window is persistent (never cleared) with auto-scroll on new entries
 
+   a. **ReceiverGridWidget** (`src/receivergridwidget.cpp`, `include/receivergridwidget.h`) — *View*
+      - Self-contained multi-column tree grid for receiver/channel selection
+      - Manages expand/collapse, tri-state checkboxes, and synchronized scrollbars
+      - Emits `receiverChecked()` when the user toggles a channel checkbox
+
+   b. **TimeExtractionWidget** (`src/timeextractionwidget.cpp`, `include/timeextractionwidget.h`) — *View*
+      - Group box with extract-all toggle, start/stop time inputs, and sample rate selector
+      - Emits `extractAllTimeChanged()` and `sampleRateIndexChanged()` signals
+
 2. **SettingsDialog** (`src/settingsdialog.cpp`, `include/settingsdialog.h`) — *View*
    - Modal dialog for frame sync, polarity, scale, range, and receiver settings
-   - Reads initial values from MainViewModel and writes back on accept
+   - Uses `setData()`/`getData()` with `SettingsData` struct for clean data transfer
+   - Emits `loadRequested()` and `saveAsRequested()` for file I/O delegation
 
 3. **MainViewModel** (`src/mainviewmodel.cpp`, `include/mainviewmodel.h`) — *ViewModel*
    - Owns all application state, validation, and processing orchestration
@@ -186,6 +243,7 @@ The application follows the **MVVM (Model-View-ViewModel)** pattern:
    - Creates a fresh `FrameProcessor` per processing run on a worker thread
    - `logStartupInfo()` emits default.ini settings at application startup (called after signal connections are established)
    - `openFile()` logs channel info, time range, and current frame settings when a Ch10 file is loaded
+   - `runPreScan()` detects PCM encoding and verifies frame sync; runs on file open and on PCM channel change
 
 4. **Chapter10Reader** (`src/chapter10reader.cpp`, `include/chapter10reader.h`) — *Model*
    - Reads IRIG 106 Chapter 10 file metadata and manages channel selection
@@ -390,7 +448,7 @@ Automated unit tests use the **Qt Test** framework. Test sources are in the `tes
 - **TestMainViewModelHelpers** (`tst_mainviewmodel_helpers`) — ViewModel helper methods (channelPrefix, parameterName, generateOutputFilename)
 - **TestMainViewModelState** (`tst_mainviewmodel_state`) — ViewModel property defaults, setters, signals, receiver grid, SettingsData roundtrip, frame setup loading
 - **TestFrameSetup** (`tst_framesetup`) — Frame parameter loading, word map, calibration
-- **TestSettingsDialog** (`tst_settingsdialog`) — SettingsDialog widget defaults, setter/getter roundtrips, signal emission
+- **TestSettingsDialog** (`tst_settingsdialog`) — SettingsDialog widget defaults, setter/getter roundtrips, SettingsData roundtrip, signal emission
 - **TestSettingsManager** (`tst_settingsmanager`) — INI load/save validation (invalid FrameSync, Slope, Scale, Polarity, receiver counts, parameter count mismatch, roundtrip, frame setup preservation)
 
 ### Running Tests

@@ -6,8 +6,6 @@
 #ifndef MAINVIEW_H
 #define MAINVIEW_H
 
-#include <QAbstractButton>
-#include <QCheckBox>
 #include <QComboBox>
 #include <QCoreApplication>
 #include <QDialog>
@@ -15,7 +13,6 @@
 #include <QDragEnterEvent>
 #include <QFileDialog>
 #include <QFileInfo>
-#include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -24,20 +21,21 @@
 #include <QPlainTextEdit>
 #include <QMenuBar>
 #include <QProgressBar>
-#include <QPushButton>
 #include <QScrollBar>
 #include <QStringList>
 #include <QToolBar>
-#include <QTreeWidget>
-#include <QTreeWidgetItem>
 #include <QVBoxLayout>
-#include <QVector>
 
 class MainViewModel;
+class ReceiverGridWidget;
+class TimeExtractionWidget;
 
 /**
  * @brief Thin View layer: builds widgets, connects to ViewModel signals,
  *        and forwards user actions to MainViewModel.
+ *
+ * Delegates receiver grid to ReceiverGridWidget and time controls to
+ * TimeExtractionWidget.
  */
 class MainView : public QMainWindow
 {
@@ -59,8 +57,6 @@ private slots:
     void onSettings();
     /// Toggles between light and dark themes.
     void onToggleTheme();
-    /// Toggles extraction of the full time range or a user-defined window.
-    void timeAllCheckBoxToggled(bool checked);
     /// Validates inputs and starts background processing.
     void progressProcessButtonPressed();
     /// @}
@@ -81,12 +77,6 @@ private slots:
     void onProcessingFinished(bool success, const QString& output_file);
     /// Appends a message to the log window.
     void onLogMessage(const QString& message);
-    /// Rebuilds the receiver checkbox grid after layout changes.
-    void onReceiverLayoutChanged();
-    /// Syncs a single receiver checkbox from the ViewModel.
-    void onReceiverCheckedChanged(int receiver_index, int channel_index, bool checked);
-    /// Forwards tree item check-state changes to the ViewModel.
-    void onTreeItemChanged(QTreeWidgetItem* item, int column);
     /// @}
 
 protected:
@@ -100,28 +90,17 @@ private:
     void setUpMainLayout();                  ///< Creates the top-level layout with dockable log.
     void setUpTimeChannelRow();              ///< Creates the time channel combo box row.
     void setUpPCMChannelRow();               ///< Creates the PCM channel combo box row.
-
-    void setUpReceiversSection();            ///< Creates the receivers group box.
-    void rebuildReceiversGrid();             ///< Rebuilds the receiver checkbox grid from ViewModel state.
-
-    void setUpTimeSection();                 ///< Creates the time extraction group box.
-
     void setUpConnections();                 ///< Connects all ViewModel signals to View slots.
     /// @}
 
     /// @name Bulk state helpers
     /// @{
     void setAllControlsEnabled(bool enabled);          ///< Enables or disables all interactive controls.
-    void setAllNumberedReceiversEnabled(bool enabled);  ///< Enables or disables individual receiver checkboxes.
-    void setAllNumberedReceiversChecked(bool checked);  ///< Checks or unchecks all individual receiver checkboxes.
-
-    void setAllStartStopTimesEnabled(bool enabled);     ///< Enables or disables start/stop time fields.
-    void fillAllStartStopTimes();                       ///< Populates time fields from ViewModel file times.
-    void clearAllStartStopTimes();                      ///< Clears all start/stop time fields.
     void saveLastCh10Dir();                              ///< Persists m_last_ch10_dir to QSettings.
     void saveLastCsvDir();                               ///< Persists m_last_csv_dir to QSettings.
     void logError(const QString& message);               ///< Appends a red error entry to the log window.
     void logWarning(const QString& message);             ///< Appends a dark-yellow warning entry to the log window.
+    void logSuccess(const QString& message);             ///< Appends a green success entry to the log window.
     /// @}
 
     MainViewModel* m_view_model;             ///< Owning ViewModel instance.
@@ -143,21 +122,12 @@ private:
     QComboBox* m_time_channel;               ///< Time channel selector.
     QComboBox* m_pcm_channel;                ///< PCM channel selector.
 
-    QGroupBox* m_receivers_section;          ///< Receivers group box.
-    QVBoxLayout* m_receivers_section_layout; ///< Receivers section vertical layout.
-    QVector<QTreeWidget*> m_receiver_trees;  ///< Column trees for receiver display.
-
-    QGroupBox* m_time_section;               ///< Time extraction group box.
-    QCheckBox* m_time_all;                   ///< "Extract all time" toggle checkbox.
-    QLineEdit* m_start_time;                 ///< Start time input (DDD:HH:MM:SS).
-    QLineEdit* m_stop_time;                  ///< Stop time input (DDD:HH:MM:SS).
-    QComboBox* m_sample_rate;                ///< Sample rate selector.
+    ReceiverGridWidget* m_receiver_grid;     ///< Receiver/channel selection grid.
+    TimeExtractionWidget* m_time_widget;     ///< Time extraction and sample rate controls.
 
     QProgressBar* m_progress_bar;            ///< Processing progress bar.
 
     QString m_last_ch10_dir;                 ///< Last directory used in Ch10 file dialogs.
     QString m_last_csv_dir;                  ///< Last directory used in CSV file dialogs.
-
-    bool m_updating_from_viewmodel;          ///< Guard flag to prevent signal loops during ViewModel sync.
 };
 #endif // MAINVIEW_H

@@ -267,7 +267,16 @@ void TestMainViewModelState::applySettingsUpdatesProperties()
 {
     MainViewModel vm;
 
-    vm.applySettings("11223344", 1, 3, "75", 4, 2);
+    SettingsData data;
+    data.frameSync = "11223344";
+    data.polarityIndex = 1;
+    data.slopeIndex = 3;
+    data.scale = "75";
+    data.receiverCount = 4;
+    data.channelsPerReceiver = 2;
+    data.extractAllTime = vm.extractAllTime();
+    data.sampleRateIndex = vm.sampleRateIndex();
+    vm.applySettingsData(data);
 
     QCOMPARE(vm.frameSync(), QString("11223344"));
     QCOMPARE(vm.polarityIndex(), 1);
@@ -287,8 +296,8 @@ void TestMainViewModelState::constructorDefaultFrameSync()
 
 void TestMainViewModelState::lastIniDirDefaultsToSettings()
 {
-    // Clear any persisted value from previous app runs
-    QSettings app_settings(UIConstants::kOrganizationName, UIConstants::kApplicationName);
+    // Clear any persisted value so the constructor falls back to default
+    QSettings app_settings;
     app_settings.remove(UIConstants::kSettingsKeyLastIniDir);
     app_settings.sync();
 

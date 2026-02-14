@@ -12,7 +12,7 @@
 #include <QVBoxLayout>
 
 SettingsDialog::SettingsDialog(QWidget* parent)
-    : QDialog(parent)
+    : QDialog(parent), m_data{}
 {
     setWindowTitle("Settings");
 
@@ -93,6 +93,29 @@ SettingsDialog::SettingsDialog(QWidget* parent)
     main_layout->addWidget(receivers_group);
     main_layout->addWidget(button_box);
     setLayout(main_layout);
+}
+
+void SettingsDialog::setData(const SettingsData& data)
+{
+    m_data = data;
+    m_frame_sync->setText(data.frameSync);
+    m_polarity->setCurrentIndex(data.polarityIndex);
+    m_slope->setCurrentIndex(data.slopeIndex);
+    m_scale->setText(data.scale);
+    m_receiver_count->setText(QString::number(data.receiverCount));
+    m_channels_per_receiver->setText(QString::number(data.channelsPerReceiver));
+}
+
+SettingsData SettingsDialog::getData() const
+{
+    SettingsData data = m_data;
+    data.frameSync = m_frame_sync->text();
+    data.polarityIndex = m_polarity->currentIndex();
+    data.slopeIndex = m_slope->currentIndex();
+    data.scale = m_scale->text();
+    data.receiverCount = m_receiver_count->text().toInt();
+    data.channelsPerReceiver = m_channels_per_receiver->text().toInt();
+    return data;
 }
 
 void SettingsDialog::setFrameSync(const QString& value)

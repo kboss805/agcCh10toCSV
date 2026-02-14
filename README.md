@@ -19,16 +19,18 @@ This application reads IRIG 106 Chapter 10 (.ch10) files, extracts telemetry dat
 - **Dark & Light Themes**: Windows 11 / WinUI 3 styled dark and light themes with runtime toggle
 - **Drag-and-Drop**: Drop .ch10 files directly onto the application window
 - **Per-File-Type Directory Persistence**: Independently remembers the last used directory for Ch10, CSV, and INI file dialogs between sessions
-- **Inline Log Window**: Persistent, scrollable log with timestamped entries; errors in red, warnings in dark yellow; replaces modal dialog boxes for errors and warnings
+- **Inline Log Window**: Persistent, scrollable log with timestamped entries; color-coded messages (green for success, yellow for warnings, red for errors); replaces modal dialog boxes for errors and warnings
 - **Startup & File Logging**: Logs default.ini settings at startup, channel/time/frame info when opening Ch10 files, and INI validation details when loading settings
 - **INI Validation**: Warns when parameter section count in INI files does not match receiver/channel configuration
+- **Automatic Pre-Scan**: Detects PCM encoding and verifies frame sync on file open and PCM channel change
 - **Sample Rate Options**: 1 Hz, 10 Hz, or 100 Hz output sample rates
 
 ## System Requirements
 
 ### Software
-- **Qt**: Version 6.10.2 or later
-- **Compiler**: MinGW 13.1.0 (64-bit) or compatible C++17 compiler
+- **Qt**: Version 6.0.0 or later (developed on 6.10.2)
+- **Compiler**: GCC/MinGW 7.0+ (developed on MinGW 13.1.0 64-bit)
+- **C++ Standard**: C++17 required
 - **Operating System**: Windows (primary), Linux/macOS (may require adjustments)
 
 ### Build Tools
@@ -104,6 +106,8 @@ agcCH10toCSV/
 ├── src/                        # Source files
 │   ├── main.cpp               # Application entry point
 │   ├── mainview.cpp           # Main GUI window (View)
+│   ├── receivergridwidget.cpp # Receiver/channel selection grid (View)
+│   ├── timeextractionwidget.cpp # Time range and sample rate controls (View)
 │   ├── settingsdialog.cpp     # Settings dialog (View)
 │   ├── mainviewmodel.cpp      # Application logic (ViewModel)
 │   ├── chapter10reader.cpp    # Chapter 10 file metadata (Model)
@@ -113,6 +117,8 @@ agcCH10toCSV/
 │   └── settingsmanager.cpp    # Settings persistence (Model)
 ├── include/                    # Header files
 │   ├── mainview.h
+│   ├── receivergridwidget.h
+│   ├── timeextractionwidget.h
 │   ├── settingsdialog.h
 │   ├── mainviewmodel.h
 │   ├── chapter10reader.h
