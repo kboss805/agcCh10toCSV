@@ -33,8 +33,12 @@ PrivilegesRequiredOverridesAllowed=dialog
 WizardStyle=modern
 MinVersion=10.0.17763
 
-; Code signing — set SIGN_CERT_PATH / SIGN_CERT_PASS env vars, then uncomment:
-; SignTool=signtool sign /f "$SIGN_CERT_PATH" /p "$SIGN_CERT_PASS" /tr http://timestamp.digicert.com /td sha256 /fd sha256 $f
+; Code signing — enabled when build_release.cmd passes /DSIGN /Ssigntool=... to iscc.
+; Without /DSIGN, the installer compiles unsigned (useful for testing).
+#ifdef SIGN
+SignTool=signtool
+SignedUninstaller=yes
+#endif
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

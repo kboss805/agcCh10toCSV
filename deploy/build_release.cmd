@@ -7,8 +7,9 @@ REM  Builds a release binary, runs windeployqt, and creates both
 REM  an Inno Setup installer staging layout and a portable ZIP.
 REM
 REM  Optional environment variables:
-REM    SIGN_CERT_PATH  — path to .pfx code-signing certificate
-REM    SIGN_CERT_PASS  — certificate password
+REM    SIGN_CERT_SHA1  — SHA-1 thumbprint of the code-signing certificate
+REM                      in the Windows Certificate Store (CurrentUser\My)
+REM                      Current cert: 1DCBF23B52067A8D52E9C517345EA77B9D926669
 REM    SIGN_TIMESTAMP  — timestamp server URL (default: http://timestamp.digicert.com)
 REM ====================================================================
 
@@ -16,7 +17,8 @@ set VERSION=2.3.0
 set PROJECT_DIR=%~dp0..
 set QTDIR=C:\Qt\6.10.2\mingw_64
 set MINGW_DIR=C:\Qt\Tools\mingw1310_64
-set PATH=%QTDIR%\bin;%MINGW_DIR%\bin;%PATH%
+set WINSDK_BIN=C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64
+set PATH=%QTDIR%\bin;%MINGW_DIR%\bin;%WINSDK_BIN%;%PATH%
 
 set STAGE_DIR=%PROJECT_DIR%\deploy\staging
 set INSTALLER_STAGE=%STAGE_DIR%\installer
@@ -59,16 +61,16 @@ if exist "%PROJECT_DIR%\settings\RASA.ini" copy "%PROJECT_DIR%\settings\RASA.ini
 if exist "%PROJECT_DIR%\settings\TRC.ini" copy "%PROJECT_DIR%\settings\TRC.ini" "%INSTALLER_STAGE%\settings\"
 
 REM --- Step 4: Code signing (optional) ---
-echo [5/7] Code signing...
-if defined SIGN_CERT_PATH (
-    signtool sign /f "%SIGN_CERT_PATH%" /p "%SIGN_CERT_PASS%" /tr "%SIGN_TIMESTAMP%" /td sha256 /fd sha256 "%INSTALLER_STAGE%\bin\agcCh10toCSV.exe"
+echo [5/8] Code signing...
+if defined SIGN_CERT_SHA1 (
+    signtool sign /sha1 %SIGN_CERT_SHA1% /tr %SIGN_TIMESTAMP% /td sha256 /fd sha256 "%INSTALLER_STAGE%\bin\agcCh10toCSV.exe"
     if %ERRORLEVEL% NEQ 0 (echo WARNING: Code signing failed — continuing without signature)
 ) else (
-    echo  Skipping — set SIGN_CERT_PATH and SIGN_CERT_PASS to enable signing.
+    echo  Skipping — set SIGN_CERT_SHA1 to enable signing.
 )
 
 REM --- Step 5: Create PORTABLE layout (flat — exe at root) ---
-echo [6/7] Creating portable layout...
+echo [6/8] Creating portable layout...
 
 REM Copy exe and all DLLs
 copy "%INSTALLER_STAGE%\bin\agcCh10toCSV.exe" "%PORTABLE_ROOT%\"
@@ -90,19 +92,41 @@ REM Create empty portable marker file
 type nul > "%PORTABLE_ROOT%\portable"
 
 REM --- Step 6: Create ZIP ---
-echo [7/7] Creating portable ZIP...
+echo [7/8] Creating portable ZIP...
 powershell -Command "Compress-Archive -Path '%PORTABLE_ROOT%' -DestinationPath '%PROJECT_DIR%\deploy\agcCh10toCSV_v%VERSION%_portable.zip' -Force"
 if %ERRORLEVEL% NEQ 0 (echo WARNING: ZIP creation failed)
 
+REM --- Step 7: Compile Inno Setup installer ---
+echo [8/8] Compiling Inno Setup installer...
+set ISCC_PATH=
+where iscc >nul 2>&1
+if %ERRORLEVEL% EQU 0 (
+    set ISCC_PATH=iscc
+) else if exist "%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe" (
+    set "ISCC_PATH=%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe"
+) else if exist "%PROGRAMFILES(x86)%\Inno Setup 6\ISCC.exe" (
+    set "ISCC_PATH=%PROGRAMFILES(x86)%\Inno Setup 6\ISCC.exe"
+)
+
+if defined ISCC_PATH (
+    if defined SIGN_CERT_SHA1 (
+        "%ISCC_PATH%" /DSIGN /Ssigntool="signtool.exe sign /sha1 %SIGN_CERT_SHA1% /tr %SIGN_TIMESTAMP% /td sha256 /fd sha256 $f" "%PROJECT_DIR%\deploy\agcCh10toCSV.iss"
+    ) else (
+        "%ISCC_PATH%" "%PROJECT_DIR%\deploy\agcCh10toCSV.iss"
+    )
+    if %ERRORLEVEL% NEQ 0 (echo WARNING: Inno Setup compilation failed)
+) else (
+    echo  Skipping — Inno Setup not found. Install from https://jrsoftware.org/isinfo.php
+    echo  Then run: iscc "%PROJECT_DIR%\deploy\agcCh10toCSV.iss"
+)
+
 echo.
 echo ============================================
-echo  Build and staging complete!
+echo  Build and packaging complete!
 echo ============================================
 echo.
 echo  Installer staging: %INSTALLER_STAGE%
 echo  Portable staging:  %PORTABLE_ROOT%
 echo  Portable ZIP:      %PROJECT_DIR%\deploy\agcCh10toCSV_v%VERSION%_portable.zip
-echo.
-echo  Next: compile the installer with Inno Setup:
-echo    iscc "%PROJECT_DIR%\deploy\agcCh10toCSV.iss"
+echo  Installer EXE:     %PROJECT_DIR%\deploy\agcCh10toCSV_v%VERSION%_setup.exe
 echo ============================================

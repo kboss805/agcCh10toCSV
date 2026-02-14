@@ -35,6 +35,8 @@ MainView::MainView(QWidget *parent)
 
     QSettings app_settings;
     m_last_ch10_dir = app_settings.value(UIConstants::kSettingsKeyLastCh10Dir).toString();
+    if (m_last_ch10_dir.isEmpty())
+        m_last_ch10_dir = QCoreApplication::applicationDirPath();
     m_last_csv_dir  = app_settings.value(UIConstants::kSettingsKeyLastCsvDir).toString();
 
     setUpConnections();

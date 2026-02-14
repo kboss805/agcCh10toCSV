@@ -5,7 +5,6 @@
 
 #include "settingsdialog.h"
 
-#include <QDialogButtonBox>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
@@ -74,12 +73,20 @@ SettingsDialog::SettingsDialog(QWidget* parent)
     receivers_layout->addLayout(channels_row);
     receivers_group->setLayout(receivers_layout);
 
-    // Button box
-    QDialogButtonBox* button_box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
-    QPushButton* load_button = button_box->addButton("Load...", QDialogButtonBox::ActionRole);
-    QPushButton* save_as_button = button_box->addButton("Save As...", QDialogButtonBox::ActionRole);
-    connect(button_box, &QDialogButtonBox::accepted, this, &QDialog::accept);
-    connect(button_box, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    // Button row: Load... | Save As... | <stretch> | Cancel | OK
+    QHBoxLayout* button_row = new QHBoxLayout;
+    QPushButton* load_button = new QPushButton("Load...");
+    QPushButton* save_as_button = new QPushButton("Save As...");
+    QPushButton* cancel_button = new QPushButton("Cancel");
+    QPushButton* ok_button = new QPushButton("OK");
+    ok_button->setDefault(true);
+    button_row->addWidget(load_button);
+    button_row->addWidget(save_as_button);
+    button_row->addStretch();
+    button_row->addWidget(cancel_button);
+    button_row->addWidget(ok_button);
+    connect(ok_button, &QPushButton::clicked, this, &QDialog::accept);
+    connect(cancel_button, &QPushButton::clicked, this, &QDialog::reject);
     connect(load_button, &QPushButton::clicked, this, [this]() {
         emit loadRequested();
     });
@@ -91,7 +98,7 @@ SettingsDialog::SettingsDialog(QWidget* parent)
     main_layout->addWidget(frame_group);
     main_layout->addWidget(params_group);
     main_layout->addWidget(receivers_group);
-    main_layout->addWidget(button_box);
+    main_layout->addLayout(button_row);
     setLayout(main_layout);
 }
 
