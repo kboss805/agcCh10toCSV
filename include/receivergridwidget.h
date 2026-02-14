@@ -56,6 +56,10 @@ public:
 signals:
     /// Emitted when the user toggles a channel checkbox.
     void receiverChecked(int receiver_index, int channel_index, bool checked);
+    /// Emitted when the user clicks "Select All".
+    void selectAllRequested();
+    /// Emitted when the user clicks "Select None".
+    void selectNoneRequested();
 
 private:
     /// Forwards tree item check-state changes, filtering to leaf (channel) items only.

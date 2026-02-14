@@ -121,13 +121,13 @@ void TestConstants::uiButtonText()
 void TestConstants::appVersionValues()
 {
     QCOMPARE(AppVersion::kMajor, 2);
-    QCOMPARE(AppVersion::kMinor, 1);
-    QCOMPARE(AppVersion::kPatch, 5);
+    QCOMPARE(AppVersion::kMinor, 2);
+    QCOMPARE(AppVersion::kPatch, 0);
 }
 
 void TestConstants::appVersionToString()
 {
-    QCOMPARE(AppVersion::toString(), QString("2.1.5"));
+    QCOMPARE(AppVersion::toString(), QString("2.2.0"));
 }
 
 void TestConstants::pcmMaxRawSampleValue()
@@ -183,4 +183,12 @@ void TestConstants::uiPolarityConstants()
     QCOMPARE(UIConstants::kMaxPolarityIndex, 1);
     QCOMPARE(QString(UIConstants::kPolarityLabels[0]), QString("Positive"));
     QCOMPARE(QString(UIConstants::kPolarityLabels[1]), QString("Negative"));
+}
+
+// v2.2 additions
+
+void TestConstants::uiRecentFilesConstants()
+{
+    QCOMPARE(QString(UIConstants::kSettingsKeyRecentFiles), QString("RecentFiles"));
+    QCOMPARE(UIConstants::kMaxRecentFiles, 5);
 }

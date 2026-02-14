@@ -24,6 +24,12 @@ This application reads IRIG 106 Chapter 10 (.ch10) files, extracts telemetry dat
 - **INI Validation**: Warns when parameter section count in INI files does not match receiver/channel configuration
 - **Automatic Pre-Scan**: Detects PCM encoding and verifies frame sync on file open and PCM channel change
 - **Sample Rate Options**: 1 Hz, 10 Hz, or 100 Hz output sample rates
+- **Status Bar**: Displays file metadata summary (filename, size, channel counts, time range)
+- **Settings Summary Panel**: Read-only display of current frame sync, polarity, slope, scale, and receiver configuration
+- **Select All/None**: Quick receiver selection shortcuts in the receiver grid
+- **Pre-Process Summary**: Logs input file, channels, time range, sample rate, receiver count, and output path before processing
+- **Recent Files Menu**: File > Recent Files with up to 5 entries, persisted across sessions
+- **Clickable Log Links**: Output file path and "Open Folder" links in the log window after processing completes
 
 ## System Requirements
 

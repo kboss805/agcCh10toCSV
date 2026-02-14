@@ -8,10 +8,12 @@
 #include <QApplication>
 #include <QDebug>
 #include <QDesktopServices>
+#include <QGroupBox>
 #include <QMessageBox>
 #include <QPixmap>
 #include <QSettings>
 #include <QSignalBlocker>
+#include <QStatusBar>
 #include <QTime>
 #include <QUrl>
 
@@ -92,11 +94,22 @@ void MainView::setUpMainLayout()
     m_controls_layout->addWidget(m_receiver_grid);
     m_controls_layout->addWidget(m_time_widget);
     m_controls_layout->addWidget(m_progress_bar);
+
+    QGroupBox* settings_group = new QGroupBox("Settings");
+    QVBoxLayout* settings_layout = new QVBoxLayout;
+    m_settings_summary = new QLabel;
+    m_settings_summary->setWordWrap(true);
+    m_settings_summary->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    settings_layout->addWidget(m_settings_summary);
+    settings_group->setLayout(settings_layout);
+    m_controls_layout->addWidget(settings_group);
+
     m_controls_layout->addStretch(1);
 
     // Log is the central widget so it stretches on resize
-    m_log_window = new QPlainTextEdit;
+    m_log_window = new QTextBrowser;
     m_log_window->setReadOnly(true);
+    m_log_window->setOpenLinks(false);
     m_log_window->setMinimumWidth(UIConstants::kLogMinimumWidth);
     setCentralWidget(m_log_window);
 
@@ -133,6 +146,9 @@ void MainView::setUpMainLayout()
 
     m_progress_bar->setValue(0);
 
+    statusBar()->showMessage("No file loaded");
+    updateSettingsSummary();
+
     resize(minimumSizeHint());
 }
 
@@ -142,6 +158,8 @@ void MainView::setUpMenuBar()
     QMenu* file_menu = menu_bar->addMenu("&File");
 
     QAction* settings_action = file_menu->addAction("Settings...");
+    m_recent_menu = file_menu->addMenu("Recent Files");
+    updateRecentFilesMenu();
     file_menu->addSeparator();
 
     QSettings app_settings;
@@ -231,6 +249,14 @@ void MainView::setUpConnections()
     // ReceiverGridWidget -> ViewModel
     connect(m_receiver_grid, &ReceiverGridWidget::receiverChecked,
             m_view_model, &MainViewModel::setReceiverChecked);
+    connect(m_receiver_grid, &ReceiverGridWidget::selectAllRequested, this, [this]() {
+        m_view_model->setAllReceiversChecked(true);
+        m_receiver_grid->setAllChecked(true);
+    });
+    connect(m_receiver_grid, &ReceiverGridWidget::selectNoneRequested, this, [this]() {
+        m_view_model->setAllReceiversChecked(false);
+        m_receiver_grid->setAllChecked(false);
+    });
 
     // ViewModel -> View: data binding
     connect(m_view_model, &MainViewModel::inputFilenameChanged, this, [this]() {
@@ -238,6 +264,10 @@ void MainView::setUpConnections()
     });
     connect(m_view_model, &MainViewModel::channelListsChanged, this, &MainView::onChannelListsChanged);
     connect(m_view_model, &MainViewModel::fileLoadedChanged, this, &MainView::onFileLoadedChanged);
+    connect(m_view_model, &MainViewModel::fileLoadedChanged, this, &MainView::updateStatusBar);
+    connect(m_view_model, &MainViewModel::settingsChanged, this, &MainView::updateSettingsSummary);
+    connect(m_view_model, &MainViewModel::receiverLayoutChanged, this, &MainView::updateSettingsSummary);
+    connect(m_view_model, &MainViewModel::recentFilesChanged, this, &MainView::updateRecentFilesMenu);
     connect(m_view_model, &MainViewModel::fileTimesChanged, this, &MainView::onFileTimesChanged);
     connect(m_view_model, &MainViewModel::progressPercentChanged, this, &MainView::onProgressChanged);
     connect(m_view_model, &MainViewModel::processingChanged, this, &MainView::onProcessingChanged);
@@ -264,6 +294,10 @@ void MainView::setUpConnections()
     connect(m_view_model, &MainViewModel::errorOccurred, this, &MainView::displayErrorMessage);
     connect(m_view_model, &MainViewModel::processingFinished, this, &MainView::onProcessingFinished);
     connect(m_view_model, &MainViewModel::logMessageReceived, this, &MainView::onLogMessage);
+
+    connect(m_log_window, &QTextBrowser::anchorClicked, this, [](const QUrl& url) {
+        QDesktopServices::openUrl(url);
+    });
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -366,6 +400,16 @@ void MainView::onProcessingFinished(bool success, const QString& output_file)
     {
         m_progress_bar->setValue(100);
 
+        // Add clickable links to log
+        QString file_url = QUrl::fromLocalFile(output_file).toString();
+        QString folder_url = QUrl::fromLocalFile(QFileInfo(output_file).absolutePath()).toString();
+        QString ts = QTime::currentTime().toString("HH:mm:ss");
+        m_log_window->append(
+            "<span style='color: green;'>" + ts +
+            "  Output: <a href='" + file_url + "'>" + output_file.toHtmlEscaped() + "</a>"
+            " [<a href='" + folder_url + "'>Open Folder</a>]</span>");
+        m_log_window->verticalScrollBar()->setValue(m_log_window->verticalScrollBar()->maximum());
+
         QMessageBox msg_box(this);
         msg_box.setWindowTitle("HUZZAH!");
         msg_box.setText("Processing complete!\nFile saved to:\n" + output_file);
@@ -393,8 +437,8 @@ void MainView::onLogMessage(const QString& message)
     else if (message.startsWith("Pre-scan result:") || message.startsWith("Processing complete"))
         logSuccess(message);
     else
-        m_log_window->appendPlainText(
-            QTime::currentTime().toString("HH:mm:ss") + "  " + message);
+        m_log_window->append(
+            QTime::currentTime().toString("HH:mm:ss") + "  " + message.toHtmlEscaped());
     m_log_window->verticalScrollBar()->setValue(m_log_window->verticalScrollBar()->maximum());
 }
 
@@ -569,7 +613,7 @@ void MainView::setAllControlsEnabled(bool enabled)
 void MainView::logError(const QString& message)
 {
     QString timestamp = QTime::currentTime().toString("HH:mm:ss");
-    m_log_window->appendHtml(
+    m_log_window->append(
         "<span style='color: red;'>" + timestamp + "  " +
         message.toHtmlEscaped() + "</span>");
 }
@@ -577,7 +621,7 @@ void MainView::logError(const QString& message)
 void MainView::logWarning(const QString& message)
 {
     QString timestamp = QTime::currentTime().toString("HH:mm:ss");
-    m_log_window->appendHtml(
+    m_log_window->append(
         "<span style='color: #DAA520;'>" + timestamp + "  " +
         message.toHtmlEscaped() + "</span>");
 }
@@ -585,7 +629,54 @@ void MainView::logWarning(const QString& message)
 void MainView::logSuccess(const QString& message)
 {
     QString timestamp = QTime::currentTime().toString("HH:mm:ss");
-    m_log_window->appendHtml(
+    m_log_window->append(
         "<span style='color: green;'>" + timestamp + "  " +
         message.toHtmlEscaped() + "</span>");
+}
+
+void MainView::updateStatusBar()
+{
+    statusBar()->showMessage(m_view_model->fileMetadataSummary());
+}
+
+void MainView::updateRecentFilesMenu()
+{
+    m_recent_menu->clear();
+    QStringList recent = m_view_model->recentFiles();
+
+    if (recent.isEmpty())
+    {
+        QAction* placeholder = m_recent_menu->addAction("(No recent files)");
+        placeholder->setEnabled(false);
+        return;
+    }
+
+    for (const QString& filepath : recent)
+    {
+        QString display = QFileInfo(filepath).fileName();
+        QAction* action = m_recent_menu->addAction(display);
+        action->setToolTip(filepath);
+        connect(action, &QAction::triggered, this, [this, filepath]() {
+            m_last_ch10_dir = QFileInfo(filepath).absolutePath();
+            saveLastCh10Dir();
+            m_view_model->openFile(filepath);
+        });
+    }
+
+    m_recent_menu->addSeparator();
+    QAction* clear_action = m_recent_menu->addAction("Clear Recent Files");
+    connect(clear_action, &QAction::triggered, this, [this]() {
+        m_view_model->clearRecentFiles();
+    });
+}
+
+void MainView::updateSettingsSummary()
+{
+    m_settings_summary->setText(
+        "Sync: " + m_view_model->frameSync() + "\n" +
+        "Polarity: " + QString(UIConstants::kPolarityLabels[m_view_model->polarityIndex()]) + "\n" +
+        "Slope: " + QString(UIConstants::kSlopeLabels[m_view_model->slopeIndex()]) + "\n" +
+        "Scale: " + m_view_model->scale() + " dB/V\n" +
+        "Receivers: " + QString::number(m_view_model->receiverCount()) +
+        " x " + QString::number(m_view_model->channelsPerReceiver()) + " ch");
 }

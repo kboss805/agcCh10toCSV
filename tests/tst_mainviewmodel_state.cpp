@@ -328,6 +328,86 @@ void TestMainViewModelState::loadFrameSetupComputesFrameSizeFromReceiverConfig()
     QCOMPARE(vm.frameSetup()->getParameter(0)->word, 47); // stored as 0-based
 }
 
+// v2.2 — recent files and status bar
+
+void TestMainViewModelState::recentFilesEmptyByDefault()
+{
+    QSettings app_settings;
+    app_settings.remove(UIConstants::kSettingsKeyRecentFiles);
+    app_settings.sync();
+
+    MainViewModel vm;
+    QVERIFY(vm.recentFiles().isEmpty());
+}
+
+void TestMainViewModelState::addRecentFileAppearsInList()
+{
+    QSettings app_settings;
+    app_settings.remove(UIConstants::kSettingsKeyRecentFiles);
+    app_settings.sync();
+
+    MainViewModel vm;
+    QSignalSpy spy(&vm, &MainViewModel::recentFilesChanged);
+
+    vm.addRecentFile("C:/test/file1.ch10");
+
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(vm.recentFiles().size(), 1);
+    QCOMPARE(vm.recentFiles().first(), QString("C:/test/file1.ch10"));
+}
+
+void TestMainViewModelState::addRecentFileMovesDuplicateToFront()
+{
+    QSettings app_settings;
+    app_settings.remove(UIConstants::kSettingsKeyRecentFiles);
+    app_settings.sync();
+
+    MainViewModel vm;
+    vm.addRecentFile("C:/test/a.ch10");
+    vm.addRecentFile("C:/test/b.ch10");
+    vm.addRecentFile("C:/test/a.ch10");
+
+    QCOMPARE(vm.recentFiles().size(), 2);
+    QCOMPARE(vm.recentFiles().at(0), QString("C:/test/a.ch10"));
+    QCOMPARE(vm.recentFiles().at(1), QString("C:/test/b.ch10"));
+}
+
+void TestMainViewModelState::addRecentFileCapsAtMax()
+{
+    QSettings app_settings;
+    app_settings.remove(UIConstants::kSettingsKeyRecentFiles);
+    app_settings.sync();
+
+    MainViewModel vm;
+    for (int i = 0; i < UIConstants::kMaxRecentFiles + 3; i++)
+        vm.addRecentFile("C:/test/file" + QString::number(i) + ".ch10");
+
+    QCOMPARE(vm.recentFiles().size(), UIConstants::kMaxRecentFiles);
+}
+
+void TestMainViewModelState::clearRecentFilesEmptiesList()
+{
+    QSettings app_settings;
+    app_settings.remove(UIConstants::kSettingsKeyRecentFiles);
+    app_settings.sync();
+
+    MainViewModel vm;
+    vm.addRecentFile("C:/test/file1.ch10");
+    vm.addRecentFile("C:/test/file2.ch10");
+
+    QSignalSpy spy(&vm, &MainViewModel::recentFilesChanged);
+    vm.clearRecentFiles();
+
+    QCOMPARE(spy.count(), 1);
+    QVERIFY(vm.recentFiles().isEmpty());
+}
+
+void TestMainViewModelState::fileMetadataSummaryNoFile()
+{
+    MainViewModel vm;
+    QCOMPARE(vm.fileMetadataSummary(), QString("No file loaded"));
+}
+
 void TestMainViewModelState::loadFrameSetupSmallConfigAcceptsParams()
 {
     // With 2 receivers x 1 channel, words_in_frame = 2 + 1 = 3.

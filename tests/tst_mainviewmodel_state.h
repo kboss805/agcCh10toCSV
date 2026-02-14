@@ -38,6 +38,14 @@ private slots:
     // v2.0.5 — dynamic frame length
     void loadFrameSetupComputesFrameSizeFromReceiverConfig();
     void loadFrameSetupSmallConfigAcceptsParams();
+
+    // v2.2 — recent files and status bar
+    void recentFilesEmptyByDefault();
+    void addRecentFileAppearsInList();
+    void addRecentFileMovesDuplicateToFront();
+    void addRecentFileCapsAtMax();
+    void clearRecentFilesEmptiesList();
+    void fileMetadataSummaryNoFile();
 };
 
 #endif // TST_MAINVIEWMODEL_STATE_H

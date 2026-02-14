@@ -7,7 +7,7 @@ This file provides context and guidelines for AI assistants working on the agcCh
 - **Qt Version**: 6.10.2 (minimum: Qt 6.0.0)
 - **MinGW Version**: 13.1.0 (minimum: GCC/MinGW 7.0)
 - **C++ Standard**: C++17 (required — `inline constexpr` used throughout constants.h)
-- **Project Version**: 2.1.5 — defined in `AppVersion` struct in `include/constants.h`
+- **Project Version**: 2.2.0 — defined in `AppVersion` struct in `include/constants.h`
 
 - **Target Users:** Telemetry engineers and data analysts who need to convert RCC IRIG 106 chapter 10 formated files that include automatic gain control (AGC) signals information from telmetery receivers to comma separated values so AGC signals can be plotted and analyzed in capplications like Microsoft Excel or Matlab. 
 
@@ -146,17 +146,16 @@ This file provides context and guidelines for AI assistants working on the agcCh
 - ✅ Color-coded log messages: green for pre-scan success and processing complete, yellow for warnings, red for errors
 - ✅ SettingsDialog unit tests for `setData()`/`getData()` roundtrip and non-edited field preservation
 
-## Future Version Functions
+### v2.2.0 — Usability Improvements
+- ✅ Quick receiver selection shortcuts (Select All / Select None buttons)
+- ✅ Status bar with file metadata summary (filename, size, channel counts, time range)
+- ✅ Read-only settings summary panel on main window (Sync, Polarity, Slope, Scale, Receivers)
+- ✅ Pre-process summary in log (input file, channels, time range, sample rate, receivers, output path)
+- ✅ Recent files menu (File > Recent Files) with persistence across sessions
+- ✅ Clickable output file path and "Open Folder" link in log window (QTextBrowser)
+- ✅ Drag-and-drop Ch10 files (completed in v2.0)
 
-### v2.2 — Usability Improvements
-- [ ] Quick receiver selection shortcuts (Select All/None)
-- [ ] Pre-process summary in log (file, channels, time range, output path)
-- [ ] Recent files menu (File > Recent)
-- [ ] Drag-and-drop Ch10 files
-- [ ] Settings visible on main window (collapsible panel)
-- [ ] Clickable output file path in log window
-- [ ] Status bar with file metadata summary
-- [ ] Batch processing of multiple .ch10 files
+## Future Version Functions
 
 ### v2.3 — Easy Deployment (US7)
 - [ ] Signed application binary
@@ -217,14 +216,18 @@ The application follows the **MVVM (Model-View-ViewModel)** pattern:
    - Delegates receiver grid to ReceiverGridWidget, time controls to TimeExtractionWidget
    - Binds to MainViewModel Q_PROPERTYs and connects signals/slots
    - Contains no business logic; delegates all actions to the ViewModel
-   - `logError()` / `logWarning()` / `logSuccess()` append colored HTML entries (red / #DAA520 / green) to the log window via `appendHtml()`
+   - `logError()` / `logWarning()` / `logSuccess()` append colored HTML entries (red / #DAA520 / green) to the log window via `append()`
    - Errors and warnings are shown inline in the log; QMessageBox reserved for About dialog and success notification only
-   - Log window is persistent (never cleared) with auto-scroll on new entries
+   - Log window uses `QTextBrowser` for clickable links; persistent (never cleared) with auto-scroll on new entries
+   - Status bar displays file metadata summary (filename, size, channel counts, time range)
+   - Read-only settings summary panel shows current frame sync, polarity, slope, scale, and receiver configuration
+   - Recent Files submenu under File menu with persistence across sessions
 
    a. **ReceiverGridWidget** (`src/receivergridwidget.cpp`, `include/receivergridwidget.h`) — *View*
       - Self-contained multi-column tree grid for receiver/channel selection
       - Manages expand/collapse, tri-state checkboxes, and synchronized scrollbars
       - Emits `receiverChecked()` when the user toggles a channel checkbox
+      - Emits `selectAllRequested()` / `selectNoneRequested()` from dedicated buttons
 
    b. **TimeExtractionWidget** (`src/timeextractionwidget.cpp`, `include/timeextractionwidget.h`) — *View*
       - Group box with extract-all toggle, start/stop time inputs, and sample rate selector
@@ -244,6 +247,9 @@ The application follows the **MVVM (Model-View-ViewModel)** pattern:
    - `logStartupInfo()` emits default.ini settings at application startup (called after signal connections are established)
    - `openFile()` logs channel info, time range, and current frame settings when a Ch10 file is loaded
    - `runPreScan()` detects PCM encoding and verifies frame sync; runs on file open and on PCM channel change
+   - `fileMetadataSummary()` returns formatted string for the status bar
+   - `recentFiles()`, `addRecentFile()`, `clearRecentFiles()` manage recent file list with QSettings persistence
+   - Emits pre-process summary log messages before launching worker thread
 
 4. **Chapter10Reader** (`src/chapter10reader.cpp`, `include/chapter10reader.h`) — *Model*
    - Reads IRIG 106 Chapter 10 file metadata and manages channel selection
@@ -444,9 +450,9 @@ Automated unit tests use the **Qt Test** framework. Test sources are in the `tes
 
 ### Test Suites
 - **TestChannelData** (`tst_channeldata`) — ChannelData model object tests
-- **TestConstants** (`tst_constants`) — Verifies all PCMConstants, UIConstants, and AppVersion values
+- **TestConstants** (`tst_constants`) — Verifies all PCMConstants, UIConstants, AppVersion, and recent files constants
 - **TestMainViewModelHelpers** (`tst_mainviewmodel_helpers`) — ViewModel helper methods (channelPrefix, parameterName, generateOutputFilename)
-- **TestMainViewModelState** (`tst_mainviewmodel_state`) — ViewModel property defaults, setters, signals, receiver grid, SettingsData roundtrip, frame setup loading
+- **TestMainViewModelState** (`tst_mainviewmodel_state`) — ViewModel property defaults, setters, signals, receiver grid, SettingsData roundtrip, frame setup loading, recent files, file metadata summary
 - **TestFrameSetup** (`tst_framesetup`) — Frame parameter loading, word map, calibration
 - **TestSettingsDialog** (`tst_settingsdialog`) — SettingsDialog widget defaults, setter/getter roundtrips, SettingsData roundtrip, signal emission
 - **TestSettingsManager** (`tst_settingsmanager`) — INI load/save validation (invalid FrameSync, Slope, Scale, Polarity, receiver counts, parameter count mismatch, roundtrip, frame setup preservation)

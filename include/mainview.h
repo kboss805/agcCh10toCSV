@@ -18,7 +18,7 @@
 #include <QLineEdit>
 #include <QMainWindow>
 #include <QMimeData>
-#include <QPlainTextEdit>
+#include <QTextBrowser>
 #include <QMenuBar>
 #include <QProgressBar>
 #include <QScrollBar>
@@ -101,13 +101,16 @@ private:
     void logError(const QString& message);               ///< Appends a red error entry to the log window.
     void logWarning(const QString& message);             ///< Appends a dark-yellow warning entry to the log window.
     void logSuccess(const QString& message);             ///< Appends a green success entry to the log window.
+    void updateStatusBar();                              ///< Refreshes the status bar from the ViewModel.
+    void updateSettingsSummary();                         ///< Refreshes the settings summary label.
+    void updateRecentFilesMenu();                        ///< Rebuilds the Recent Files submenu.
     /// @}
 
     MainViewModel* m_view_model;             ///< Owning ViewModel instance.
 
     QVBoxLayout* m_controls_layout;          ///< Left-side vertical controls layout.
     QDockWidget* m_controls_dock;            ///< Fixed left dock for controls panel.
-    QPlainTextEdit* m_log_window;            ///< Log output pane (central widget).
+    QTextBrowser* m_log_window;              ///< Log output pane (central widget).
 
     QAction* m_theme_action;                 ///< File > Toggle theme action.
 
@@ -126,6 +129,8 @@ private:
     TimeExtractionWidget* m_time_widget;     ///< Time extraction and sample rate controls.
 
     QProgressBar* m_progress_bar;            ///< Processing progress bar.
+    QLabel* m_settings_summary;              ///< Read-only settings summary label.
+    QMenu* m_recent_menu;                    ///< File > Recent Files submenu.
 
     QString m_last_ch10_dir;                 ///< Last directory used in Ch10 file dialogs.
     QString m_last_csv_dir;                  ///< Last directory used in CSV file dialogs.

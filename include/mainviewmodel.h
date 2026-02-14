@@ -152,6 +152,16 @@ public:
     QString validateTimeRange(const QString& start_text, const QString& stop_text) const;
     /// @}
 
+    /// @return Human-readable metadata summary for the status bar.
+    QString fileMetadataSummary() const;
+
+    /// @name Recent files
+    /// @{
+    QStringList recentFiles() const;             ///< @return List of recent file paths.
+    void addRecentFile(const QString& filepath); ///< Adds a file to the recent files list.
+    void clearRecentFiles();                     ///< Clears the recent files list.
+    /// @}
+
     /// @name Model accessors
     /// @{
     Chapter10Reader* reader() const;             ///< @return Pointer to the Chapter10Reader instance.
@@ -213,6 +223,8 @@ signals:
     /// Emitted when a single receiver/channel checked state changes.
     void receiverCheckedChanged(int receiver_index, int channel_index, bool checked);
 
+    /// Emitted when the recent files list changes.
+    void recentFilesChanged();
     /// Emitted when a validation or processing error occurs.
     void errorOccurred(const QString& message);
     /// Emitted when background processing finishes.
@@ -296,6 +308,7 @@ private:
     int m_settings_channels_per_rcvr;             ///< Channels per receiver.
 
     QVector<QVector<bool>> m_receiver_states; ///< 2D grid of receiver/channel checked states.
+    QStringList m_recent_files;              ///< Most-recently-opened file paths.
 };
 
 #endif // MAINVIEWMODEL_H

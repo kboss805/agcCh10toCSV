@@ -42,10 +42,22 @@ void ReceiverGridWidget::rebuild(int receiver_count, int channels_per_receiver,
     if (receiver_count <= 0)
         return;
 
-    // Expand/Collapse All button
+    // Button row: Expand All, Select All, Select None
+    QHBoxLayout* btn_row = new QHBoxLayout;
+    btn_row->setContentsMargins(0, 0, 0, 0);
+
     QPushButton* toggle_btn = new QPushButton("Expand All");
     toggle_btn->setFlat(true);
-    m_layout->addWidget(toggle_btn, 0, Qt::AlignLeft);
+    QPushButton* select_all_btn = new QPushButton("Select All");
+    select_all_btn->setFlat(true);
+    QPushButton* select_none_btn = new QPushButton("Select None");
+    select_none_btn->setFlat(true);
+
+    btn_row->addWidget(toggle_btn);
+    btn_row->addWidget(select_all_btn);
+    btn_row->addWidget(select_none_btn);
+    btn_row->addStretch(1);
+    m_layout->addLayout(btn_row);
 
     // Four columns of receiver trees
     const int num_columns = UIConstants::kReceiverGridColumns;
@@ -137,6 +149,11 @@ void ReceiverGridWidget::rebuild(int receiver_count, int channels_per_receiver,
         }
         toggle_btn->setText(any_collapsed ? "Collapse All" : "Expand All");
     });
+
+    connect(select_all_btn, &QPushButton::clicked,
+            this, &ReceiverGridWidget::selectAllRequested);
+    connect(select_none_btn, &QPushButton::clicked,
+            this, &ReceiverGridWidget::selectNoneRequested);
 }
 
 void ReceiverGridWidget::setReceiverChecked(int receiver_index, int channel_index, bool checked)

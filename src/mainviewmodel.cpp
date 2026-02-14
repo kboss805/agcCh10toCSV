@@ -65,6 +65,12 @@ MainViewModel::MainViewModel(QObject* parent)
 
     loadFrameSetupFrom(m_app_root + "/settings/default.ini");
 
+    // Load recent files, pruning non-existent entries
+    QStringList saved_recent = app_settings.value(UIConstants::kSettingsKeyRecentFiles).toStringList();
+    for (const QString& path : saved_recent)
+        if (QFileInfo::exists(path))
+            m_recent_files.append(path);
+
     connect(m_reader, &Chapter10Reader::displayErrorMessage,
             this, &MainViewModel::errorOccurred);
     connect(m_settings, &SettingsManager::logMessage,
@@ -385,6 +391,58 @@ FrameSetup* MainViewModel::frameSetup() const { return m_frame_setup; }
 QString MainViewModel::appRoot() const { return m_app_root; }
 QString MainViewModel::lastIniDir() const { return m_last_ini_dir; }
 
+QStringList MainViewModel::recentFiles() const { return m_recent_files; }
+
+void MainViewModel::addRecentFile(const QString& filepath)
+{
+    m_recent_files.removeAll(filepath);
+    m_recent_files.prepend(filepath);
+    while (m_recent_files.size() > UIConstants::kMaxRecentFiles)
+        m_recent_files.removeLast();
+
+    QSettings app_settings;
+    app_settings.setValue(UIConstants::kSettingsKeyRecentFiles, m_recent_files);
+    emit recentFilesChanged();
+}
+
+void MainViewModel::clearRecentFiles()
+{
+    m_recent_files.clear();
+    QSettings app_settings;
+    app_settings.remove(UIConstants::kSettingsKeyRecentFiles);
+    emit recentFilesChanged();
+}
+
+QString MainViewModel::fileMetadataSummary() const
+{
+    if (!m_file_loaded)
+        return "No file loaded";
+
+    QFileInfo info(m_input_filename);
+    qint64 bytes = info.size();
+    QString size_str = (bytes >= 1024 * 1024)
+        ? QString::number(bytes / (1024.0 * 1024.0), 'f', 1) + " MB"
+        : QString::number(bytes / 1024.0, 'f', 1) + " KB";
+
+    int time_count = m_reader->getTimeChannelComboBoxList().size();
+    int pcm_count = m_reader->getPCMChannelComboBoxList().size();
+
+    QString time_range = QString("%1:%2:%3:%4 - %5:%6:%7:%8")
+        .arg(m_reader->getStartDayOfYear(), 3, 10, QChar('0'))
+        .arg(m_reader->getStartHour(), 2, 10, QChar('0'))
+        .arg(m_reader->getStartMinute(), 2, 10, QChar('0'))
+        .arg(m_reader->getStartSecond(), 2, 10, QChar('0'))
+        .arg(m_reader->getStopDayOfYear(), 3, 10, QChar('0'))
+        .arg(m_reader->getStopHour(), 2, 10, QChar('0'))
+        .arg(m_reader->getStopMinute(), 2, 10, QChar('0'))
+        .arg(m_reader->getStopSecond(), 2, 10, QChar('0'));
+
+    return info.fileName() + "  |  " + size_str +
+        "  |  Time: " + QString::number(time_count) +
+        ", PCM: " + QString::number(pcm_count) +
+        "  |  " + time_range;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //                              COMMANDS                                      //
 ////////////////////////////////////////////////////////////////////////////////
@@ -462,6 +520,7 @@ void MainViewModel::openFile(const QString& filename)
         ", Frame setup=" + QString::number(m_frame_setup->length()) + " parameters");
 
     m_file_loaded = true;
+    addRecentFile(filename);
     emit inputFilenameChanged();
     emit channelListsChanged();
     emit fileTimesChanged();
@@ -495,6 +554,27 @@ void MainViewModel::startProcessing(const QString& output_file,
     // Guard against re-entry
     if (m_worker_thread && m_worker_thread->isRunning())
         return;
+
+    // Log pre-process summary
+    emit logMessageReceived("--- Processing Summary ---");
+    emit logMessageReceived("  Input: " + QFileInfo(params.filename).fileName());
+    emit logMessageReceived("  Time Ch: " + QString::number(params.time_channel_id) +
+        ", PCM Ch: " + QString::number(params.pcm_channel_id));
+    if (m_extract_all_time)
+        emit logMessageReceived("  Time range: all");
+    else
+        emit logMessageReceived("  Time range: " +
+            QString::number(params.start_seconds) + "s - " +
+            QString::number(params.stop_seconds) + "s");
+    emit logMessageReceived("  Sample rate: " + QString::number(params.sample_rate) + " Hz");
+
+    int enabled = 0;
+    for (const auto& row : m_receiver_states)
+        for (bool checked : row)
+            if (checked) enabled++;
+    emit logMessageReceived("  Receivers: " + QString::number(enabled) + " / " +
+        QString::number(m_settings_receiver_count * m_settings_channels_per_rcvr) + " enabled");
+    emit logMessageReceived("  Output: " + params.outfile);
 
     m_processing = true;
     m_progress_percent = 0;

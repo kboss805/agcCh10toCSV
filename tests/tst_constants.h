@@ -39,6 +39,9 @@ private slots:
     void uiLayoutConstants();
     void uiTimeConversionConstants();
     void uiPolarityConstants();
+
+    // v2.2 additions
+    void uiRecentFilesConstants();
 };
 
 #endif // TST_CONSTANTS_H

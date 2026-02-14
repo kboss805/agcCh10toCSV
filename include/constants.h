@@ -11,8 +11,8 @@
 /// @brief Application version information.
 struct AppVersion {
     static constexpr int kMajor = 2;   ///< Major version number.
-    static constexpr int kMinor = 1;   ///< Minor version number.
-    static constexpr int kPatch = 5;   ///< Patch version number.
+    static constexpr int kMinor = 2;   ///< Minor version number.
+    static constexpr int kPatch = 0;   ///< Patch version number.
 
     /// @return Version string in "major.minor.patch" format.
     static QString toString() { return QString("%1.%2.%3").arg(kMajor).arg(kMinor).arg(kPatch); }
@@ -59,6 +59,8 @@ namespace UIConstants {
     inline constexpr const char* kSettingsKeyLastIniDir  = "LastIniDirectory";  ///< QSettings key for last INI file dialog directory.
     inline constexpr const char* kThemeDark         = "dark";         ///< Dark theme identifier.
     inline constexpr const char* kThemeLight        = "light";        ///< Light theme identifier.
+    inline constexpr const char* kSettingsKeyRecentFiles = "RecentFiles"; ///< QSettings key for recent files list.
+    inline constexpr int kMaxRecentFiles            = 5;              ///< Maximum number of recent files to remember.
     /// @}
 
     /// @name Receiver grid layout
