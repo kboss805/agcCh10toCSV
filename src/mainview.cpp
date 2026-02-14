@@ -409,22 +409,6 @@ void MainView::onProcessingFinished(bool success, const QString& output_file)
             "  Output: <a href='" + file_url + "'>" + output_file.toHtmlEscaped() + "</a>"
             " [<a href='" + folder_url + "'>Open Folder</a>]</span>");
         m_log_window->verticalScrollBar()->setValue(m_log_window->verticalScrollBar()->maximum());
-
-        QMessageBox msg_box(this);
-        msg_box.setWindowTitle("HUZZAH!");
-        msg_box.setText("Processing complete!\nFile saved to:\n" + output_file);
-        msg_box.setIcon(QMessageBox::Information);
-
-        QPushButton* open_file_btn = msg_box.addButton("Open File", QMessageBox::ActionRole);
-        QPushButton* open_folder_btn = msg_box.addButton("Open Folder", QMessageBox::ActionRole);
-        msg_box.addButton("Close", QMessageBox::RejectRole);
-
-        msg_box.exec();
-
-        if (msg_box.clickedButton() == open_file_btn)
-            QDesktopServices::openUrl(QUrl::fromLocalFile(output_file));
-        else if (msg_box.clickedButton() == open_folder_btn)
-            QDesktopServices::openUrl(QUrl::fromLocalFile(QFileInfo(output_file).absolutePath()));
     }
 }
 

@@ -127,7 +127,7 @@ This file provides context and guidelines for AI assistants working on the agcCh
 ### v2.1.0 — Logging, Validation & UX
 - ✅ Per-file-type directory persistence (Ch10, CSV, INI remember directories independently)
 - ✅ Inline log window with colored entries: errors in red, warnings in dark yellow (#DAA520)
-- ✅ Replaced QMessageBox error/warning dialogs with inline log entries (kept About and success dialogs)
+- ✅ Replaced QMessageBox error/warning dialogs with inline log entries (kept About dialog)
 - ✅ Persistent log window — no longer cleared between processing runs; auto-scrolls on new entries
 - ✅ Startup logging — logs default.ini settings (FrameSync, Polarity, Slope, Scale, Receivers, Channels, Frame setup count)
 - ✅ Ch10 file opening logging — logs channel info, time range, and current frame settings
@@ -153,6 +153,7 @@ This file provides context and guidelines for AI assistants working on the agcCh
 - ✅ Pre-process summary in log (input file, channels, time range, sample rate, receivers, output path)
 - ✅ Recent files menu (File > Recent Files) with persistence across sessions
 - ✅ Clickable output file path and "Open Folder" link in log window (QTextBrowser)
+- ✅ Removed success QMessageBox dialog — output path and folder link in log replace it
 - ✅ Drag-and-drop Ch10 files (completed in v2.0)
 
 ## Future Version Functions
@@ -217,7 +218,7 @@ The application follows the **MVVM (Model-View-ViewModel)** pattern:
    - Binds to MainViewModel Q_PROPERTYs and connects signals/slots
    - Contains no business logic; delegates all actions to the ViewModel
    - `logError()` / `logWarning()` / `logSuccess()` append colored HTML entries (red / #DAA520 / green) to the log window via `append()`
-   - Errors and warnings are shown inline in the log; QMessageBox reserved for About dialog and success notification only
+   - Errors and warnings are shown inline in the log; QMessageBox reserved for About dialog only
    - Log window uses `QTextBrowser` for clickable links; persistent (never cleared) with auto-scroll on new entries
    - Status bar displays file metadata summary (filename, size, channel counts, time range)
    - Read-only settings summary panel shows current frame sync, polarity, slope, scale, and receiver configuration
