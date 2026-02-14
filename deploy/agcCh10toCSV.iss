@@ -32,6 +32,8 @@ UninstallDisplayIcon={app}\bin\{#MyAppExeName}
 PrivilegesRequiredOverridesAllowed=dialog
 WizardStyle=modern
 MinVersion=10.0.17763
+InfoBeforeFile=RELEASENOTES.txt
+ChangesAssociations=yes
 
 ; Code signing — enabled when build_release.cmd passes /DSIGN /Ssigntool=... to iscc.
 ; Without /DSIGN, the installer compiles unsigned (useful for testing).
@@ -45,6 +47,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional icons:"; Flags: unchecked
+Name: "fileassoc"; Description: "Associate .ch10 files with {#MyAppName}"; GroupDescription: "File associations:"
 
 [Files]
 ; Application binaries and Qt dependencies (from bin/ staging)
@@ -62,6 +65,12 @@ Source: "{#StagingDir}\settings\default.ini"; DestDir: "{app}\settings"; DestNam
 Name: "{group}\{#MyAppName}"; Filename: "{app}\bin\{#MyAppExeName}"
 Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\bin\{#MyAppExeName}"; Tasks: desktopicon
+
+[Registry]
+Root: HKA; Subkey: "Software\Classes\.ch10"; ValueType: string; ValueName: ""; ValueData: "agcCh10toCSV.ch10"; Flags: uninsdeletevalue; Tasks: fileassoc
+Root: HKA; Subkey: "Software\Classes\agcCh10toCSV.ch10"; ValueType: string; ValueName: ""; ValueData: "Chapter 10 Telemetry File"; Flags: uninsdeletekey; Tasks: fileassoc
+Root: HKA; Subkey: "Software\Classes\agcCh10toCSV.ch10\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\bin\{#MyAppExeName},0"; Tasks: fileassoc
+Root: HKA; Subkey: "Software\Classes\agcCh10toCSV.ch10\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\bin\{#MyAppExeName}"" ""%1"""; Tasks: fileassoc
 
 [Run]
 Filename: "{app}\bin\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent

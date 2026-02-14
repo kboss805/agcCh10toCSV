@@ -162,9 +162,19 @@ This file provides context and guidelines for AI assistants working on the agcCh
 - ✅ INI file upgrade logic — post-install Pascal script merges old `default.ini` values into new, backs up as `default_old.ini`
 - ✅ Portable ZIP distribution — flat layout with `portable` marker file for truly portable mode (QSettings stored locally)
 - ✅ App root auto-detection — supports dev (`release/`), installed (`bin/`), and portable (flat) directory layouts
-- ✅ Code signing support — `build_release.cmd` signs exe via `signtool` when `SIGN_CERT_PATH` is set
+- ✅ Code signing via Windows Certificate Store (`SIGN_CERT_SHA1`); Inno Setup signs installer and uninstaller
+- ✅ `.ch10` file association — optional installer task registers double-click-to-open
+- ✅ Installer "What's New" page — shows release notes before install (`InfoBeforeFile`)
 - ✅ Fixed resource file — version 2.3.0, `VFT_APP` file type, proper metadata and relative icon path
 - ✅ Build automation script (`deploy/build_release.cmd`) — builds, stages, signs, and packages both artifacts
+- ✅ Portable ZIP includes LICENSE.txt and README.txt
+- ✅ Default Ch10 file dialog opens to application directory on first use
+- ✅ Settings dialog button order — Cancel before OK (left to right)
+
+### v2.4.0 - Bulk ch10 processing
+ - [ ] Bulk process multiple ch10 files
+ - [ ] Prior to processing verify that all ch10 files have the same settings e.g. receiver channels, frame sync., etc. throw error to log window and do not proceed with bulk processing
+ - [ ] Drag and Drop multiple ch10 files into the application for processing
 
 ## Future Version Functions
 
@@ -393,13 +403,15 @@ Tasks are defined in `.vscode/tasks.json`:
 - "Rebuild" - Clean + Build
 
 ### Deployment & Packaging
-- **Build automation**: `deploy/build_release.cmd` — builds release, runs `windeployqt`, stages installer and portable layouts, signs exe, creates ZIP
-- **Inno Setup installer**: `deploy/agcCh10toCSV.iss` — EXE installer with admin/non-admin support, INI merge logic, Start Menu/desktop shortcuts
-- **Portable ZIP**: Flat layout with `portable` marker file; QSettings redirected to app directory via `QSettings::setPath()` in `main.cpp`
+- **Build automation**: `deploy/build_release.cmd` — builds release, runs `windeployqt`, stages installer and portable layouts, signs exe, creates ZIP, compiles Inno Setup installer
+- **Inno Setup installer**: `deploy/agcCh10toCSV.iss` — EXE installer with admin/non-admin support, INI merge logic, `.ch10` file association, "What's New" page, Start Menu/desktop shortcuts
+- **Portable ZIP**: Flat layout with `portable` marker file; QSettings redirected to app directory via `QSettings::setPath()` in `main.cpp`; includes LICENSE.txt and README.txt
+- **Release notes**: `deploy/RELEASENOTES.txt` — shown as "What's New" page in installer (`InfoBeforeFile`)
+- **Portable README**: `deploy/README_portable.txt` — copied as README.txt into portable ZIP
 - **App root auto-detection** (`mainviewmodel.cpp`): Checks if `settings/` exists next to the exe (portable) or one level up (installed/dev)
 - **Installed layout**: `{install}/bin/agcCh10toCSV.exe` + `{install}/settings/default.ini`
-- **Portable layout**: `agcCh10toCSV.exe` + `settings/default.ini` + `portable` marker in same directory
-- **Code signing**: Optional via `SIGN_CERT_PATH` and `SIGN_CERT_PASS` environment variables
+- **Portable layout**: `agcCh10toCSV.exe` + `settings/default.ini` + `portable` marker + `LICENSE.txt` + `README.txt` in same directory
+- **Code signing**: Optional via `SIGN_CERT_SHA1` environment variable (SHA-1 thumbprint of certificate in Windows Certificate Store)
 
 ## Important Implementation Notes
 

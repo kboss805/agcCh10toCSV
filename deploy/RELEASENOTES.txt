@@ -1,0 +1,18 @@
+agcCh10toCSV v2.3.0 - What's New
+=================================
+
+Easy Deployment
+  - Inno Setup installer with admin and non-admin install support
+  - Portable ZIP distribution for USB drives and shared folders
+  - Automatic INI settings migration on upgrade
+  - Code-signed executable and installer
+
+Usability (v2.2)
+  - Quick receiver selection (Select All / Select None)
+  - Status bar with file metadata summary
+  - Read-only settings summary on the main window
+  - Recent Files menu (File > Recent Files)
+  - Clickable output file path and "Open Folder" in log
+
+For the full changelog, visit:
+https://github.com/kevinbossoletti/agcCh10toCSV

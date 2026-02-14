@@ -88,6 +88,10 @@ copy "%PROJECT_DIR%\settings\default.ini" "%PORTABLE_ROOT%\settings\"
 if exist "%PROJECT_DIR%\settings\RASA.ini" copy "%PROJECT_DIR%\settings\RASA.ini" "%PORTABLE_ROOT%\settings\"
 if exist "%PROJECT_DIR%\settings\TRC.ini" copy "%PROJECT_DIR%\settings\TRC.ini" "%PORTABLE_ROOT%\settings\"
 
+REM Copy LICENSE and README
+copy "%PROJECT_DIR%\LICENSE" "%PORTABLE_ROOT%\LICENSE.txt"
+copy "%PROJECT_DIR%\deploy\README_portable.txt" "%PORTABLE_ROOT%\README.txt"
+
 REM Create empty portable marker file
 type nul > "%PORTABLE_ROOT%\portable"
 
