@@ -11,7 +11,7 @@
 /// @brief Application version information.
 struct AppVersion {
     static constexpr int kMajor = 2;   ///< Major version number.
-    static constexpr int kMinor = 3;   ///< Minor version number.
+    static constexpr int kMinor = 4;   ///< Minor version number.
     static constexpr int kPatch = 0;   ///< Patch version number.
 
     /// @return Version string in "major.minor.patch" format.
@@ -138,6 +138,15 @@ namespace UIConstants {
     inline constexpr const char* kOutputTimestampFormat = "MMddyyhhmmss"; ///< Timestamp format for output filenames.
     inline constexpr const char* kOutputPrefix          = "output";       ///< Output filename prefix.
     inline constexpr const char* kOutputExtension       = ".csv";         ///< Output file extension.
+    /// @}
+
+    /// @name Batch processing
+    /// @{
+    inline constexpr const char* kBatchOutputPrefix      = "AGC_";                       ///< Output filename prefix for batch mode.
+    inline constexpr const char* kSettingsKeyLastBatchDir = "LastBatchOutputDirectory";   ///< QSettings key for last batch output directory.
+    inline constexpr int kFileListVisibleRows            = 4;                            ///< Number of visible rows in file list tree.
+    inline constexpr int kFileListRowHeight              = 22;                           ///< Approximate row height in file list tree.
+    inline constexpr int kBatchFileListHeight            = 180;                          ///< Height of file list in batch mode (px).
     /// @}
 
     /// @name Deployment / portable mode

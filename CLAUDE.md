@@ -7,7 +7,7 @@ This file provides context and guidelines for AI assistants working on the agcCh
 - **Qt Version**: 6.10.2 (minimum: Qt 6.0.0)
 - **MinGW Version**: 13.1.0 (minimum: GCC/MinGW 7.0)
 - **C++ Standard**: C++17 (required — `inline constexpr` used throughout constants.h)
-- **Project Version**: 2.3.0 — defined in `AppVersion` struct in `include/constants.h`
+- **Project Version**: 2.4.0 — defined in `AppVersion` struct in `include/constants.h`
 
 - **Target Users:** Telemetry engineers and data analysts who need to convert RCC IRIG 106 chapter 10 formated files that include automatic gain control (AGC) signals information from telmetery receivers to comma separated values so AGC signals can be plotted and analyzed in capplications like Microsoft Excel or Matlab. 
 
@@ -101,10 +101,10 @@ This file provides context and guidelines for AI assistants working on the agcCh
 **So that** I can quickly deploy the software/updates to users with all the necessary folders and settings files
 
 **Acceptance Criteria:**
-- [ ] Signed application
-- [ ] Install to "Program Files" and to a user-selected directory for users without admin privileges
-- [ ] Installer shows install progress
-- [ ] Installer should not overwrite INI files; if new fields are in the INI file, alert the user that a new INI file was saved as "new_x.INI" — try to use as many parameters from the old default INI file as possible in the new INI file
+- ✅ Signed application
+- ✅ Install to "Program Files" and to a user-selected directory for users without admin privileges
+- ✅ Installer shows install progress
+- ✅ Installer should not overwrite INI files; if new fields are in the INI file, alert the user that a new INI file was saved as "new_x.INI" — try to use as many parameters from the old default INI file as possible in the new INI file
 
 ## Version History
 
@@ -171,10 +171,20 @@ This file provides context and guidelines for AI assistants working on the agcCh
 - ✅ Default Ch10 file dialog opens to application directory on first use
 - ✅ Settings dialog button order — Cancel before OK (left to right)
 
-### v2.4.0 - Bulk ch10 processing
- - [ ] Bulk process multiple ch10 files
- - [ ] Prior to processing verify that all ch10 files have the same settings e.g. receiver channels, frame sync., etc. throw error to log window and do not proceed with bulk processing
- - [ ] Drag and Drop multiple ch10 files into the application for processing
+### v2.4.0 — Batch Ch10 Processing
+- ✅ Multi-file selection via file dialog (`QFileDialog::getOpenFileNames`) and drag-and-drop
+- ✅ Sequential queue-based batch processing — one file at a time on worker thread
+- ✅ Per-file pre-scan for encoding detection (NRZ-L vs RNRZ-L)
+- ✅ Per-file channel validation — skips files missing the selected channel with a warning
+- ✅ Per-file Time and PCM channel selection via embedded `QComboBox` widgets in the file list tree
+- ✅ Unified `QTreeWidget` file list for both single-file and batch modes (replaced standalone channel dropdowns)
+- ✅ Color-coded file status in tree: green (Valid/Done), yellow (Skip), red (Error), with encoding column
+- ✅ Batch output naming: `AGC_<input_basename>.csv` in a user-selected output directory
+- ✅ Overall progress bar: `((fileIndex * 100) + perFilePercent) / totalFiles`
+- ✅ Batch cancellation — dedicated cancel toolbar button visible during processing
+- ✅ Continue-on-error with summary report (success/skip/error counts)
+- ✅ `BatchFileInfo` value struct for per-file metadata tracking
+- ✅ Batch ViewModel unit tests (`TestMainViewModelBatch`)
 
 ## Future Version Functions
 
@@ -237,6 +247,11 @@ The application follows the **MVVM (Model-View-ViewModel)** pattern:
    - Status bar displays file metadata summary (filename, size, channel counts, time range)
    - Read-only settings summary panel shows current frame sync, polarity, slope, scale, and receiver configuration
    - Recent Files submenu under File menu with persistence across sessions
+   - Unified `QTreeWidget` file list for both single-file and batch modes with embedded per-file Time and PCM channel `QComboBox` selectors
+   - Color-coded per-file status (Ready/Valid/Done/Skip/Error) and encoding column in batch mode
+   - Multi-file selection via `QFileDialog::getOpenFileNames()` and multi-file drag-and-drop
+   - Batch output directory prompt via `QFileDialog::getExistingDirectory()`
+   - Dedicated cancel toolbar button (visible only during processing)
 
    a. **ReceiverGridWidget** (`src/receivergridwidget.cpp`, `include/receivergridwidget.h`) — *View*
       - Self-contained multi-column tree grid for receiver/channel selection
@@ -265,6 +280,9 @@ The application follows the **MVVM (Model-View-ViewModel)** pattern:
    - `fileMetadataSummary()` returns formatted string for the status bar
    - `recentFiles()`, `addRecentFile()`, `clearRecentFiles()` manage recent file list with QSettings persistence
    - Emits pre-process summary log messages before launching worker thread
+   - Batch processing: `openFiles()` loads multiple files, per-file channel discovery and validation
+   - `setBatchFilePcmChannel()` / `setBatchFileTimeChannel()` for per-file channel selection
+   - `startBatchProcessing(output_dir, sample_rate_index)` / `processNextBatchFile()` drive sequential batch execution with async continuation via `onProcessingFinished()`
 
 4. **Chapter10Reader** (`src/chapter10reader.cpp`, `include/chapter10reader.h`) — *Model*
    - Reads IRIG 106 Chapter 10 file metadata and manages channel selection
@@ -300,6 +318,7 @@ The application follows the **MVVM (Model-View-ViewModel)** pattern:
 - **`PCMConstants`** namespace (in `include/constants.h`) — Named constants for PCM frame parameters (word count, frame length, sync pattern length, time rounding, channel type identifiers, max raw sample value, default buffer size, progress report interval)
 - **`UIConstants`** namespace (in `include/constants.h`) — Named constants for UI configuration (QSettings keys, theme identifiers, receiver grid layout, time conversion, receiver count, default slope/scale, button text, time validation limits, sample rates, output filename format, deployment/portable mode constants)
 - **`SettingsData`** struct (in `include/settingsdata.h`) — Value type used to transfer UI state between MainViewModel and SettingsManager without `friend class` coupling
+- **`BatchFileInfo`** struct (in `include/batchfileinfo.h`) — Per-file metadata for batch processing (filepath, channel strings/IDs, resolved channel indices, validation state, encoding, processing result)
 - **`SuChanInfo`** typedef (in `include/frameprocessor.h`) — Per-channel bookkeeping struct for the irig106 C helper layer
 
 ### Data Flow
@@ -482,6 +501,7 @@ Automated unit tests use the **Qt Test** framework. Test sources are in the `tes
 - **TestFrameSetup** (`tst_framesetup`) — Frame parameter loading, word map, calibration
 - **TestSettingsDialog** (`tst_settingsdialog`) — SettingsDialog widget defaults, setter/getter roundtrips, SettingsData roundtrip, signal emission
 - **TestSettingsManager** (`tst_settingsmanager`) — INI load/save validation (invalid FrameSync, Slope, Scale, Polarity, receiver counts, parameter count mismatch, roundtrip, frame setup preservation)
+- **TestMainViewModelBatch** (`tst_mainviewmodel_batch`) — Batch mode defaults, generateBatchOutputFilename format, batchStatusSummary, clearState/cancelProcessing batch reset, per-file channel setter bounds checking
 
 ### Running Tests
 ```bash

@@ -45,6 +45,9 @@ private slots:
 
     // v2.3 additions
     void uiDeploymentConstants();
+
+    // v2.4 additions
+    void uiBatchConstants();
 };
 
 #endif // TST_CONSTANTS_H

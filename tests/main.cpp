@@ -4,6 +4,7 @@
 #include "tst_channeldata.h"
 #include "tst_constants.h"
 #include "tst_framesetup.h"
+#include "tst_mainviewmodel_batch.h"
 #include "tst_mainviewmodel_helpers.h"
 #include "tst_mainviewmodel_state.h"
 #include "tst_settingsdialog.h"
@@ -46,6 +47,10 @@ int main(int argc, char* argv[])
     }
     {
         TestSettingsManager test;
+        status |= QTest::qExec(&test, argc, argv);
+    }
+    {
+        TestMainViewModelBatch test;
         status |= QTest::qExec(&test, argc, argv);
     }
 

@@ -14,8 +14,8 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QHBoxLayout>
+#include <QHeaderView>
 #include <QLabel>
-#include <QLineEdit>
 #include <QMainWindow>
 #include <QMimeData>
 #include <QTextBrowser>
@@ -24,6 +24,7 @@
 #include <QScrollBar>
 #include <QStringList>
 #include <QToolBar>
+#include <QTreeWidget>
 #include <QVBoxLayout>
 
 class MainViewModel;
@@ -88,8 +89,7 @@ private:
     /// @{
     void setUpMenuBar();                     ///< Creates the menu bar.
     void setUpMainLayout();                  ///< Creates the top-level layout with dockable log.
-    void setUpTimeChannelRow();              ///< Creates the time channel combo box row.
-    void setUpPCMChannelRow();               ///< Creates the PCM channel combo box row.
+    void setUpFileList();                    ///< Creates the collapsible file list tree widget.
     void setUpConnections();                 ///< Connects all ViewModel signals to View slots.
     /// @}
 
@@ -104,6 +104,8 @@ private:
     void updateStatusBar();                              ///< Refreshes the status bar from the ViewModel.
     void updateSettingsSummary();                         ///< Refreshes the settings summary label.
     void updateRecentFilesMenu();                        ///< Rebuilds the Recent Files submenu.
+    void updateFileList();                                ///< Refreshes the file list tree from ViewModel state.
+    void saveLastBatchOutputDir();                        ///< Persists m_last_batch_output_dir to QSettings.
     /// @}
 
     MainViewModel* m_view_model;             ///< Owning ViewModel instance.
@@ -117,13 +119,9 @@ private:
     QToolBar* m_toolbar;                     ///< Main toolbar.
     QAction* m_toolbar_open_action;          ///< Toolbar open action.
     QAction* m_process_action;               ///< Toolbar process/play action.
+    QAction* m_cancel_action;                ///< Toolbar cancel/stop action (visible during processing).
 
-    QLineEdit* m_input_file;                  ///< Read-only display of loaded .ch10 file path.
-
-    QHBoxLayout* m_time_channel_layout;      ///< Time channel row layout.
-    QHBoxLayout* m_pcm_channel_layout;       ///< PCM channel row layout.
-    QComboBox* m_time_channel;               ///< Time channel selector.
-    QComboBox* m_pcm_channel;                ///< PCM channel selector.
+    QTreeWidget* m_file_list;                 ///< File list tree with per-file channel combo boxes.
 
     ReceiverGridWidget* m_receiver_grid;     ///< Receiver/channel selection grid.
     TimeExtractionWidget* m_time_widget;     ///< Time extraction and sample rate controls.
@@ -134,5 +132,6 @@ private:
 
     QString m_last_ch10_dir;                 ///< Last directory used in Ch10 file dialogs.
     QString m_last_csv_dir;                  ///< Last directory used in CSV file dialogs.
+    QString m_last_batch_output_dir;         ///< Last directory used for batch output.
 };
 #endif // MAINVIEW_H

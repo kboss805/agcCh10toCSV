@@ -36,6 +36,7 @@ HEADERS += \
     $$PWD/../include/mainview.h \
     $$PWD/../include/receivergridwidget.h \
     $$PWD/../include/frameprocessor.h \
+    $$PWD/../include/batchfileinfo.h \
     $$PWD/../include/settingsdata.h \
     $$PWD/../include/settingsdialog.h \
     $$PWD/../include/timeextractionwidget.h \
@@ -85,12 +86,14 @@ SOURCES += \
     tst_mainviewmodel_state.cpp \
     tst_framesetup.cpp \
     tst_settingsdialog.cpp \
-    tst_settingsmanager.cpp
+    tst_settingsmanager.cpp \
+    tst_mainviewmodel_batch.cpp
 
 # Test headers (needed for MOC processing)
 HEADERS += \
     tst_channeldata.h \
     tst_constants.h \
+    tst_mainviewmodel_batch.h \
     tst_mainviewmodel_helpers.h \
     tst_mainviewmodel_state.h \
     tst_framesetup.h \

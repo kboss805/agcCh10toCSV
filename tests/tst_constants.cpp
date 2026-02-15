@@ -121,13 +121,13 @@ void TestConstants::uiButtonText()
 void TestConstants::appVersionValues()
 {
     QCOMPARE(AppVersion::kMajor, 2);
-    QCOMPARE(AppVersion::kMinor, 3);
+    QCOMPARE(AppVersion::kMinor, 4);
     QCOMPARE(AppVersion::kPatch, 0);
 }
 
 void TestConstants::appVersionToString()
 {
-    QCOMPARE(AppVersion::toString(), QString("2.3.0"));
+    QCOMPARE(AppVersion::toString(), QString("2.4.0"));
 }
 
 void TestConstants::pcmMaxRawSampleValue()
@@ -200,4 +200,14 @@ void TestConstants::uiDeploymentConstants()
     QCOMPARE(QString(UIConstants::kPortableMarkerFilename), QString("portable"));
     QCOMPARE(QString(UIConstants::kSettingsDirName), QString("settings"));
     QCOMPARE(QString(UIConstants::kDefaultIniFilename), QString("default.ini"));
+}
+
+// v2.4 additions
+
+void TestConstants::uiBatchConstants()
+{
+    QCOMPARE(QString(UIConstants::kBatchOutputPrefix), QString("AGC_"));
+    QCOMPARE(QString(UIConstants::kSettingsKeyLastBatchDir), QString("LastBatchOutputDirectory"));
+    QCOMPARE(UIConstants::kFileListVisibleRows, 4);
+    QCOMPARE(UIConstants::kFileListRowHeight, 22);
 }

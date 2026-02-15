@@ -7,12 +7,14 @@
 #define MAINVIEWMODEL_H
 
 #include <QObject>
+#include <QSet>
 #include <QSettings>
 #include <QString>
 #include <QStringList>
 #include <QThread>
 #include <QVector>
 
+#include "batchfileinfo.h"
 #include "settingsdata.h"
 
 class Chapter10Reader;
@@ -58,6 +60,9 @@ class MainViewModel : public QObject
     Q_PROPERTY(QString scale READ scale WRITE setScale NOTIFY settingsChanged)
     Q_PROPERTY(int receiverCount READ receiverCount WRITE setReceiverCount NOTIFY receiverLayoutChanged)
     Q_PROPERTY(int channelsPerReceiver READ channelsPerReceiver WRITE setChannelsPerReceiver NOTIFY receiverLayoutChanged)
+
+    Q_PROPERTY(bool batchMode READ batchMode NOTIFY batchModeChanged)
+    Q_PROPERTY(int batchFileCount READ batchFileCount NOTIFY batchFilesChanged)
 
 public:
     explicit MainViewModel(QObject* parent = nullptr);
@@ -107,6 +112,19 @@ public:
     void setScale(const QString& value);          ///< Sets the calibration scale in dB per volt.
     void setReceiverCount(int value);             ///< Sets the number of receivers and resizes the grid.
     void setChannelsPerReceiver(int value);       ///< Sets channels per receiver and resizes the grid.
+    /// @}
+
+    /// @name Batch processing getters
+    /// @{
+    bool batchMode() const;                              ///< @return True when multiple files are loaded.
+    int batchFileCount() const;                          ///< @return Total number of files in the batch.
+    int batchValidCount() const;                         ///< @return Number of valid (non-skipped) files.
+    int batchSkippedCount() const;                       ///< @return Number of skipped files.
+    const QVector<BatchFileInfo>& batchFiles() const;    ///< @return Read-only access to the batch file list.
+    /// @return Auto-generated output filename for batch mode (AGC_<basename>.csv).
+    QString generateBatchOutputFilename(const QString& input_filepath) const;
+    /// @return Formatted status summary for the file list tree header.
+    QString batchStatusSummary() const;
     /// @}
 
     /// @name Receiver grid state
@@ -175,6 +193,13 @@ public slots:
     void logStartupInfo();
     /// Opens a .ch10 file and populates channel lists.
     void openFile(const QString& filename);
+    /// Opens multiple .ch10 files for batch processing.
+    void openFiles(const QStringList& filenames);
+
+    /// Sets the resolved PCM channel index for a batch file.
+    void setBatchFilePcmChannel(int fileIndex, int channelIndex);
+    /// Sets the resolved time channel index for a batch file.
+    void setBatchFileTimeChannel(int fileIndex, int channelIndex);
 
     /**
      * @brief Validates inputs and starts background AGC processing.
@@ -195,6 +220,13 @@ public slots:
                          const QString& stop_ddd, const QString& stop_hh,
                          const QString& stop_mm, const QString& stop_ss,
                          int sample_rate_index);
+
+    /**
+     * @brief Validates inputs and starts batch background AGC processing.
+     * @param[in] output_dir        Path to the output directory for CSV files.
+     * @param[in] sample_rate_index Sample rate combo box index.
+     */
+    void startBatchProcessing(const QString& output_dir, int sample_rate_index);
 
     /// Loads settings from an INI file and applies them.
     void loadSettings(const QString& filename);
@@ -222,6 +254,15 @@ signals:
     void receiverLayoutChanged();     ///< Emitted when receiver count or channels per receiver changes.
     /// Emitted when a single receiver/channel checked state changes.
     void receiverCheckedChanged(int receiver_index, int channel_index, bool checked);
+
+    /// Emitted when batch mode changes.
+    void batchModeChanged();
+    /// Emitted when the batch file list changes.
+    void batchFilesChanged();
+    /// Emitted when a single batch file's channel selection or status changes.
+    void batchFileUpdated(int fileIndex);
+    /// Emitted when processing moves to the next file in a batch.
+    void batchFileProcessing(int file_index, int total);
 
     /// Emitted when the recent files list changes.
     void recentFilesChanged();
@@ -262,6 +303,12 @@ private:
     /// Runs a pre-scan on the given PCM channel to detect encoding and verify sync.
     void runPreScan(int pcm_channel_id);
 
+    /// Validates all batch files against current channel/settings selection.
+    void validateBatchFiles();
+    /// Runs pre-scan on all valid batch files.
+    void preScanBatchFiles();
+    /// Launches processing for the next non-skipped batch file.
+    void processNextBatchFile();
     /// Builds a name-to-index map for O(1) parameter lookup in the frame setup.
     QMap<QString, int> buildParameterMap() const;
 
@@ -309,6 +356,20 @@ private:
 
     QVector<QVector<bool>> m_receiver_states; ///< 2D grid of receiver/channel checked states.
     QStringList m_recent_files;              ///< Most-recently-opened file paths.
+
+    /// @name Batch processing state
+    /// @{
+    QVector<BatchFileInfo> m_batch_files;    ///< Loaded file list for batch mode.
+    bool m_batch_mode;                       ///< True when multiple files are loaded.
+    int m_batch_current_index;               ///< Index of file currently being processed.
+    bool m_batch_cancelled;                  ///< True if the user cancelled batch processing.
+    QString m_batch_output_dir;              ///< User-selected output directory for batch.
+    int m_batch_success_count;               ///< Number of successfully processed files.
+    int m_batch_skip_count;                  ///< Number of skipped files.
+    int m_batch_error_count;                 ///< Number of files that failed during processing.
+
+    int m_batch_sample_rate_index = 0;       ///< Sample rate index for current batch run.
+    /// @}
 };
 
 #endif // MAINVIEWMODEL_H

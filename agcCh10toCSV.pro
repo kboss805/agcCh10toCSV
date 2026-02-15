@@ -51,6 +51,7 @@ HEADERS += \
     include/mainview.h \
     include/receivergridwidget.h \
     include/frameprocessor.h \
+    include/batchfileinfo.h \
     include/settingsdata.h \
     include/settingsdialog.h \
     include/timeextractionwidget.h \
