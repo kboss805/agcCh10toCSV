@@ -8,11 +8,14 @@
 #include <QString>
 
 ReceiverGridWidget::ReceiverGridWidget(QWidget* parent)
-    : QGroupBox("Receivers", parent),
+    : QWidget(parent),
       m_updating_externally(false)
 {
     m_layout = new QVBoxLayout;
+    m_layout->setContentsMargins(0, 0, 0, 0);
+    m_layout->setSpacing(2);
     setLayout(m_layout);
+    setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
 }
 
 void ReceiverGridWidget::rebuild(int receiver_count, int channels_per_receiver,
@@ -86,6 +89,8 @@ void ReceiverGridWidget::rebuild(int receiver_count, int channels_per_receiver,
         tree->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
         // Fixed height fits all collapsed receivers; scrollbar appears when expanded
         tree->setFixedHeight(per_column * UIConstants::kTreeItemHeightFactor + UIConstants::kTreeHeightBuffer);
+        tree->setStyleSheet("QTreeWidget { background: transparent; }");
+        tree->setAttribute(Qt::WA_TranslucentBackground);
 
         for (int receiver_index = start; receiver_index < end; receiver_index++)
         {

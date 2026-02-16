@@ -48,6 +48,9 @@ private slots:
 
     // v2.4 additions
     void uiBatchConstants();
+
+    // v3.0 additions
+    void plotConstants();
 };
 
 #endif // TST_CONSTANTS_H

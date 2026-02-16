@@ -1,6 +1,6 @@
 /**
  * @file timeextractionwidget.h
- * @brief Group box with time range selection and sample rate controls.
+ * @brief Widget with time range selection and sample rate controls.
  */
 
 #ifndef TIMEEXTRACTIONWIDGET_H
@@ -9,7 +9,6 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QGridLayout>
-#include <QGroupBox>
 #include <QLabel>
 #include <QLineEdit>
 #include <QSignalBlocker>
@@ -17,10 +16,10 @@
 #include "constants.h"
 
 /**
- * @brief Group box containing the extract-all toggle, start/stop time inputs,
+ * @brief Widget containing the extract-all toggle, start/stop time inputs,
  *        and sample rate selector.
  */
-class TimeExtractionWidget : public QGroupBox
+class TimeExtractionWidget : public QWidget
 {
     Q_OBJECT
 
@@ -35,6 +34,9 @@ public:
 
     /// Enables or disables all controls in the widget.
     void setAllEnabled(bool enabled);
+
+    /// Enables or disables just the sample rate selector.
+    void setSampleRateEnabled(bool enabled);
 
     /**
      * @brief Populates start/stop time fields from file times.

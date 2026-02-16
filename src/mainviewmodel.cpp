@@ -405,6 +405,12 @@ QString MainViewModel::parameterName(int channel_index, int receiver_index) cons
 
 QString MainViewModel::generateOutputFilename() const
 {
+    if (!m_input_filename.isEmpty())
+    {
+        return QString(UIConstants::kBatchOutputPrefix) +
+               QFileInfo(m_input_filename).baseName() +
+               UIConstants::kOutputExtension;
+    }
     return QString(UIConstants::kOutputPrefix) +
            QDateTime::currentDateTime().toString(UIConstants::kOutputTimestampFormat) +
            UIConstants::kOutputExtension;

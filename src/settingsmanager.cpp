@@ -122,8 +122,8 @@ void SettingsManager::loadFile(const QString& filename)
     if (!rate_ok || data.sampleRateIndex < 0 || data.sampleRateIndex > UIConstants::kMaxSampleRateIndex)
     {
         emit logMessage("  WARNING: Invalid SampleRate " + loaded_settings.value("SampleRate").toString() +
-                        ", using default 0");
-        data.sampleRateIndex = 0;
+                        ", using default " + QString::number(UIConstants::kDefaultSampleRateIndex));
+        data.sampleRateIndex = UIConstants::kDefaultSampleRateIndex;
     }
     loaded_settings.endGroup();
 

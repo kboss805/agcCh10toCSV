@@ -8,7 +8,7 @@
 #include <QApplication>
 #include <QDebug>
 #include <QDesktopServices>
-#include <QGroupBox>
+#include <QFrame>
 #include <QMessageBox>
 #include <QPixmap>
 #include <QSettings>
@@ -19,6 +19,8 @@
 
 #include "constants.h"
 #include "mainviewmodel.h"
+#include "plotviewmodel.h"
+#include "plotwidget.h"
 #include "receivergridwidget.h"
 #include "settingsdialog.h"
 #include "timeextractionwidget.h"
@@ -67,6 +69,8 @@ void MainView::saveLastCsvDir()
 void MainView::setUpMainLayout()
 {
     m_controls_layout = new QVBoxLayout;
+    m_controls_layout->setSpacing(2);
+    m_controls_layout->setContentsMargins(2, 2, 16, 2);
 
     // set up constituent parts
     setUpMenuBar();
@@ -85,35 +89,94 @@ void MainView::setUpMainLayout()
     m_progress_bar->setMaximum(100);
     m_progress_bar->setValue(0);
 
+    m_settings_tree = new QTreeWidget;
+    m_settings_tree->setHeaderHidden(true);
+    m_settings_tree->setColumnCount(2);
+    m_settings_tree->setRootIsDecorated(true);
+    m_settings_tree->setIndentation(12);
+    m_settings_tree->setSelectionMode(QAbstractItemView::NoSelection);
+    m_settings_tree->setFocusPolicy(Qt::NoFocus);
+    m_settings_tree->setAnimated(true);
+    m_settings_tree->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_settings_tree->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+    // Dynamic height: collapsed = 1 row, expanded = root + children
+    int row_h = m_settings_tree->fontMetrics().height() + 8;
+    int frame_h = m_settings_tree->frameWidth() * 2;
+    int collapsed_h = row_h + frame_h;
+    m_settings_tree->setFixedHeight(collapsed_h);
+
+    connect(m_settings_tree, &QTreeWidget::itemExpanded, this, [this, row_h, frame_h](QTreeWidgetItem* item) {
+        int total_rows = 1 + item->childCount();
+        m_settings_tree->setFixedHeight(total_rows * row_h + frame_h);
+    });
+    connect(m_settings_tree, &QTreeWidget::itemCollapsed, this, [this, collapsed_h]() {
+        m_settings_tree->setFixedHeight(collapsed_h);
+    });
+
     setUpFileList();
 
+    m_log_preview = new QTextBrowser;
+    m_log_preview->setReadOnly(true);
+    m_log_preview->setOpenLinks(false);
+    m_log_preview->setMinimumHeight(UIConstants::kLogPreviewHeight);
+
+    m_controls_layout->addWidget(m_settings_tree);
+    m_controls_layout->addSpacing(8);
     m_controls_layout->addWidget(m_file_list);
+    m_controls_layout->addSpacing(8);
     m_controls_layout->addWidget(m_receiver_grid);
+    m_controls_layout->addSpacing(8);
     m_controls_layout->addWidget(m_time_widget);
+    m_controls_layout->addSpacing(8);
+    m_controls_layout->addWidget(m_log_preview, 1);
     m_controls_layout->addWidget(m_progress_bar);
 
-    QGroupBox* settings_group = new QGroupBox("Settings");
-    QVBoxLayout* settings_layout = new QVBoxLayout;
-    m_settings_summary = new QLabel;
-    m_settings_summary->setWordWrap(true);
-    m_settings_summary->setTextInteractionFlags(Qt::TextSelectableByMouse);
-    settings_layout->addWidget(m_settings_summary);
-    settings_group->setLayout(settings_layout);
-    m_controls_layout->addWidget(settings_group);
+    // PlotWidget as central widget — fills all space right of the controls dock
+    m_plot_view_model = new PlotViewModel(this);
+    m_plot_widget = new PlotWidget;
+    m_plot_widget->setViewModel(m_plot_view_model);
+    m_plot_widget->setMinimumSize(PlotConstants::kPlotDockMinWidth, PlotConstants::kPlotDockMinHeight);
 
-    m_controls_layout->addStretch(1);
+    QSettings plot_settings;
+    bool dark = plot_settings.value(UIConstants::kSettingsKeyTheme, UIConstants::kThemeDark).toString()
+                == UIConstants::kThemeDark;
+    m_plot_widget->applyTheme(dark);
+    m_plot_widget->initReceiverLegend(
+        m_view_model->receiverCount(),
+        m_view_model->channelsPerReceiver(),
+        [this](int i) { return m_view_model->channelPrefix(i); });
 
-    // Log is the central widget so it stretches on resize
+    // Wrap plot in a layout with a vertical separator on the left
+    QWidget* central_wrapper = new QWidget;
+    QHBoxLayout* central_layout = new QHBoxLayout(central_wrapper);
+    central_layout->setContentsMargins(0, 0, 0, 0);
+    central_layout->setSpacing(16);
+
+    QFrame* vsep = new QFrame;
+    vsep->setFrameShape(QFrame::VLine);
+    vsep->setFrameShadow(QFrame::Sunken);
+    central_layout->addWidget(vsep);
+    central_layout->addWidget(m_plot_widget, 1);
+
+    setCentralWidget(central_wrapper);
+
+    // Log as standalone dialog window
+    m_log_dialog = new QDialog(this);
+    m_log_dialog->setWindowTitle("Log");
+    m_log_dialog->resize(600, 400);
     m_log_window = new QTextBrowser;
     m_log_window->setReadOnly(true);
     m_log_window->setOpenLinks(false);
     m_log_window->setMinimumWidth(UIConstants::kLogMinimumWidth);
-    setCentralWidget(m_log_window);
+    QVBoxLayout* log_layout = new QVBoxLayout(m_log_dialog);
+    log_layout->setContentsMargins(0, 0, 0, 0);
+    log_layout->addWidget(m_log_window);
 
     // Controls in a fixed left dock widget
     QWidget* controls_widget = new QWidget;
     controls_widget->setLayout(m_controls_layout);
-    controls_widget->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
+    controls_widget->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
 
     m_controls_dock = new QDockWidget(this);
     m_controls_dock->setTitleBarWidget(new QWidget);
@@ -131,14 +194,14 @@ void MainView::setUpMainLayout()
     m_time_widget->setAllEnabled(false);
     m_time_widget->setExtractAllTime(true);
     m_time_widget->clearTimes();
-    m_time_widget->setSampleRateIndex(0);
+    m_time_widget->setSampleRateIndex(UIConstants::kDefaultSampleRateIndex);
 
     m_progress_bar->setValue(0);
 
     statusBar()->showMessage("No file loaded");
     updateSettingsSummary();
 
-    resize(minimumSizeHint());
+    showMaximized();
 }
 
 void MainView::setUpMenuBar()
@@ -162,6 +225,12 @@ void MainView::setUpMenuBar()
     connect(settings_action, &QAction::triggered, this, &MainView::onSettings);
     connect(m_theme_action, &QAction::triggered, this, &MainView::onToggleTheme);
     connect(exit_action, &QAction::triggered, this, &QMainWindow::close);
+
+    QMenu* view_menu = menu_bar->addMenu("&View");
+    m_show_log_action = view_menu->addAction("Show Log");
+    connect(m_show_log_action, &QAction::triggered, this, [this]() {
+        m_toggle_log_action->setChecked(true);
+    });
 
     QMenu* help_menu = menu_bar->addMenu("&Help");
     QAction* about_action = help_menu->addAction("About...");
@@ -203,9 +272,27 @@ void MainView::setUpMenuBar()
     m_cancel_action = m_toolbar->addAction(
         QIcon(":/resources/stop.svg"), "Cancel");
     m_cancel_action->setToolTip("Cancel Processing");
-    m_cancel_action->setVisible(false);
+    m_cancel_action->setEnabled(false);
     connect(m_cancel_action, &QAction::triggered,
             this, [this]() { m_view_model->cancelProcessing(); });
+
+    QWidget* toolbar_spacer = new QWidget;
+    toolbar_spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    m_toolbar->addWidget(toolbar_spacer);
+
+    m_toggle_log_action = m_toolbar->addAction(
+        QIcon(":/resources/magnifying-glass.svg"), "Toggle Log");
+    m_toggle_log_action->setToolTip("Show/Hide Log Window");
+    m_toggle_log_action->setCheckable(true);
+    m_toggle_log_action->setChecked(false);
+    connect(m_toggle_log_action, &QAction::toggled, this, [this](bool checked) {
+        if (checked) {
+            m_log_dialog->show();
+            m_log_dialog->raise();
+        } else {
+            m_log_dialog->hide();
+        }
+    });
 }
 
 
@@ -217,9 +304,7 @@ void MainView::setUpFileList()
     m_file_list->setRootIsDecorated(true);
     m_file_list->setAnimated(true);
     m_file_list->setIndentation(12);
-    m_file_list->setFixedHeight(
-        UIConstants::kFileListVisibleRows * UIConstants::kFileListRowHeight +
-        UIConstants::kTreeHeightBuffer);
+    m_file_list->setFixedHeight(UIConstants::kBatchFileListHeight);
     m_file_list->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_file_list->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_file_list->setSelectionMode(QAbstractItemView::NoSelection);
@@ -230,6 +315,11 @@ void MainView::setUpFileList()
     m_file_list->addTopLevelItem(item);
     m_file_list->header()->setStretchLastSection(false);
     m_file_list->header()->setSectionResizeMode(0, QHeaderView::Stretch);
+}
+
+void MainView::onShowPlot(const QString& csv_filepath)
+{
+    m_plot_view_model->loadCsvFile(csv_filepath);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -301,13 +391,17 @@ void MainView::setUpConnections()
     connect(m_view_model, &MainViewModel::progressPercentChanged, this, &MainView::onProgressChanged);
     connect(m_view_model, &MainViewModel::processingChanged, this, &MainView::onProcessingChanged);
 
-    // ViewModel -> ReceiverGridWidget
+    // ViewModel -> ReceiverGridWidget + PlotWidget legend
     connect(m_view_model, &MainViewModel::receiverLayoutChanged, this, [this]() {
         m_receiver_grid->rebuild(
             m_view_model->receiverCount(),
             m_view_model->channelsPerReceiver(),
             [this](int i) { return m_view_model->channelPrefix(i); },
             [this](int r, int c) { return m_view_model->receiverChecked(r, c); });
+        m_plot_widget->initReceiverLegend(
+            m_view_model->receiverCount(),
+            m_view_model->channelsPerReceiver(),
+            [this](int i) { return m_view_model->channelPrefix(i); });
     });
     connect(m_view_model, &MainViewModel::receiverCheckedChanged,
             m_receiver_grid, &ReceiverGridWidget::setReceiverChecked);
@@ -326,6 +420,11 @@ void MainView::setUpConnections()
 
     connect(m_log_window, &QTextBrowser::anchorClicked, this, [](const QUrl& url) {
         QDesktopServices::openUrl(url);
+    });
+
+    // Uncheck toolbar toggle when user closes the log dialog via its own X button
+    connect(m_log_dialog, &QDialog::finished, this, [this]() {
+        m_toggle_log_action->setChecked(false);
     });
 }
 
@@ -349,10 +448,11 @@ void MainView::onFileLoadedChanged()
     {
         if (m_view_model->batchMode())
         {
-            // Batch mode: extract-all forced, time controls disabled
+            // Batch mode: extract-all forced, time fields disabled, sample rate stays active
             m_time_widget->setExtractAllTime(true);
             m_view_model->setExtractAllTime(true);
             m_time_widget->setAllEnabled(false);
+            m_time_widget->setSampleRateEnabled(true);
         }
         else
         {
@@ -372,7 +472,7 @@ void MainView::onFileLoadedChanged()
         m_time_widget->setAllEnabled(false);
         m_time_widget->setExtractAllTime(true);
         m_time_widget->clearTimes();
-        m_time_widget->setSampleRateIndex(0);
+        m_time_widget->setSampleRateIndex(UIConstants::kDefaultSampleRateIndex);
 
         m_progress_bar->setValue(0);
         m_process_action->setEnabled(false);
@@ -401,13 +501,13 @@ void MainView::onProcessingChanged()
     {
         setAllControlsEnabled(false);
         m_process_action->setEnabled(false);
-        m_cancel_action->setVisible(true);
+        m_cancel_action->setEnabled(true);
         m_progress_bar->setValue(0);
     }
     else
     {
         setAllControlsEnabled(true);
-        m_cancel_action->setVisible(false);
+        m_cancel_action->setEnabled(false);
     }
 }
 
@@ -420,10 +520,53 @@ void MainView::onProcessingFinished(bool success, const QString& output_file)
             m_progress_bar->setValue(100);
             QString folder_url = QUrl::fromLocalFile(output_file).toString();
             QString ts = QTime::currentTime().toString("HH:mm:ss");
-            m_log_window->append(
-                "<span style='color: green;'>" + ts +
-                "  Batch complete. [<a href='" + folder_url + "'>Open Output Folder</a>]</span>");
+            QString html = "<span style='color: green;'>" + ts +
+                           "  Batch complete. [<a href='" + folder_url + "'>Open Output Folder</a>]</span>";
+            m_log_window->append(html);
             m_log_window->verticalScrollBar()->setValue(m_log_window->verticalScrollBar()->maximum());
+            m_log_preview->append(html);
+            m_log_preview->verticalScrollBar()->setValue(m_log_preview->verticalScrollBar()->maximum());
+
+            // Collect successfully processed files for plot selection
+            QStringList csv_paths;
+            QStringList display_names;
+            const QVector<BatchFileInfo>& files = m_view_model->batchFiles();
+            for (const BatchFileInfo& info : files)
+            {
+                if (info.processedOk && !info.outputFile.isEmpty())
+                {
+                    csv_paths.append(info.outputFile);
+                    display_names.append(QFileInfo(info.outputFile).fileName());
+                }
+            }
+
+            if (!csv_paths.isEmpty())
+            {
+                QDialog plot_dialog(this);
+                plot_dialog.setWindowTitle("View AGC Plot");
+                QVBoxLayout* layout = new QVBoxLayout(&plot_dialog);
+
+                layout->addWidget(new QLabel("Select a recording to plot:"));
+
+                QComboBox* combo = new QComboBox;
+                combo->addItems(display_names);
+                layout->addWidget(combo);
+
+                QHBoxLayout* btn_layout = new QHBoxLayout;
+                btn_layout->addStretch();
+                QPushButton* cancel_btn = new QPushButton("Cancel");
+                QPushButton* ok_btn = new QPushButton("OK");
+                ok_btn->setDefault(true);
+                btn_layout->addWidget(cancel_btn);
+                btn_layout->addWidget(ok_btn);
+                layout->addLayout(btn_layout);
+
+                connect(cancel_btn, &QPushButton::clicked, &plot_dialog, &QDialog::reject);
+                connect(ok_btn, &QPushButton::clicked, &plot_dialog, &QDialog::accept);
+
+                if (plot_dialog.exec() == QDialog::Accepted)
+                    onShowPlot(csv_paths[combo->currentIndex()]);
+            }
         }
         updateFileList();
     }
@@ -436,11 +579,15 @@ void MainView::onProcessingFinished(bool success, const QString& output_file)
             QString file_url = QUrl::fromLocalFile(output_file).toString();
             QString folder_url = QUrl::fromLocalFile(QFileInfo(output_file).absolutePath()).toString();
             QString ts = QTime::currentTime().toString("HH:mm:ss");
-            m_log_window->append(
-                "<span style='color: green;'>" + ts +
-                "  Output: <a href='" + file_url + "'>" + output_file.toHtmlEscaped() + "</a>"
-                " [<a href='" + folder_url + "'>Open Folder</a>]</span>");
+            QString html = "<span style='color: green;'>" + ts +
+                           "  Output: <a href='" + file_url + "'>" + output_file.toHtmlEscaped() + "</a>"
+                           " [<a href='" + folder_url + "'>Open Folder</a>]</span>";
+            m_log_window->append(html);
             m_log_window->verticalScrollBar()->setValue(m_log_window->verticalScrollBar()->maximum());
+            m_log_preview->append(html);
+            m_log_preview->verticalScrollBar()->setValue(m_log_preview->verticalScrollBar()->maximum());
+
+            onShowPlot(output_file);
         }
     }
 }
@@ -454,8 +601,12 @@ void MainView::onLogMessage(const QString& message)
     else if (message.startsWith("Pre-scan result:") || message.startsWith("Processing complete"))
         logSuccess(message);
     else
-        m_log_window->append(
-            QTime::currentTime().toString("HH:mm:ss") + "  " + message.toHtmlEscaped());
+    {
+        QString plain = QTime::currentTime().toString("HH:mm:ss") + "  " + message.toHtmlEscaped();
+        m_log_window->append(plain);
+        m_log_preview->append(plain);
+        m_log_preview->verticalScrollBar()->setValue(m_log_preview->verticalScrollBar()->maximum());
+    }
     m_log_window->verticalScrollBar()->setValue(m_log_window->verticalScrollBar()->maximum());
 }
 
@@ -540,6 +691,8 @@ void MainView::onToggleTheme()
 
     m_theme_action->setText(
         (new_theme == UIConstants::kThemeDark) ? "Switch to Light Theme" : "Switch to Dark Theme");
+
+    m_plot_widget->applyTheme(new_theme == UIConstants::kThemeDark);
 }
 
 void MainView::progressProcessButtonPressed()
@@ -653,33 +806,44 @@ void MainView::setAllControlsEnabled(bool enabled)
     m_file_list->setEnabled(enabled);
 
     if (m_view_model->batchMode())
+    {
         m_time_widget->setAllEnabled(false);
+        m_time_widget->setSampleRateEnabled(enabled);
+    }
     else
+    {
         m_time_widget->setAllEnabled(enabled);
+    }
 }
 
 void MainView::logError(const QString& message)
 {
     QString timestamp = QTime::currentTime().toString("HH:mm:ss");
-    m_log_window->append(
-        "<span style='color: red;'>" + timestamp + "  " +
-        message.toHtmlEscaped() + "</span>");
+    QString html = "<span style='color: red;'>" + timestamp + "  " +
+                   message.toHtmlEscaped() + "</span>";
+    m_log_window->append(html);
+    m_log_preview->append(html);
+    m_log_preview->verticalScrollBar()->setValue(m_log_preview->verticalScrollBar()->maximum());
 }
 
 void MainView::logWarning(const QString& message)
 {
     QString timestamp = QTime::currentTime().toString("HH:mm:ss");
-    m_log_window->append(
-        "<span style='color: #DAA520;'>" + timestamp + "  " +
-        message.toHtmlEscaped() + "</span>");
+    QString html = "<span style='color: #DAA520;'>" + timestamp + "  " +
+                   message.toHtmlEscaped() + "</span>";
+    m_log_window->append(html);
+    m_log_preview->append(html);
+    m_log_preview->verticalScrollBar()->setValue(m_log_preview->verticalScrollBar()->maximum());
 }
 
 void MainView::logSuccess(const QString& message)
 {
     QString timestamp = QTime::currentTime().toString("HH:mm:ss");
-    m_log_window->append(
-        "<span style='color: green;'>" + timestamp + "  " +
-        message.toHtmlEscaped() + "</span>");
+    QString html = "<span style='color: green;'>" + timestamp + "  " +
+                   message.toHtmlEscaped() + "</span>";
+    m_log_window->append(html);
+    m_log_preview->append(html);
+    m_log_preview->verticalScrollBar()->setValue(m_log_preview->verticalScrollBar()->maximum());
 }
 
 void MainView::updateStatusBar()
@@ -720,13 +884,35 @@ void MainView::updateRecentFilesMenu()
 
 void MainView::updateSettingsSummary()
 {
-    m_settings_summary->setText(
-        "Sync: " + m_view_model->frameSync() + "\n" +
-        "Polarity: " + QString(UIConstants::kPolarityLabels[m_view_model->polarityIndex()]) + "\n" +
-        "Slope: " + QString(UIConstants::kSlopeLabels[m_view_model->slopeIndex()]) + "\n" +
-        "Scale: " + m_view_model->scale() + " dB/V\n" +
-        "Receivers: " + QString::number(m_view_model->receiverCount()) +
-        " x " + QString::number(m_view_model->channelsPerReceiver()) + " ch");
+    bool was_expanded = false;
+    if (m_settings_tree->topLevelItemCount() > 0)
+        was_expanded = m_settings_tree->topLevelItem(0)->isExpanded();
+
+    m_settings_tree->clear();
+
+    QTreeWidgetItem* root = new QTreeWidgetItem;
+    root->setText(0, "Settings");
+    root->setFlags(Qt::ItemIsEnabled);
+
+    auto addRow = [&](const QString& label, const QString& value) {
+        QTreeWidgetItem* item = new QTreeWidgetItem;
+        item->setText(0, label);
+        item->setText(1, value);
+        item->setFlags(Qt::ItemIsEnabled);
+        root->addChild(item);
+    };
+
+    addRow("Sync", m_view_model->frameSync());
+    addRow("Polarity", QString(UIConstants::kPolarityLabels[m_view_model->polarityIndex()]));
+    addRow("Slope", QString(UIConstants::kSlopeLabels[m_view_model->slopeIndex()]));
+    addRow("Scale", m_view_model->scale() + " dB/V");
+    addRow("Receivers", QString::number(m_view_model->receiverCount()) +
+           " x " + QString::number(m_view_model->channelsPerReceiver()) + " ch");
+
+    m_settings_tree->addTopLevelItem(root);
+    root->setExpanded(was_expanded);
+
+    m_settings_tree->resizeColumnToContents(0);
 }
 
 void MainView::updateFileList()
@@ -935,14 +1121,6 @@ void MainView::updateFileList()
         m_file_list->setItemWidget(pcm_item, 0, pcm_container);
 
         file_item->setExpanded(loaded);
-
-        // Size: show combos when file loaded, compact when empty
-        if (loaded)
-            m_file_list->setFixedHeight(UIConstants::kBatchFileListHeight);
-        else
-            m_file_list->setFixedHeight(
-                UIConstants::kFileListVisibleRows * UIConstants::kFileListRowHeight +
-                UIConstants::kTreeHeightBuffer);
 
         m_file_list->header()->setStretchLastSection(false);
         m_file_list->header()->setSectionResizeMode(0, QHeaderView::Stretch);

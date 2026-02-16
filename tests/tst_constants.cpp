@@ -120,14 +120,14 @@ void TestConstants::uiButtonText()
 
 void TestConstants::appVersionValues()
 {
-    QCOMPARE(AppVersion::kMajor, 2);
-    QCOMPARE(AppVersion::kMinor, 4);
+    QCOMPARE(AppVersion::kMajor, 3);
+    QCOMPARE(AppVersion::kMinor, 0);
     QCOMPARE(AppVersion::kPatch, 0);
 }
 
 void TestConstants::appVersionToString()
 {
-    QCOMPARE(AppVersion::toString(), QString("2.4.0"));
+    QCOMPARE(AppVersion::toString(), QString("3.0.0"));
 }
 
 void TestConstants::pcmMaxRawSampleValue()
@@ -208,6 +208,20 @@ void TestConstants::uiBatchConstants()
 {
     QCOMPARE(QString(UIConstants::kBatchOutputPrefix), QString("AGC_"));
     QCOMPARE(QString(UIConstants::kSettingsKeyLastBatchDir), QString("LastBatchOutputDirectory"));
-    QCOMPARE(UIConstants::kFileListVisibleRows, 4);
-    QCOMPARE(UIConstants::kFileListRowHeight, 22);
+    QCOMPARE(UIConstants::kBatchFileListHeight, 180);
+}
+
+// v3.0 additions
+
+void TestConstants::plotConstants()
+{
+    QCOMPARE(PlotConstants::kPlotDockMinWidth, 500);
+    QCOMPARE(PlotConstants::kPlotDockMinHeight, 300);
+    QCOMPARE(PlotConstants::kAxisMarginFactor, 0.05);
+    QCOMPARE(QString(PlotConstants::kDefaultPlotTitle), QString("AGC Signal Plot"));
+    QCOMPARE(QString(PlotConstants::kYAxisLabel), QString("Amplitude (dB)"));
+    QCOMPARE(QString(PlotConstants::kXAxisLabel), QString("Time (s)"));
+    QCOMPARE(PlotConstants::kZoomFactor, 0.1);
+    QCOMPARE(PlotConstants::kNumReceiverColors, 10);
+    QCOMPARE(QString(UIConstants::kSettingsKeyPlotVisible), QString("PlotVisible"));
 }

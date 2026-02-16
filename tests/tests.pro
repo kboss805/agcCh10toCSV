@@ -1,4 +1,4 @@
-QT += core gui widgets testlib
+QT += core gui widgets printsupport testlib
 
 CONFIG += c++17 console
 CONFIG -= app_bundle
@@ -7,10 +7,12 @@ TARGET = agcCh10toCSV_tests
 
 INCLUDEPATH += \
     $$PWD/../include \
-    $$PWD/../lib/irig106/include
+    $$PWD/../lib/irig106/include \
+    $$PWD/../lib/qcustomplot
 
 win32 {
     LIBS += -lws2_32
+    QMAKE_CXXFLAGS += -Wa,-mbig-obj  # Required for QCustomPlot large object file on MinGW
 }
 
 # Application sources (exclude main.cpp to avoid duplicate main)
@@ -24,7 +26,10 @@ SOURCES += \
     $$PWD/../src/settingsdialog.cpp \
     $$PWD/../src/timeextractionwidget.cpp \
     $$PWD/../src/frameprocessor.cpp \
-    $$PWD/../src/settingsmanager.cpp
+    $$PWD/../src/plotviewmodel.cpp \
+    $$PWD/../src/plotwidget.cpp \
+    $$PWD/../src/settingsmanager.cpp \
+    $$PWD/../lib/qcustomplot/qcustomplot.cpp
 
 # Application headers
 HEADERS += \
@@ -40,7 +45,10 @@ HEADERS += \
     $$PWD/../include/settingsdata.h \
     $$PWD/../include/settingsdialog.h \
     $$PWD/../include/timeextractionwidget.h \
-    $$PWD/../include/settingsmanager.h
+    $$PWD/../include/plotviewmodel.h \
+    $$PWD/../include/plotwidget.h \
+    $$PWD/../include/settingsmanager.h \
+    $$PWD/../lib/qcustomplot/qcustomplot.h
 
 # irig106 library sources
 SOURCES += \
@@ -87,7 +95,8 @@ SOURCES += \
     tst_framesetup.cpp \
     tst_settingsdialog.cpp \
     tst_settingsmanager.cpp \
-    tst_mainviewmodel_batch.cpp
+    tst_mainviewmodel_batch.cpp \
+    tst_plotviewmodel.cpp
 
 # Test headers (needed for MOC processing)
 HEADERS += \
@@ -97,5 +106,6 @@ HEADERS += \
     tst_mainviewmodel_helpers.h \
     tst_mainviewmodel_state.h \
     tst_framesetup.h \
+    tst_plotviewmodel.h \
     tst_settingsdialog.h \
     tst_settingsmanager.h

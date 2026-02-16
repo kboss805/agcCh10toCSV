@@ -8,7 +8,6 @@
 
 #include <functional>
 
-#include <QGroupBox>
 #include <QHBoxLayout>
 #include <QPushButton>
 #include <QScrollBar>
@@ -26,7 +25,7 @@
  * scrollbars across columns. Emits receiverChecked() when the user toggles
  * a channel checkbox.
  */
-class ReceiverGridWidget : public QGroupBox
+class ReceiverGridWidget : public QWidget
 {
     Q_OBJECT
 

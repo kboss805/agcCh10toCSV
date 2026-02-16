@@ -1,4 +1,4 @@
-QT       += core gui
+QT       += core gui printsupport
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -6,7 +6,8 @@ CONFIG += c++17
 
 INCLUDEPATH += \
     $$PWD/include/ \
-    $$PWD/lib/irig106/include/
+    $$PWD/lib/irig106/include/ \
+    $$PWD/lib/qcustomplot/
 
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
@@ -14,6 +15,7 @@ INCLUDEPATH += \
 
 win32 {
     LIBS += -lws2_32 # Need this for Windows 32-bit functions, specifically WSASocketW()
+    QMAKE_CXXFLAGS += -Wa,-mbig-obj  # Required for QCustomPlot large object file on MinGW
 }
 
 SOURCES += \
@@ -27,6 +29,8 @@ SOURCES += \
     src/settingsdialog.cpp \
     src/timeextractionwidget.cpp \
     src/frameprocessor.cpp \
+    src/plotviewmodel.cpp \
+    src/plotwidget.cpp \
     src/settingsmanager.cpp \
     lib/irig106/src/irig106ch10.c \
     lib/irig106/src/i106_time.c \
@@ -40,7 +44,8 @@ SOURCES += \
     lib/irig106/src/i106_decode_tmats_b.c \
     lib/irig106/src/i106_decode_tmats_c.c \
     lib/irig106/src/i106_decode_tmats_d.c \
-    lib/irig106/src/i106_decode_pcmf1.c
+    lib/irig106/src/i106_decode_pcmf1.c \
+    lib/qcustomplot/qcustomplot.cpp
 
 HEADERS += \
     include/channeldata.h \
@@ -55,6 +60,8 @@ HEADERS += \
     include/settingsdata.h \
     include/settingsdialog.h \
     include/timeextractionwidget.h \
+    include/plotviewmodel.h \
+    include/plotwidget.h \
     include/settingsmanager.h \
     lib/irig106/include/irig106ch10.h \
     lib/irig106/include/i106_data_stream.h \
@@ -71,7 +78,8 @@ HEADERS += \
     lib/irig106/include/i106_decode_tmats_c.h \
     lib/irig106/include/i106_decode_tmats_d.h \
     lib/irig106/include/i106_decode_tmats_common.h \
-    lib/irig106/include/i106_decode_pcmf1.h
+    lib/irig106/include/i106_decode_pcmf1.h \
+    lib/qcustomplot/qcustomplot.h
 
 RESOURCES += \
     resources/win11-dark.qss \
@@ -80,11 +88,14 @@ RESOURCES += \
     resources/checkmark.svg \
     resources/chevron-down-dark.svg \
     resources/chevron-down-light.svg \
+    resources/chevron-right-dark.svg \
+    resources/chevron-right-light.svg \
     resources/chevron-down-disabled-dark.svg \
     resources/chevron-down-disabled-light.svg \
     resources/folder-open.svg \
     resources/play.svg \
-    resources/stop.svg
+    resources/stop.svg \
+    resources/magnifying-glass.svg
 
 RC_FILE = agcCh10toCSV_resource.rc
 

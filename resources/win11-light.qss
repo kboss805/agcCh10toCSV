@@ -375,6 +375,20 @@ QTreeWidget::branch
     background-color: transparent;
 }
 
+QTreeWidget::branch:has-children:!has-siblings:closed,
+QTreeWidget::branch:closed:has-children:has-siblings
+{
+    border-image: none;
+    image: url(:/resources/chevron-right-dark.svg);
+}
+
+QTreeWidget::branch:open:has-children:!has-siblings,
+QTreeWidget::branch:open:has-children:has-siblings
+{
+    border-image: none;
+    image: url(:/resources/chevron-down-dark.svg);
+}
+
 
 QTreeWidget::indicator
 {

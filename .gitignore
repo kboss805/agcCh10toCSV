@@ -34,8 +34,7 @@ ui_*.h
 *.out
 *.app
 
-# External libraries (third-party, maintained separately)
-lib/
+# External libraries — tracked for reproducible builds
 
 # IDE and editor settings
 .vscode/
@@ -55,9 +54,10 @@ deploy/staging/
 deploy/*.zip
 deploy/*.exe
 
-# Claude Code settings
-.claude/
-.claudeignore
+# Claude Code settings (ignore all except CLAUDE.md and .claudeignore)
+.claude/*
+!.claude/CLAUDE.md
+!.claude/.claudeignore
 
 # Build artifacts
 *.pdb

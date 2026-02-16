@@ -9,9 +9,11 @@
 #include <QString>
 
 TimeExtractionWidget::TimeExtractionWidget(QWidget* parent)
-    : QGroupBox("Time", parent)
+    : QWidget(parent)
 {
     QGridLayout* time_grid = new QGridLayout;
+    time_grid->setContentsMargins(0, 0, 0, 0);
+    time_grid->setVerticalSpacing(2);
 
     m_time_all = new QCheckBox("Extract All Time");
     m_sample_rate = new QComboBox;
@@ -97,6 +99,11 @@ void TimeExtractionWidget::setAllEnabled(bool enabled)
         m_start_time->setEnabled(false);
         m_stop_time->setEnabled(false);
     }
+}
+
+void TimeExtractionWidget::setSampleRateEnabled(bool enabled)
+{
+    m_sample_rate->setEnabled(enabled);
 }
 
 void TimeExtractionWidget::fillTimes(int start_ddd, int start_hh, int start_mm, int start_ss,

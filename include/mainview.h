@@ -28,6 +28,8 @@
 #include <QVBoxLayout>
 
 class MainViewModel;
+class PlotViewModel;
+class PlotWidget;
 class ReceiverGridWidget;
 class TimeExtractionWidget;
 
@@ -88,7 +90,7 @@ private:
     /// @name Widget setup helpers
     /// @{
     void setUpMenuBar();                     ///< Creates the menu bar.
-    void setUpMainLayout();                  ///< Creates the top-level layout with dockable log.
+    void setUpMainLayout();                  ///< Creates the top-level layout and log dialog.
     void setUpFileList();                    ///< Creates the collapsible file list tree widget.
     void setUpConnections();                 ///< Connects all ViewModel signals to View slots.
     /// @}
@@ -106,28 +108,34 @@ private:
     void updateRecentFilesMenu();                        ///< Rebuilds the Recent Files submenu.
     void updateFileList();                                ///< Refreshes the file list tree from ViewModel state.
     void saveLastBatchOutputDir();                        ///< Persists m_last_batch_output_dir to QSettings.
+    void onShowPlot(const QString& csv_filepath);         ///< Loads CSV into plot and shows the plot dock.
     /// @}
 
     MainViewModel* m_view_model;             ///< Owning ViewModel instance.
 
     QVBoxLayout* m_controls_layout;          ///< Left-side vertical controls layout.
     QDockWidget* m_controls_dock;            ///< Fixed left dock for controls panel.
-    QTextBrowser* m_log_window;              ///< Log output pane (central widget).
-
+    QDialog* m_log_dialog;                   ///< Standalone log dialog window.
+    QTextBrowser* m_log_window;              ///< Log output pane.
+    PlotWidget* m_plot_widget;               ///< Plot view widget (central widget).
+    PlotViewModel* m_plot_view_model;        ///< Plot ViewModel owning series data.
     QAction* m_theme_action;                 ///< File > Toggle theme action.
+    QAction* m_show_log_action;              ///< View > Show Log action.
 
     QToolBar* m_toolbar;                     ///< Main toolbar.
     QAction* m_toolbar_open_action;          ///< Toolbar open action.
     QAction* m_process_action;               ///< Toolbar process/play action.
     QAction* m_cancel_action;                ///< Toolbar cancel/stop action (visible during processing).
+    QAction* m_toggle_log_action;            ///< Toolbar toggle log dialog visibility.
 
     QTreeWidget* m_file_list;                 ///< File list tree with per-file channel combo boxes.
 
     ReceiverGridWidget* m_receiver_grid;     ///< Receiver/channel selection grid.
     TimeExtractionWidget* m_time_widget;     ///< Time extraction and sample rate controls.
 
+    QTextBrowser* m_log_preview;             ///< Compact log preview in the controls panel.
     QProgressBar* m_progress_bar;            ///< Processing progress bar.
-    QLabel* m_settings_summary;              ///< Read-only settings summary label.
+    QTreeWidget* m_settings_tree;            ///< Collapsible settings summary tree.
     QMenu* m_recent_menu;                    ///< File > Recent Files submenu.
 
     QString m_last_ch10_dir;                 ///< Last directory used in Ch10 file dialogs.

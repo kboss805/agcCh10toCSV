@@ -7,6 +7,7 @@
 #include "tst_mainviewmodel_batch.h"
 #include "tst_mainviewmodel_helpers.h"
 #include "tst_mainviewmodel_state.h"
+#include "tst_plotviewmodel.h"
 #include "tst_settingsdialog.h"
 #include "tst_settingsmanager.h"
 
@@ -51,6 +52,10 @@ int main(int argc, char* argv[])
     }
     {
         TestMainViewModelBatch test;
+        status |= QTest::qExec(&test, argc, argv);
+    }
+    {
+        TestPlotViewModel test;
         status |= QTest::qExec(&test, argc, argv);
     }
 

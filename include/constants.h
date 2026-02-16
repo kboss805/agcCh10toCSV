@@ -6,12 +6,13 @@
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
 
+#include <QColor>
 #include <QString>
 
 /// @brief Application version information.
 struct AppVersion {
-    static constexpr int kMajor = 2;   ///< Major version number.
-    static constexpr int kMinor = 4;   ///< Minor version number.
+    static constexpr int kMajor = 3;   ///< Major version number.
+    static constexpr int kMinor = 0;   ///< Minor version number.
     static constexpr int kPatch = 0;   ///< Patch version number.
 
     /// @return Version string in "major.minor.patch" format.
@@ -61,6 +62,7 @@ namespace UIConstants {
     inline constexpr const char* kThemeLight        = "light";        ///< Light theme identifier.
     inline constexpr const char* kSettingsKeyRecentFiles = "RecentFiles"; ///< QSettings key for recent files list.
     inline constexpr int kMaxRecentFiles            = 5;              ///< Maximum number of recent files to remember.
+    inline constexpr const char* kSettingsKeyPlotVisible = "PlotVisible"; ///< QSettings key for plot dock visibility.
     /// @}
 
     /// @name Receiver grid layout
@@ -70,6 +72,7 @@ namespace UIConstants {
     inline constexpr int kTreeHeightBuffer      = 10;  ///< Extra height buffer for tree widgets.
     inline constexpr int kTreeFixedWidth        = 100; ///< Fixed width for receiver tree widgets.
     inline constexpr int kLogMinimumWidth       = 400; ///< Minimum width for the log window.
+    inline constexpr int kLogPreviewHeight      = 80;  ///< Fixed height for the log preview panel.
     /// @}
 
     /// @name Time conversion
@@ -112,6 +115,7 @@ namespace UIConstants {
     inline constexpr int kSampleRate1Hz   = 1;   ///< 1 Hz sample rate.
     inline constexpr int kSampleRate10Hz  = 10;  ///< 10 Hz sample rate.
     inline constexpr int kSampleRate100Hz = 100; ///< 100 Hz sample rate.
+    inline constexpr int kDefaultSampleRateIndex = 1; ///< Default sample rate combo index (10 Hz).
     /// @}
 
     /// @name Voltage scale bounds (indexed by scale combo box)
@@ -144,9 +148,7 @@ namespace UIConstants {
     /// @{
     inline constexpr const char* kBatchOutputPrefix      = "AGC_";                       ///< Output filename prefix for batch mode.
     inline constexpr const char* kSettingsKeyLastBatchDir = "LastBatchOutputDirectory";   ///< QSettings key for last batch output directory.
-    inline constexpr int kFileListVisibleRows            = 4;                            ///< Number of visible rows in file list tree.
-    inline constexpr int kFileListRowHeight              = 22;                           ///< Approximate row height in file list tree.
-    inline constexpr int kBatchFileListHeight            = 180;                          ///< Height of file list in batch mode (px).
+    inline constexpr int kBatchFileListHeight            = 180;                          ///< Fixed height for file list tree (px).
     /// @}
 
     /// @name Deployment / portable mode
@@ -155,6 +157,32 @@ namespace UIConstants {
     inline constexpr const char* kSettingsDirName         = "settings";   ///< Settings directory name relative to app root.
     inline constexpr const char* kDefaultIniFilename      = "default.ini"; ///< Default INI configuration filename.
     /// @}
+}
+
+/// @brief Constants for the AGC signal plot window.
+namespace PlotConstants {
+    inline constexpr int kPlotDockMinWidth   = 500;   ///< Minimum plot dock width in pixels.
+    inline constexpr int kPlotDockMinHeight  = 300;   ///< Minimum plot dock height in pixels.
+    inline constexpr double kAxisMarginFactor = 0.05; ///< Y-axis padding as fraction of data range.
+    inline constexpr const char* kDefaultPlotTitle = "AGC Signal Plot"; ///< Default plot title.
+    inline constexpr const char* kYAxisLabel = "Amplitude (dB)";       ///< Y-axis label.
+    inline constexpr const char* kXAxisLabel = "Time (s)";             ///< X-axis label.
+    inline constexpr double kZoomFactor      = 0.1;   ///< Wheel zoom step (10% per notch).
+
+    /// @brief Base color palette for receiver series (one hue per receiver).
+    inline constexpr int kNumReceiverColors = 10;
+    inline const QColor kReceiverColors[] = {
+        QColor(31, 119, 180),   ///< Blue
+        QColor(255, 127, 14),   ///< Orange
+        QColor(44, 160, 44),    ///< Green
+        QColor(214, 39, 40),    ///< Red
+        QColor(148, 103, 189),  ///< Purple
+        QColor(140, 86, 75),    ///< Brown
+        QColor(227, 119, 194),  ///< Pink
+        QColor(127, 127, 127),  ///< Gray
+        QColor(188, 189, 34),   ///< Olive
+        QColor(23, 190, 207),   ///< Cyan
+    };
 }
 
 #endif // CONSTANTS_H

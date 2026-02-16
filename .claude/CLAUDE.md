@@ -7,7 +7,7 @@ This file provides context and guidelines for AI assistants working on the agcCh
 - **Qt Version**: 6.10.2 (minimum: Qt 6.0.0)
 - **MinGW Version**: 13.1.0 (minimum: GCC/MinGW 7.0)
 - **C++ Standard**: C++17 (required — `inline constexpr` used throughout constants.h)
-- **Project Version**: 2.4.0 — defined in `AppVersion` struct in `include/constants.h`
+- **Project Version**: 3.0.0 — defined in `AppVersion` struct in `include/constants.h`
 
 - **Target Users:** Telemetry engineers and data analysts who need to convert RCC IRIG 106 chapter 10 formated files that include automatic gain control (AGC) signals information from telmetery receivers to comma separated values so AGC signals can be plotted and analyzed in capplications like Microsoft Excel or Matlab. 
 
@@ -83,17 +83,17 @@ This file provides context and guidelines for AI assistants working on the agcCh
 **So that** I can quickly analyze data and export plots to a PDF report equivalent
 
 **Acceptance Criteria:**
-- [ ] Dockable plot window
-- [ ] User defined plot title
-- [ ] Y and X axis labels
-- [ ] Auto set Y axis to min/max values
-- [ ] Auto set X axis to the max time span in the processed csv file
-- [ ] Controls to set a time window; auto zoom and move the x-axis so only this time window is visible
-- [ ] Contol to overide Y axis min/max
-- [ ] Mouse wheel zooms the y-axis
-- [ ] Mouse click and hold pans the axis
-- [ ] Select and Unselect which reciever channel AGC values are visible/exported to PDF
-- [ ] Auto set plot colors by default; channels from the same receiver should be a shades of the same color
+- [x] Dockable plot window
+- [x] User defined plot title
+- [x] Y and X axis labels
+- [x] Auto set Y axis to min/max values
+- [x] Auto set X axis to the max time span in the processed csv file
+- [x] Controls to set a time window; auto zoom and move the x-axis so only this time window is visible
+- [x] Contol to overide Y axis min/max
+- [x] Mouse wheel zooms the y-axis
+- [x] Mouse click and hold pans the axis
+- [x] Select and Unselect which reciever channel AGC values are visible/exported to PDF
+- [x] Auto set plot colors by default; channels from the same receiver should be a shades of the same color
 
 ### US7: Application Installer
 **As a** developer
@@ -186,18 +186,40 @@ This file provides context and guidelines for AI assistants working on the agcCh
 - ✅ `BatchFileInfo` value struct for per-file metadata tracking
 - ✅ Batch ViewModel unit tests (`TestMainViewModelBatch`)
 
+### v3.0.0 — AGC Signal Plot Window (US6)
+- ✅ QCustomPlot 2.1.1 charting library integrated (GPL, two-file library in `lib/qcustomplot/`)
+- ✅ PlotViewModel: CSV parsing to in-memory series data, axis range management, color assignment
+- ✅ PlotWidget: QCustomPlot chart with interactive controls (title, Y/X range spinboxes, reset button)
+- ✅ Dockable plot window (right QDockWidget) — auto-shown after single-file processing
+- ✅ User-defined plot title via editable QLineEdit
+- ✅ Labeled X (elapsed seconds) and Y (dB) axes
+- ✅ Auto-scale Y axis to min/max values on data load; manual override via spinboxes
+- ✅ Auto-scale X axis to full time span; time window controls with start/stop spinboxes
+- ✅ X axis clamped at 0 — user cannot pan below zero elapsed time
+- ✅ Mouse wheel zoom (Y axis) and click-drag pan (both axes)
+- ✅ Per-receiver-channel visibility toggle via legend checkboxes
+- ✅ Auto-assigned plot colors: 10-hue palette, channels from same receiver share hue with varied saturation
+- ✅ Log window restructured as bottom QDockWidget (was central widget)
+- ✅ Log auto-hides when plot opens; auto-restores when plot closes
+- ✅ View menu (Show Plot / Show Log) between File and Help menus
+- ✅ Chart theme syncs with dark/light application theme toggle
+- ✅ QGroupBox → QWidget migration for ReceiverGridWidget and TimeExtractionWidget with QFrame separators
+- ✅ Translucent receiver tree backgrounds in both left pane and plot legend
+- ✅ Sample rate stays enabled in batch mode (time fields disabled, sample rate active)
+- ✅ Fixed file list height — consistent size before and after file load
+- ✅ Plot controls disabled until data loads (title, spinboxes, reset, mouse interactions)
+- ✅ Performance: `rpQueuedReplot` coalesces redundant replots; graph visibility toggle without full rebuild; per-series Y min/max caching; pre-allocated CSV parse vectors
+- ✅ PlotViewModel unit tests (13 test cases)
+- ✅ PlotConstants test coverage in TestConstants
+
 ## Future Version Functions
 
-### v3.0 — Analysis and Visualization (US6)
-- [ ] Dockable plot window with AGC samples vs. time
-- [ ] Customizable plot tile
-- [ ] Labeled X (time) and Y (dB) axes
-- [ ] Auto-scale Y axis to min/max values; manual override control
-- [ ] Auto-scale X axis to full time span; time window control with auto-zoom/pan
-- [ ] Mouse wheel zoom (Y axis) and click-drag pan
-- [ ] Per-receiver-channel visibility toggle for plot and PDF export
-- [ ] Auto-assigned plot colors; channels from the same receiver use shades of one color
+### v3.1.0 — Plot Enhancements & UX
+- [ ] X axis displays actual file time (DDD:HH:MM:SS) instead of elapsed seconds, max 10 major tick marks
+- [ ] Import previously exported CSV files to view in the plot
 - [ ] Export plots to PDF report
+- [ ] Batch mode plot support (plot per file or overlay)
+- [ ] Auto dark/light theme based on Windows system theme (`QStyleHints::colorScheme()`, Qt 6.5+)
 
 ## Tech Stack
 
@@ -206,29 +228,31 @@ This file provides context and guidelines for AI assistants working on the agcCh
 - **Build System**: qmake
 - **Compiler**: MinGW 13.1.0 (64-bit) on Windows
 - **Platform**: Windows (primary target)
-- **External Library**: irig106utils (embedded C library)
+- **External Libraries**: irig106utils (embedded C library), QCustomPlot 2.1.1 (embedded charting library, `lib/qcustomplot/`)
 
 ## ⚠️ CRITICAL: Protected Files - DO NOT MODIFY
 
-The following files are third-party IRIG 106 library code and **MUST NOT be modified** under any circumstances:
+The following files are third-party library code and **MUST NOT be modified** under any circumstances:
 
 ### Protected Source Files
 - `lib/irig106/src/irig106*.c` - All IRIG 106 C source files
 - `lib/irig106/src/i106_*.c` - All i106 prefixed C source files
+- `lib/qcustomplot/qcustomplot.cpp` - QCustomPlot charting library
 
 ### Protected Header Files
 - `lib/irig106/include/irig106*.h` - All IRIG 106 header files
 - `lib/irig106/include/i106_*.h` - All i106 prefixed header files
 - `lib/irig106/include/config.h` - IRIG 106 configuration
+- `lib/qcustomplot/qcustomplot.h` - QCustomPlot charting library header
 
-**File Pattern to Exclude**: Any file containing `i106` or `irig106` in its name
+**File Patterns to Exclude**: Any file containing `i106` or `irig106` in its name; any file in `lib/qcustomplot/`
 
-**Reason**: These files are from the external [irig106utils library](https://github.com/atac/irig106utils) and are maintained separately. Modifications would:
+**Reason**: These files are from external libraries ([irig106utils](https://github.com/atac/irig106utils), [QCustomPlot](https://www.qcustomplot.com/)) and are maintained separately. Modifications would:
 - Break compatibility with the upstream library
 - Make future updates difficult
-- Potentially introduce bugs in tested telemetry parsing code
+- Potentially introduce bugs in tested code
 
-**If changes are needed**: They should be made by wrapping/adapting the library in `chapter10reader.cpp` or `frameprocessor.cpp`, NOT by modifying the library files directly.
+**If changes are needed**: They should be made by wrapping/adapting the library in application code (e.g., `chapter10reader.cpp`, `frameprocessor.cpp`, `plotwidget.cpp`), NOT by modifying the library files directly.
 
 ## Architecture
 
@@ -252,6 +276,9 @@ The application follows the **MVVM (Model-View-ViewModel)** pattern:
    - Multi-file selection via `QFileDialog::getOpenFileNames()` and multi-file drag-and-drop
    - Batch output directory prompt via `QFileDialog::getExistingDirectory()`
    - Dedicated cancel toolbar button (visible only during processing)
+   - Log window in bottom QDockWidget; auto-hides when plot dock opens, restores when plot closes
+   - Plot dock (right QDockWidget) with PlotWidget; auto-shown after single-file processing
+   - View menu (Show Plot / Show Log) between File and Help menus
 
    a. **ReceiverGridWidget** (`src/receivergridwidget.cpp`, `include/receivergridwidget.h`) — *View*
       - Self-contained multi-column tree grid for receiver/channel selection
@@ -260,7 +287,8 @@ The application follows the **MVVM (Model-View-ViewModel)** pattern:
       - Emits `selectAllRequested()` / `selectNoneRequested()` from dedicated buttons
 
    b. **TimeExtractionWidget** (`src/timeextractionwidget.cpp`, `include/timeextractionwidget.h`) — *View*
-      - Group box with extract-all toggle, start/stop time inputs, and sample rate selector
+      - Widget with extract-all toggle, start/stop time inputs, and sample rate selector
+      - `setSampleRateEnabled()` keeps sample rate active when other time controls are disabled (batch mode)
       - Emits `extractAllTimeChanged()` and `sampleRateIndexChanged()` signals
 
 2. **SettingsDialog** (`src/settingsdialog.cpp`, `include/settingsdialog.h`) — *View*
@@ -284,31 +312,52 @@ The application follows the **MVVM (Model-View-ViewModel)** pattern:
    - `setBatchFilePcmChannel()` / `setBatchFileTimeChannel()` for per-file channel selection
    - `startBatchProcessing(output_dir, sample_rate_index)` / `processNextBatchFile()` drive sequential batch execution with async continuation via `onProcessingFinished()`
 
-4. **Chapter10Reader** (`src/chapter10reader.cpp`, `include/chapter10reader.h`) — *Model*
+4. **PlotViewModel** (`src/plotviewmodel.cpp`, `include/plotviewmodel.h`) — *ViewModel*
+   - Parses CSV output files into in-memory `PlotSeriesData` vectors (name, receiver index, x/y values, cached Y min/max, color)
+   - Pre-allocates data vectors from estimated file size for efficient CSV parsing
+   - Converts DOY + HMS timestamps to elapsed seconds from first sample
+   - Assigns colors from a 10-hue palette; channels within same receiver get varied saturation/value
+   - Manages axis ranges (auto Y with margin, manual Y override, X time window)
+   - Per-series visibility toggle; signals `dataChanged()`, `axisRangeChanged()`, `seriesVisibilityChanged()`
+   - `computeYRange()` uses per-series cached min/max (O(series) not O(data points))
+
+5. **PlotWidget** (`src/plotwidget.cpp`, `include/plotwidget.h`) — *View*
+   - Self-contained QCustomPlot chart widget with toolbar controls and legend panel
+   - Top toolbar: title QLineEdit
+   - Axis controls grid: X start/stop and Y min/max spinboxes in aligned columns, reset button
+   - Legend: scrollable colored tree checkboxes for per-series visibility
+   - Supports mouse wheel zoom (Y axis) and click-drag pan (both axes)
+   - `onSeriesVisibilityToggled()` toggles individual graph visibility without full rebuild
+   - All replots use `rpQueuedReplot` to coalesce redundant repaint requests
+   - All plot controls disabled until data loads; enabled in `rebuildChart()`
+   - `applyTheme(bool dark)` syncs chart colors with app dark/light theme
+   - Placed inside a right QDockWidget by MainView
+
+6. **Chapter10Reader** (`src/chapter10reader.cpp`, `include/chapter10reader.h`) — *Model*
    - Reads IRIG 106 Chapter 10 file metadata and manages channel selection
    - Scans TMATS records to catalog time and PCM channels
    - Provides channel lists, time accessors, and channel ID resolution
    - Wraps irig106utils C library for file I/O
 
-5. **FrameProcessor** (`src/frameprocessor.cpp`, `include/frameprocessor.h`) — *Model*
+7. **FrameProcessor** (`src/frameprocessor.cpp`, `include/frameprocessor.h`) — *Model*
    - Self-contained PCM frame extraction and CSV output processor
    - Created fresh per processing run, moved to a worker thread, auto-deleted via `deleteLater`
    - Owns its own irig106 file handle, buffers, and TMATS metadata
    - `process()` method takes channel IDs (not indices) and emits progress/completion signals
    - Private helper methods: `freeChanInfoTable()`, `assembleAttributesFromTMATS()`, `derandomizeBitstream()`, `hasSyncPattern()`
 
-6. **SettingsManager** (`src/settingsmanager.cpp`, `include/settingsmanager.h`) — *Model*
+8. **SettingsManager** (`src/settingsmanager.cpp`, `include/settingsmanager.h`) — *Model*
    - Handles saving/loading user preferences using QSettings
    - Persists UI state between sessions via `MainViewModel*`
    - Validates all INI values on load (FrameSync hex, Polarity, Slope, Scale, receiver count/channels)
    - Validates parameter section count against receiver x channel configuration
    - Emits `logMessage()` for load/save status, warnings, and errors routed to the log window
 
-7. **FrameSetup** (`src/framesetup.cpp`, `include/framesetup.h`) — *Model*
+9. **FrameSetup** (`src/framesetup.cpp`, `include/framesetup.h`) — *Model*
    - Manages frame configuration parameters (word map, calibration)
    - Handles frame setup file loading and saving
 
-8. **IRIG 106 Library** (`lib/irig106/src/irig106*.c`, `lib/irig106/include/i106*.h`)
+10. **IRIG 106 Library** (`lib/irig106/src/irig106*.c`, `lib/irig106/include/i106*.h`)
    - Third-party C library for Chapter 10 file format
    - Handles low-level file parsing and data structures
 
@@ -319,6 +368,8 @@ The application follows the **MVVM (Model-View-ViewModel)** pattern:
 - **`UIConstants`** namespace (in `include/constants.h`) — Named constants for UI configuration (QSettings keys, theme identifiers, receiver grid layout, time conversion, receiver count, default slope/scale, button text, time validation limits, sample rates, output filename format, deployment/portable mode constants)
 - **`SettingsData`** struct (in `include/settingsdata.h`) — Value type used to transfer UI state between MainViewModel and SettingsManager without `friend class` coupling
 - **`BatchFileInfo`** struct (in `include/batchfileinfo.h`) — Per-file metadata for batch processing (filepath, channel strings/IDs, resolved channel indices, validation state, encoding, processing result)
+- **`PlotConstants`** namespace (in `include/constants.h`) — Named constants for plot dock dimensions, axis margin factor, default title, axis labels, zoom factor, and receiver color palette (10 hues)
+- **`PlotSeriesData`** struct (in `include/plotviewmodel.h`) — Per-series data for plotting (name, receiver/channel indices, x/y value vectors, visibility, color, cached Y min/max)
 - **`SuChanInfo`** typedef (in `include/frameprocessor.h`) — Per-channel bookkeeping struct for the irig106 C helper layer
 
 ### Data Flow
@@ -331,6 +382,8 @@ User Input → MainView → MainViewModel → Chapter10Reader (metadata)
                         FrameProcessor → IRIG106 Library
                               ↓
                           CSV Output
+                              ↓
+                        PlotViewModel → PlotWidget (QCustomPlot)
 ```
 
 ## Qt-Specific Considerations
@@ -502,6 +555,7 @@ Automated unit tests use the **Qt Test** framework. Test sources are in the `tes
 - **TestSettingsDialog** (`tst_settingsdialog`) — SettingsDialog widget defaults, setter/getter roundtrips, SettingsData roundtrip, signal emission
 - **TestSettingsManager** (`tst_settingsmanager`) — INI load/save validation (invalid FrameSync, Slope, Scale, Polarity, receiver counts, parameter count mismatch, roundtrip, frame setup preservation)
 - **TestMainViewModelBatch** (`tst_mainviewmodel_batch`) — Batch mode defaults, generateBatchOutputFilename format, batchStatusSummary, clearState/cancelProcessing batch reset, per-file channel setter bounds checking
+- **TestPlotViewModel** (`tst_plotviewmodel`) — PlotViewModel default state, CSV loading, time conversion, series color assignment, Y auto/manual range, X time window, series visibility, clear data, plot title, invalid/empty file handling
 
 ### Running Tests
 ```bash
