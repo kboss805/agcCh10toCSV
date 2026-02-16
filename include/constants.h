@@ -68,8 +68,8 @@ namespace UIConstants {
     /// @name Receiver grid layout
     /// @{
     inline constexpr int kReceiverGridColumns   = 4;   ///< Number of columns in receiver grid.
-    inline constexpr int kTreeItemHeightFactor  = 28;  ///< Approximate height per tree item in pixels.
-    inline constexpr int kTreeHeightBuffer      = 10;  ///< Extra height buffer for tree widgets.
+    inline constexpr int kTreeItemHeightFactor  = 24;  ///< Approximate height per tree item in pixels.
+    inline constexpr int kTreeHeightBuffer      = 4;   ///< Extra height buffer for tree widgets.
     inline constexpr int kTreeFixedWidth        = 100; ///< Fixed width for receiver tree widgets.
     inline constexpr int kLogMinimumWidth       = 400; ///< Minimum width for the log window.
     inline constexpr int kLogPreviewHeight      = 80;  ///< Fixed height for the log preview panel.

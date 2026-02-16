@@ -383,8 +383,8 @@ void PlotWidget::handlePlotYRangeChanged(double lower, double upper)
 void PlotWidget::setUpLayout()
 {
     auto* main_layout = new QVBoxLayout(this);
-    main_layout->setContentsMargins(4, 4, 4, 4);
-    main_layout->setSpacing(2);
+    main_layout->setContentsMargins(4, 8, 4, 4);
+    main_layout->setSpacing(0);
 
     // --- Title row ---
     auto* title_bar = new QHBoxLayout;
@@ -394,6 +394,7 @@ void PlotWidget::setUpLayout()
     m_title_edit->setEnabled(false);
     title_bar->addWidget(m_title_edit, 1);
     main_layout->addLayout(title_bar);
+    main_layout->addSpacing(8);
 
     // --- QCustomPlot chart ---
     m_plot = new QCustomPlot(this);
@@ -403,6 +404,7 @@ void PlotWidget::setUpLayout()
     m_plot->xAxis->setLabel(PlotConstants::kXAxisLabel);
     m_plot->yAxis->setLabel(PlotConstants::kYAxisLabel);
     main_layout->addWidget(m_plot, 1);
+    main_layout->addSpacing(8);
 
     // --- Axis controls grid (X row then Y row, columns aligned) ---
     auto* axis_grid = new QGridLayout;
@@ -446,11 +448,7 @@ void PlotWidget::setUpLayout()
 
     main_layout->addLayout(axis_grid);
 
-    // --- Separator between time controls and receiver legend ---
-    QFrame* separator = new QFrame;
-    separator->setFrameShape(QFrame::HLine);
-    separator->setFrameShadow(QFrame::Sunken);
-    main_layout->addWidget(separator);
+    main_layout->addSpacing(8);
 
     // --- Legend tree panel ---
     m_legend_panel = new QWidget;

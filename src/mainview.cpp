@@ -69,8 +69,8 @@ void MainView::saveLastCsvDir()
 void MainView::setUpMainLayout()
 {
     m_controls_layout = new QVBoxLayout;
-    m_controls_layout->setSpacing(2);
-    m_controls_layout->setContentsMargins(2, 2, 16, 2);
+    m_controls_layout->setSpacing(0);
+    m_controls_layout->setContentsMargins(2, 8, 16, 8);
 
     // set up constituent parts
     setUpMenuBar();
@@ -130,6 +130,7 @@ void MainView::setUpMainLayout()
     m_controls_layout->addWidget(m_time_widget);
     m_controls_layout->addSpacing(8);
     m_controls_layout->addWidget(m_log_preview, 1);
+    m_controls_layout->addSpacing(8);
     m_controls_layout->addWidget(m_progress_bar);
 
     // PlotWidget as central widget — fills all space right of the controls dock

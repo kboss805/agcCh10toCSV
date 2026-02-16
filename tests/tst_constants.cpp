@@ -164,8 +164,8 @@ void TestConstants::uiThemeIdentifiers()
 void TestConstants::uiLayoutConstants()
 {
     QCOMPARE(UIConstants::kReceiverGridColumns, 4);
-    QCOMPARE(UIConstants::kTreeItemHeightFactor, 28);
-    QCOMPARE(UIConstants::kTreeHeightBuffer, 10);
+    QCOMPARE(UIConstants::kTreeItemHeightFactor, 24);
+    QCOMPARE(UIConstants::kTreeHeightBuffer, 4);
     QCOMPARE(UIConstants::kTreeFixedWidth, 100);
     QCOMPARE(UIConstants::kLogMinimumWidth, 400);
 }
