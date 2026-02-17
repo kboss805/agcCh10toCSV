@@ -212,20 +212,22 @@ This file provides context and guidelines for AI assistants working on the agcCh
 - ✅ PlotViewModel unit tests (13 test cases)
 - ✅ PlotConstants test coverage in TestConstants
 
-### v3.1.0 — Plot PDF Export
+### v3.1.0 — Plot Enhancements
 - ✅ Export PDF button in plot window — saves current plot to PDF file
 - ✅ File save dialog with .pdf filter and automatic extension appending
 - ✅ Success/error logging with clickable file link in log window
 - ✅ Export button disabled when no data is loaded (prevents invalid state)
 - ✅ Uses QCustomPlot's built-in `savePdf()` method for high-quality output
 - ✅ 4-pixel horizontal spacing between axis control buttons for improved layout
+- ✅ X axis displays actual file time (DDD:HH:MM:SS) instead of elapsed seconds
+- ✅ Custom `TimeHackTicker` axis ticker with 10 major tick marks
+- ✅ `PlotViewModel::formatTime()` converts elapsed seconds to absolute time using base DOY/time
+- ✅ Batch mode plot support (plot per file or overlay)
 
 ## Future Version Functions
 
-### v3.2.0 — Plot Enhancements & UX
-- [x] X axis displays actual file time (DDD:HH:MM:SS) instead of elapsed seconds, max 10 major tick marks
+### v3.2.0 — UX Improvements
 - [ ] Import previously exported CSV files to view in the plot
-- [x] Batch mode plot support (plot per file or overlay)
 - [ ] Auto dark/light theme based on Windows system theme (`QStyleHints::colorScheme()`, Qt 6.5+)
 
 ## Tech Stack
