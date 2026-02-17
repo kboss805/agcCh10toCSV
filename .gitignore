@@ -93,3 +93,9 @@ resources/icon_image.png
 # Input and Output files (you may want to keep these)
 *.csv
 
+
+# Agent Configuration
+.agent/
+.editorconfig
+.clang-tidy
+.clang-format

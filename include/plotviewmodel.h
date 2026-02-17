@@ -70,6 +70,11 @@ public:
 
     double xViewMin() const;                       ///< @return Current X viewport minimum.
     double xViewMax() const;                       ///< @return Current X viewport maximum.
+
+    int baseDay() const;                           ///< @return DOY of the first sample.
+    double baseTimeOffset() const;                 ///< @return Seconds-since-midnight of first sample.
+    /// Converts elapsed seconds to "DDD:HH:MM:SS" using the file's base time.
+    QString formatTime(double elapsed) const;
     /// @}
 
     /// @name Mutators

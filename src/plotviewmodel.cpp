@@ -370,3 +370,25 @@ double PlotViewModel::parseTimeToSeconds(const QString& time_str)
            + minutes * UIConstants::kSecondsPerMinute
            + seconds;
 }
+
+int PlotViewModel::baseDay() const { return m_base_day; }
+double PlotViewModel::baseTimeOffset() const { return m_base_time_offset; }
+
+QString PlotViewModel::formatTime(double elapsed) const
+{
+    double total = m_base_time_offset + elapsed;
+
+    int day = m_base_day + static_cast<int>(total / UIConstants::kSecondsPerDay);
+    total = std::fmod(total, static_cast<double>(UIConstants::kSecondsPerDay));
+    if (total < 0.0) { total += UIConstants::kSecondsPerDay; day--; }
+
+    int hours   = static_cast<int>(total) / UIConstants::kSecondsPerHour;
+    int minutes = (static_cast<int>(total) % UIConstants::kSecondsPerHour) / UIConstants::kSecondsPerMinute;
+    int seconds = static_cast<int>(total) % UIConstants::kSecondsPerMinute;
+
+    return QString("%1:%2:%3:%4")
+        .arg(day, 3, 10, QChar('0'))
+        .arg(hours, 2, 10, QChar('0'))
+        .arg(minutes, 2, 10, QChar('0'))
+        .arg(seconds, 2, 10, QChar('0'));
+}

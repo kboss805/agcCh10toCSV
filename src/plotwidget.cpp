@@ -7,6 +7,7 @@
 
 #include <algorithm>
 
+#include <QFileDialog>
 #include <QFrame>
 #include <QGridLayout>
 #include <QHBoxLayout>
@@ -17,6 +18,22 @@
 
 #include "constants.h"
 #include "plotviewmodel.h"
+
+////////////////////////////////////////////////////////////////////////////////
+// TimeHackTicker
+////////////////////////////////////////////////////////////////////////////////
+
+QString TimeHackTicker::getTickLabel(double tick, const QLocale& /*locale*/,
+                                     QChar /*formatChar*/, int /*precision*/)
+{
+    if (m_vm)
+        return m_vm->formatTime(tick);
+    return QString::number(tick, 'f', 1);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// PlotWidget
+////////////////////////////////////////////////////////////////////////////////
 
 PlotWidget::PlotWidget(QWidget* parent)
     : QWidget(parent)
@@ -34,6 +51,12 @@ void PlotWidget::setViewModel(PlotViewModel* vm)
 
     m_view_model = vm;
     if (!vm) return;
+
+    // Configure custom time ticker for X axis
+    QSharedPointer<TimeHackTicker> ticker(new TimeHackTicker);
+    ticker->setViewModel(vm);
+    ticker->setTickCount(10);
+    m_plot->xAxis->setTicker(ticker);
 
     connect(vm, &PlotViewModel::dataChanged, this, &PlotWidget::onDataChanged);
     connect(vm, &PlotViewModel::seriesVisibilityChanged, this, &PlotWidget::onSeriesVisibilityToggled);
@@ -246,6 +269,7 @@ void PlotWidget::rebuildChart()
     m_y_min_spin->setEnabled(has_data);
     m_y_max_spin->setEnabled(has_data);
     m_reset_btn->setEnabled(has_data);
+    m_export_pdf_btn->setEnabled(has_data);
     m_plot->setInteractions(has_data
         ? QCP::iRangeDrag | QCP::iRangeZoom
         : QCP::Interactions());
@@ -353,6 +377,43 @@ void PlotWidget::onResetAxes()
     m_view_model->resetYRange();
 }
 
+void PlotWidget::onExportPdf()
+{
+    if (!m_view_model || !m_view_model->hasData()) return;
+
+    QString filename = QFileDialog::getSaveFileName(
+        this,
+        "Export Plot to PDF",
+        "",
+        "PDF Files (*.pdf)");
+
+    if (filename.isEmpty())
+    {
+        // User cancelled
+        return;
+    }
+
+    // Ensure .pdf extension
+    if (!filename.endsWith(".pdf", Qt::CaseInsensitive))
+    {
+        filename += ".pdf";
+    }
+
+    // Export the plot to PDF using QCustomPlot's built-in method
+    bool success = m_plot->savePdf(filename);
+
+    if (success)
+    {
+        emit logMessage(QString("<span style='color:green;'>Plot exported to <a href='file:///%1'>%1</a></span>")
+                        .arg(filename));
+    }
+    else
+    {
+        emit logMessage(QString("<span style='color:red;'>Error: Failed to export plot to %1</span>")
+                        .arg(filename));
+    }
+}
+
 void PlotWidget::handlePlotXRangeChanged(double lower, double upper)
 {
     if (m_updating_from_vm || !m_view_model) return;
@@ -409,6 +470,7 @@ void PlotWidget::setUpLayout()
     // --- Axis controls grid (X row then Y row, columns aligned) ---
     auto* axis_grid = new QGridLayout;
     axis_grid->setContentsMargins(0, 0, 0, 0);
+    axis_grid->setHorizontalSpacing(4);
 
     axis_grid->addWidget(new QLabel("X Start:"), 0, 0);
     m_x_start_spin = new QDoubleSpinBox;
@@ -444,7 +506,11 @@ void PlotWidget::setUpLayout()
     m_reset_btn->setEnabled(false);
     axis_grid->addWidget(m_reset_btn, 1, 4);
 
-    axis_grid->setColumnStretch(5, 1);
+    m_export_pdf_btn = new QPushButton("Export PDF");
+    m_export_pdf_btn->setEnabled(false);
+    axis_grid->addWidget(m_export_pdf_btn, 1, 5);
+
+    axis_grid->setColumnStretch(6, 1);
 
     main_layout->addLayout(axis_grid);
 
@@ -477,6 +543,7 @@ void PlotWidget::setUpConnections()
             this, &PlotWidget::onXRangeChanged);
 
     connect(m_reset_btn, &QPushButton::clicked, this, &PlotWidget::onResetAxes);
+    connect(m_export_pdf_btn, &QPushButton::clicked, this, &PlotWidget::onExportPdf);
 
     connect(m_plot->xAxis, QOverload<const QCPRange&>::of(&QCPAxis::rangeChanged),
             this, [this](const QCPRange& range) { handlePlotXRangeChanged(range.lower, range.upper); });

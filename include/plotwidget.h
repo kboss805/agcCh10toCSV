@@ -16,9 +16,28 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
-class QCustomPlot;
-class QCPGraph;
+#include "qcustomplot.h"
+
 class PlotViewModel;
+
+/**
+ * @brief Custom axis ticker that formats elapsed seconds as DDD:HH:MM:SS.
+ *
+ * Delegates label formatting to PlotViewModel::formatTime().
+ */
+class TimeHackTicker : public QCPAxisTicker
+{
+public:
+    /// Sets the PlotViewModel used for time formatting.
+    void setViewModel(PlotViewModel* vm) { m_vm = vm; }
+
+protected:
+    /// Overrides the default numeric label with DDD:HH:MM:SS format.
+    QString getTickLabel(double tick, const QLocale& locale,
+                         QChar formatChar, int precision) override;
+private:
+    PlotViewModel* m_vm = nullptr;
+};
 
 /**
  * @brief Self-contained plot widget: QCustomPlot chart + toolbar controls + legend.
@@ -64,6 +83,12 @@ private slots:
     void onXRangeChanged();
     /// Resets all axes to auto/full range.
     void onResetAxes();
+    /// Exports the current plot to a PDF file.
+    void onExportPdf();
+
+signals:
+    /// Emitted when a log message should be displayed.
+    void logMessage(const QString& message);
 
 private:
     /// Handles QCustomPlot axis range change from mouse interaction.
@@ -93,6 +118,7 @@ private:
     QDoubleSpinBox* m_x_start_spin;
     QDoubleSpinBox* m_x_stop_spin;
     QPushButton* m_reset_btn;
+    QPushButton* m_export_pdf_btn;
     /// @}
 
     /// @name Graph tracking

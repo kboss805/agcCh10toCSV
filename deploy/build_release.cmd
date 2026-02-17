@@ -13,7 +13,7 @@ REM                      Current cert: 1DCBF23B52067A8D52E9C517345EA77B9D926669
 REM    SIGN_TIMESTAMP  — timestamp server URL (default: http://timestamp.digicert.com)
 REM ====================================================================
 
-set VERSION=2.3.0
+set VERSION=3.1.0
 set PROJECT_DIR=%~dp0..
 set QTDIR=C:\Qt\6.10.2\mingw_64
 set MINGW_DIR=C:\Qt\Tools\mingw1310_64

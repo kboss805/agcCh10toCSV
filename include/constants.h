@@ -12,7 +12,7 @@
 /// @brief Application version information.
 struct AppVersion {
     static constexpr int kMajor = 3;   ///< Major version number.
-    static constexpr int kMinor = 0;   ///< Minor version number.
+    static constexpr int kMinor = 1;   ///< Minor version number.
     static constexpr int kPatch = 0;   ///< Patch version number.
 
     /// @return Version string in "major.minor.patch" format.
@@ -166,7 +166,7 @@ namespace PlotConstants {
     inline constexpr double kAxisMarginFactor = 0.05; ///< Y-axis padding as fraction of data range.
     inline constexpr const char* kDefaultPlotTitle = "AGC Signal Plot"; ///< Default plot title.
     inline constexpr const char* kYAxisLabel = "Amplitude (dB)";       ///< Y-axis label.
-    inline constexpr const char* kXAxisLabel = "Time (s)";             ///< X-axis label.
+    inline constexpr const char* kXAxisLabel = "Time (DDD:HH:MM:SS)";             ///< X-axis label.
     inline constexpr double kZoomFactor      = 0.1;   ///< Wheel zoom step (10% per notch).
 
     /// @brief Base color palette for receiver series (one hue per receiver).

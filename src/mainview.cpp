@@ -419,6 +419,9 @@ void MainView::setUpConnections()
     connect(m_view_model, &MainViewModel::processingFinished, this, &MainView::onProcessingFinished);
     connect(m_view_model, &MainViewModel::logMessageReceived, this, &MainView::onLogMessage);
 
+    // PlotWidget -> Log window
+    connect(m_plot_widget, &PlotWidget::logMessage, this, &MainView::onLogMessage);
+
     connect(m_log_window, &QTextBrowser::anchorClicked, this, [](const QUrl& url) {
         QDesktopServices::openUrl(url);
     });
