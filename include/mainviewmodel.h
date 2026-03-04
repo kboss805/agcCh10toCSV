@@ -68,6 +68,11 @@ public:
     explicit MainViewModel(QObject* parent = nullptr);
     ~MainViewModel();
 
+    MainViewModel(const MainViewModel&) = delete;
+    MainViewModel& operator=(const MainViewModel&) = delete;
+    MainViewModel(MainViewModel&&) = delete;
+    MainViewModel& operator=(MainViewModel&&) = delete;
+
     /// @name Property getters
     /// @{
     QString inputFilename() const;              ///< @return Path to the loaded .ch10 file.
@@ -122,7 +127,7 @@ public:
     int batchSkippedCount() const;                       ///< @return Number of skipped files.
     const QVector<BatchFileInfo>& batchFiles() const;    ///< @return Read-only access to the batch file list.
     /// @return Auto-generated output filename for batch mode (AGC_<basename>.csv).
-    QString generateBatchOutputFilename(const QString& input_filepath) const;
+    static QString generateBatchOutputFilename(const QString& input_filepath);
     /// @return Formatted status summary for the file list tree header.
     QString batchStatusSummary() const;
     /// @}
@@ -155,19 +160,19 @@ public:
     /// @{
 
     /// @return Channel prefix string ("L", "R", "C", ...) for the given index.
-    QString channelPrefix(int index) const;
+    static QString channelPrefix(int index);
     /// @return Full parameter name (e.g., "L_RCVR1") for a channel/receiver pair.
-    QString parameterName(int channel_index, int receiver_index) const;
+    static QString parameterName(int channel_index, int receiver_index);
     /// @return Auto-generated timestamped output CSV filename.
     QString generateOutputFilename() const;
 
     /// Validates and parses day/hour/minute/second time field strings.
-    bool validateTimeFields(const QString& ddd, const QString& hh,
-                             const QString& mm, const QString& ss,
-                             int& out_ddd, int& out_hh, int& out_mm, int& out_ss) const;
+    static bool validateTimeFields(const QString& ddd, const QString& hh,
+                                    const QString& mm, const QString& ss,
+                                    int& out_ddd, int& out_hh, int& out_mm, int& out_ss);
 
     /// Pre-validates time range strings. Returns empty on success, or a warning message.
-    QString validateTimeRange(const QString& start_text, const QString& stop_text) const;
+    static QString validateTimeRange(const QString& start_text, const QString& stop_text);
     /// @}
 
     /// @return Human-readable metadata summary for the status bar.
@@ -188,7 +193,6 @@ public:
     QString lastIniDir() const;                  ///< @return Last directory used in INI file dialogs.
     /// @}
 
-public slots:
     /// Logs startup configuration to the log window.
     void logStartupInfo();
     /// Opens a .ch10 file and populates channel lists.
@@ -290,6 +294,7 @@ private:
         uint64_t stop_seconds;         ///< End of extraction window (IRIG seconds).
         int sample_rate;               ///< Output sample rate in Hz.
         QString outfile;               ///< Path to the CSV output file.
+        bool is_randomized = false;    ///< True if RNRZ-L encoding detected by preScan.
     };
 
     /// Validates user inputs and populates @p params for processing.
@@ -346,6 +351,7 @@ private:
 
     bool m_extract_all_time;                 ///< True to extract full time duration.
     int m_sample_rate_index;                 ///< Selected sample rate combo box index.
+    bool m_is_randomized = false;            ///< True if RNRZ-L encoding detected by last preScan.
 
     QString m_settings_frame_sync;                ///< Frame sync hex pattern.
     int m_settings_polarity_idx;                  ///< Polarity combo box index (0=Positive, 1=Negative).

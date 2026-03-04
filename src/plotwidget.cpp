@@ -26,8 +26,10 @@
 QString TimeHackTicker::getTickLabel(double tick, const QLocale& /*locale*/,
                                      QChar /*formatChar*/, int /*precision*/)
 {
-    if (m_vm)
+    if (m_vm != nullptr)
+    {
         return m_vm->formatTime(tick);
+    }
     return QString::number(tick, 'f', 1);
 }
 
@@ -44,18 +46,21 @@ PlotWidget::PlotWidget(QWidget* parent)
 
 void PlotWidget::setViewModel(PlotViewModel* vm)
 {
-    if (m_view_model)
+    if (m_view_model != nullptr)
     {
         disconnect(m_view_model, nullptr, this, nullptr);
     }
 
     m_view_model = vm;
-    if (!vm) return;
+    if (vm == nullptr)
+    {
+        return;
+    }
 
     // Configure custom time ticker for X axis
     QSharedPointer<TimeHackTicker> ticker(new TimeHackTicker);
     ticker->setViewModel(vm);
-    ticker->setTickCount(10);
+    ticker->setTickCount(PlotConstants::kTickCount);
     m_plot->xAxis->setTicker(ticker);
 
     connect(vm, &PlotViewModel::dataChanged, this, &PlotWidget::onDataChanged);
@@ -66,9 +71,9 @@ void PlotWidget::setViewModel(PlotViewModel* vm)
 
 void PlotWidget::applyTheme(bool dark)
 {
-    QColor bg = dark ? QColor(32, 32, 32) : QColor(255, 255, 255);
-    QColor fg = dark ? QColor(220, 220, 220) : QColor(30, 30, 30);
-    QColor grid = dark ? QColor(60, 60, 60) : QColor(200, 200, 200);
+    QColor bg = dark ? PlotConstants::kDarkBackground : PlotConstants::kLightBackground;
+    QColor fg = dark ? PlotConstants::kDarkForeground : PlotConstants::kLightForeground;
+    QColor grid = dark ? PlotConstants::kDarkGridColor : PlotConstants::kLightGridColor;
     m_title_color = dark ? QColor("#60CDFF") : QColor("#005FB8");
 
     m_plot->setBackground(QBrush(bg));
@@ -89,8 +94,10 @@ void PlotWidget::applyTheme(bool dark)
     if (m_plot->plotLayout()->elementCount() > 1)
     {
         QCPTextElement* title = qobject_cast<QCPTextElement*>(m_plot->plotLayout()->element(0, 0));
-        if (title)
+        if (title != nullptr)
+        {
             title->setTextColor(m_title_color);
+        }
     }
 
     m_plot->replot(QCustomPlot::rpQueuedReplot);
@@ -99,28 +106,12 @@ void PlotWidget::applyTheme(bool dark)
 void PlotWidget::initReceiverLegend(int receiver_count, int channels_per_receiver,
                                      const std::function<QString(int)>& channel_prefix_fn)
 {
-    // Clear existing legend contents
-    m_legend_trees.clear();
-    QLayoutItem* item;
-    while ((item = m_legend_layout->takeAt(0)) != nullptr)
-    {
-        if (item->widget())
-            item->widget()->deleteLater();
-        if (item->layout())
-        {
-            QLayoutItem* child;
-            while ((child = item->layout()->takeAt(0)) != nullptr)
-            {
-                if (child->widget())
-                    child->widget()->deleteLater();
-                delete child;
-            }
-        }
-        delete item;
-    }
+    clearLegendContents();
 
     if (receiver_count <= 0)
+    {
         return;
+    }
 
     // Button row: Expand All, Select All, Select None (all disabled)
     QHBoxLayout* btn_row = new QHBoxLayout;
@@ -156,7 +147,9 @@ void PlotWidget::initReceiverLegend(int receiver_count, int channels_per_receive
         int start = col * per_column;
         int end = qMin(start + per_column, receiver_count);
         if (start >= receiver_count)
+        {
             break;
+        }
 
         QTreeWidget* tree = new QTreeWidget;
         tree->setHeaderHidden(true);
@@ -167,7 +160,7 @@ void PlotWidget::initReceiverLegend(int receiver_count, int channels_per_receive
         tree->setFixedWidth(UIConstants::kTreeFixedWidth);
         tree->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
         tree->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-        tree->setFixedHeight(per_column * UIConstants::kTreeItemHeightFactor +
+        tree->setFixedHeight((per_column * UIConstants::kTreeItemHeightFactor) +
                              UIConstants::kTreeHeightBuffer);
         tree->setStyleSheet("QTreeWidget { background: transparent; }");
         tree->setAttribute(Qt::WA_TranslucentBackground);
@@ -201,40 +194,16 @@ void PlotWidget::initReceiverLegend(int receiver_count, int channels_per_receive
     columns_layout->addStretch(1);
     m_legend_layout->addLayout(columns_layout);
 
-    // Sync scrollbars across columns
-    if (m_legend_trees.size() > 1)
-    {
-        QScrollBar* visible_bar = m_legend_trees.last()->verticalScrollBar();
-        for (int i = 0; i < m_legend_trees.size() - 1; i++)
-        {
-            m_legend_trees[i]->verticalScrollBar()->setFixedWidth(0);
-            connect(visible_bar, &QScrollBar::valueChanged,
-                    m_legend_trees[i]->verticalScrollBar(), &QScrollBar::setValue);
-        }
-    }
-
-    // Expand All / Collapse All toggle
-    connect(toggle_btn, &QPushButton::clicked, this, [this, toggle_btn]() {
-        bool any_collapsed = false;
-        for (QTreeWidget* t : m_legend_trees)
-            for (int i = 0; i < t->topLevelItemCount(); i++)
-                if (!t->topLevelItem(i)->isExpanded())
-                    any_collapsed = true;
-
-        for (QTreeWidget* t : m_legend_trees)
-        {
-            if (any_collapsed)
-                t->expandAll();
-            else
-                t->collapseAll();
-        }
-        toggle_btn->setText(any_collapsed ? "Collapse All" : "Expand All");
-    });
+    syncLegendScrollbars();
+    connectExpandCollapseToggle(toggle_btn);
 }
 
 void PlotWidget::rebuildChart()
 {
-    if (!m_view_model) return;
+    if (m_view_model == nullptr)
+    {
+        return;
+    }
 
     m_updating_from_vm = true;
 
@@ -242,12 +211,12 @@ void PlotWidget::rebuildChart()
     m_graphs.clear();
 
     const auto& all_series = m_view_model->allSeries();
-    for (int i = 0; i < all_series.size(); i++)
+    for (qsizetype i = 0; i < all_series.size(); i++)
     {
         const PlotSeriesData& s = all_series[i];
         QCPGraph* graph = m_plot->addGraph();
         graph->setName(s.name);
-        graph->setPen(QPen(s.color, 1.5));
+        graph->setPen(QPen(s.color, PlotConstants::kGraphPenWidth));
         graph->setData(s.xValues, s.yValues, true);
         graph->setVisible(s.visible);
         m_graphs.append(graph);
@@ -297,8 +266,14 @@ void PlotWidget::onDataChanged()
 
 void PlotWidget::onSeriesVisibilityToggled(int index)
 {
-    if (!m_view_model) return;
-    if (index < 0 || index >= m_graphs.size()) return;
+    if (m_view_model == nullptr)
+    {
+        return;
+    }
+    if (index < 0 || index >= m_graphs.size())
+    {
+        return;
+    }
 
     m_graphs[index]->setVisible(m_view_model->seriesAt(index).visible);
     m_plot->replot(QCustomPlot::rpQueuedReplot);
@@ -306,7 +281,10 @@ void PlotWidget::onSeriesVisibilityToggled(int index)
 
 void PlotWidget::updateAxes()
 {
-    if (!m_view_model) return;
+    if (m_view_model == nullptr)
+    {
+        return;
+    }
 
     m_updating_from_vm = true;
 
@@ -324,7 +302,10 @@ void PlotWidget::updateAxes()
 
 void PlotWidget::updateTitle()
 {
-    if (!m_view_model) return;
+    if (m_view_model == nullptr)
+    {
+        return;
+    }
 
     m_updating_from_vm = true;
     m_title_edit->setText(m_view_model->plotTitle());
@@ -333,7 +314,7 @@ void PlotWidget::updateTitle()
     if (m_plot->plotLayout()->elementCount() > 1)
     {
         QCPTextElement* title = qobject_cast<QCPTextElement*>(m_plot->plotLayout()->element(0, 0));
-        if (title)
+        if (title != nullptr)
         {
             title->setText(m_view_model->plotTitle());
             title->setTextColor(m_title_color);
@@ -342,7 +323,7 @@ void PlotWidget::updateTitle()
     else
     {
         QCPTextElement* title = new QCPTextElement(m_plot, m_view_model->plotTitle());
-        title->setFont(QFont("sans", 10, QFont::Bold));
+        title->setFont(QFont("sans", PlotConstants::kTitleFontSize, QFont::Bold));
         title->setTextColor(m_title_color);
         m_plot->plotLayout()->insertRow(0);
         m_plot->plotLayout()->addElement(0, 0, title);
@@ -353,33 +334,48 @@ void PlotWidget::updateTitle()
 
 void PlotWidget::onLegendCheckboxToggled(int series_index, bool checked)
 {
-    if (m_updating_from_vm || !m_view_model) return;
+    if (m_updating_from_vm || m_view_model == nullptr)
+    {
+        return;
+    }
     m_view_model->setSeriesVisible(series_index, checked);
 }
 
 void PlotWidget::onManualYChanged()
 {
-    if (m_updating_from_vm || !m_view_model) return;
+    if (m_updating_from_vm || m_view_model == nullptr)
+    {
+        return;
+    }
     m_view_model->setYManualRange(m_y_min_spin->value(), m_y_max_spin->value());
 }
 
 void PlotWidget::onXRangeChanged()
 {
-    if (m_updating_from_vm || !m_view_model) return;
+    if (m_updating_from_vm || m_view_model == nullptr)
+    {
+        return;
+    }
     double start = qMax(0.0, m_x_start_spin->value());
     m_view_model->setXViewRange(start, m_x_stop_spin->value());
 }
 
 void PlotWidget::onResetAxes()
 {
-    if (!m_view_model) return;
+    if (m_view_model == nullptr)
+    {
+        return;
+    }
     m_view_model->resetXRange();
     m_view_model->resetYRange();
 }
 
 void PlotWidget::onExportPdf()
 {
-    if (!m_view_model || !m_view_model->hasData()) return;
+    if (m_view_model == nullptr || !m_view_model->hasData())
+    {
+        return;
+    }
 
     QString filename = QFileDialog::getSaveFileName(
         this,
@@ -416,7 +412,10 @@ void PlotWidget::onExportPdf()
 
 void PlotWidget::handlePlotXRangeChanged(double lower, double upper)
 {
-    if (m_updating_from_vm || !m_view_model) return;
+    if (m_updating_from_vm || m_view_model == nullptr)
+    {
+        return;
+    }
 
     double x_max = m_view_model->xMax();
     double width = upper - lower;
@@ -437,7 +436,10 @@ void PlotWidget::handlePlotXRangeChanged(double lower, double upper)
 
 void PlotWidget::handlePlotYRangeChanged(double lower, double upper)
 {
-    if (m_updating_from_vm || !m_view_model) return;
+    if (m_updating_from_vm || m_view_model == nullptr)
+    {
+        return;
+    }
     m_view_model->setYManualRange(lower, upper);
 }
 
@@ -474,7 +476,7 @@ void PlotWidget::setUpLayout()
 
     axis_grid->addWidget(new QLabel("X Start:"), 0, 0);
     m_x_start_spin = new QDoubleSpinBox;
-    m_x_start_spin->setRange(0.0, 1e9);
+    m_x_start_spin->setRange(0.0, PlotConstants::kSpinBoxMaxRange);
     m_x_start_spin->setDecimals(1);
     m_x_start_spin->setSuffix(" s");
     m_x_start_spin->setEnabled(false);
@@ -482,7 +484,7 @@ void PlotWidget::setUpLayout()
 
     axis_grid->addWidget(new QLabel("X Stop:"), 0, 2);
     m_x_stop_spin = new QDoubleSpinBox;
-    m_x_stop_spin->setRange(0.0, 1e9);
+    m_x_stop_spin->setRange(0.0, PlotConstants::kSpinBoxMaxRange);
     m_x_stop_spin->setDecimals(1);
     m_x_stop_spin->setSuffix(" s");
     m_x_stop_spin->setEnabled(false);
@@ -490,14 +492,14 @@ void PlotWidget::setUpLayout()
 
     axis_grid->addWidget(new QLabel("Y Min:"), 1, 0);
     m_y_min_spin = new QDoubleSpinBox;
-    m_y_min_spin->setRange(0.0, 999.0);
+    m_y_min_spin->setRange(0.0, PlotConstants::kYSpinBoxMax);
     m_y_min_spin->setDecimals(1);
     m_y_min_spin->setEnabled(false);
     axis_grid->addWidget(m_y_min_spin, 1, 1);
 
     axis_grid->addWidget(new QLabel("Y Max:"), 1, 2);
     m_y_max_spin = new QDoubleSpinBox;
-    m_y_max_spin->setRange(0.0, 999.0);
+    m_y_max_spin->setRange(0.0, PlotConstants::kYSpinBoxMax);
     m_y_max_spin->setDecimals(1);
     m_y_max_spin->setEnabled(false);
     axis_grid->addWidget(m_y_max_spin, 1, 3);
@@ -528,8 +530,10 @@ void PlotWidget::setUpLayout()
 void PlotWidget::setUpConnections()
 {
     connect(m_title_edit, &QLineEdit::editingFinished, this, [this]() {
-        if (!m_updating_from_vm && m_view_model)
+        if (!m_updating_from_vm && m_view_model != nullptr)
+        {
             m_view_model->setPlotTitle(m_title_edit->text());
+        }
     });
 
     connect(m_y_min_spin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
@@ -553,38 +557,27 @@ void PlotWidget::setUpConnections()
 
 void PlotWidget::rebuildLegend()
 {
-    if (!m_view_model) return;
-
-    // Clear existing legend contents
-    m_legend_trees.clear();
-    QLayoutItem* item;
-    while ((item = m_legend_layout->takeAt(0)) != nullptr)
+    if (m_view_model == nullptr)
     {
-        if (item->widget())
-            item->widget()->deleteLater();
-        if (item->layout())
-        {
-            QLayoutItem* child;
-            while ((child = item->layout()->takeAt(0)) != nullptr)
-            {
-                if (child->widget())
-                    child->widget()->deleteLater();
-                delete child;
-            }
-        }
-        delete item;
+        return;
     }
+
+    clearLegendContents();
 
     const auto& all_series = m_view_model->allSeries();
     if (all_series.isEmpty())
+    {
         return;
+    }
 
     // Group series by receiver index (sorted)
     QMap<int, QVector<int>> receiver_groups;
-    for (int i = 0; i < all_series.size(); i++)
-        receiver_groups[all_series[i].receiverIndex].append(i);
+    for (qsizetype i = 0; i < all_series.size(); i++)
+    {
+        receiver_groups[all_series[i].receiverIndex].append(static_cast<int>(i));
+    }
 
-    int receiver_count = receiver_groups.size();
+    int receiver_count = static_cast<int>(receiver_groups.size());
 
     // Button row: Expand All, Select All, Select None
     QHBoxLayout* btn_row = new QHBoxLayout;
@@ -613,16 +606,16 @@ void PlotWidget::rebuildLegend()
     columns_layout->setContentsMargins(0, 0, 0, 0);
 
     // Build ordered list of receiver keys
-    QVector<int> receiver_keys;
-    for (auto it = receiver_groups.constBegin(); it != receiver_groups.constEnd(); ++it)
-        receiver_keys.append(it.key());
+    const QVector<int> receiver_keys = receiver_groups.keys();
 
     for (int col = 0; col < actual_columns; col++)
     {
         int start = col * per_column;
         int end = qMin(start + per_column, receiver_count);
         if (start >= receiver_count)
+        {
             break;
+        }
 
         QTreeWidget* tree = new QTreeWidget;
         tree->setHeaderHidden(true);
@@ -633,7 +626,7 @@ void PlotWidget::rebuildLegend()
         tree->setFixedWidth(UIConstants::kTreeFixedWidth);
         tree->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
         tree->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-        tree->setFixedHeight(per_column * UIConstants::kTreeItemHeightFactor +
+        tree->setFixedHeight((per_column * UIConstants::kTreeItemHeightFactor) +
                              UIConstants::kTreeHeightBuffer);
         tree->setStyleSheet("QTreeWidget { background: transparent; }");
         tree->setAttribute(Qt::WA_TranslucentBackground);
@@ -650,7 +643,9 @@ void PlotWidget::rebuildLegend()
 
             // Color receiver title to match its first channel's plot color
             if (!indices.isEmpty())
+            {
                 receiver_item->setForeground(0, all_series[indices.first()].color);
+            }
 
             for (int idx : indices)
             {
@@ -668,19 +663,7 @@ void PlotWidget::rebuildLegend()
         }
 
         tree->collapseAll();
-
-        // Connect item changes to visibility toggle
-        connect(tree, &QTreeWidget::itemChanged, this, [this](QTreeWidgetItem* item, int column) {
-            if (m_updating_from_vm || !m_view_model || column != 0) return;
-
-            if (item->parent())
-            {
-                // Leaf node: toggle single series
-                int idx = item->data(0, Qt::UserRole).toInt();
-                bool checked = item->checkState(0) == Qt::Checked;
-                onLegendCheckboxToggled(idx, checked);
-            }
-        });
+        connectLegendItemChanged(tree);
 
         columns_layout->addWidget(tree);
         m_legend_trees.append(tree);
@@ -689,7 +672,52 @@ void PlotWidget::rebuildLegend()
     columns_layout->addStretch(1);
     m_legend_layout->addLayout(columns_layout);
 
-    // Sync scrollbars across columns
+    syncLegendScrollbars();
+    connectExpandCollapseToggle(toggle_btn);
+
+    // Select All: check all channels
+    connect(select_all_btn, &QPushButton::clicked, this, [this]() {
+        setAllLegendChecks(true);
+    });
+
+    // Select None: uncheck all channels
+    connect(select_none_btn, &QPushButton::clicked, this, [this]() {
+        setAllLegendChecks(false);
+    });
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Legend helpers
+////////////////////////////////////////////////////////////////////////////////
+
+void PlotWidget::clearLegendContents()
+{
+    m_legend_trees.clear();
+    QLayoutItem* item = nullptr;
+    while ((item = m_legend_layout->takeAt(0)) != nullptr)
+    {
+        if (item->widget() != nullptr)
+        {
+            item->widget()->deleteLater();
+        }
+        if (item->layout() != nullptr)
+        {
+            QLayoutItem* child = nullptr;
+            while ((child = item->layout()->takeAt(0)) != nullptr)
+            {
+                if (child->widget() != nullptr)
+                {
+                    child->widget()->deleteLater();
+                }
+                delete child;
+            }
+        }
+        delete item;
+    }
+}
+
+void PlotWidget::syncLegendScrollbars()
+{
     if (m_legend_trees.size() > 1)
     {
         QScrollBar* visible_bar = m_legend_trees.last()->verticalScrollBar();
@@ -700,68 +728,77 @@ void PlotWidget::rebuildLegend()
                     m_legend_trees[i]->verticalScrollBar(), &QScrollBar::setValue);
         }
     }
+}
 
-    // Expand All / Collapse All toggle
+void PlotWidget::connectLegendItemChanged(QTreeWidget* tree)
+{
+    connect(tree, &QTreeWidget::itemChanged, this, [this](QTreeWidgetItem* changed_item, int column) {
+        if (m_updating_from_vm || m_view_model == nullptr || column != 0)
+        {
+            return;
+        }
+
+        if (changed_item->parent() != nullptr)
+        {
+            int idx = changed_item->data(0, Qt::UserRole).toInt();
+            bool checked = changed_item->checkState(0) == Qt::Checked;
+            onLegendCheckboxToggled(idx, checked);
+        }
+    });
+}
+
+void PlotWidget::connectExpandCollapseToggle(QPushButton* toggle_btn)
+{
     connect(toggle_btn, &QPushButton::clicked, this, [this, toggle_btn]() {
         bool any_collapsed = false;
         for (QTreeWidget* t : m_legend_trees)
+        {
             for (int i = 0; i < t->topLevelItemCount(); i++)
+            {
                 if (!t->topLevelItem(i)->isExpanded())
+                {
                     any_collapsed = true;
+                }
+            }
+        }
 
         for (QTreeWidget* t : m_legend_trees)
         {
             if (any_collapsed)
+            {
                 t->expandAll();
+            }
             else
+            {
                 t->collapseAll();
+            }
         }
         toggle_btn->setText(any_collapsed ? "Collapse All" : "Expand All");
     });
+}
 
-    // Select All: check all channels
-    connect(select_all_btn, &QPushButton::clicked, this, [this]() {
-        if (!m_view_model) return;
-        m_updating_from_vm = true;
-        for (QTreeWidget* t : m_legend_trees)
+void PlotWidget::setAllLegendChecks(bool checked)
+{
+    if (m_view_model == nullptr)
+    {
+        return;
+    }
+    m_updating_from_vm = true;
+    for (QTreeWidget* t : m_legend_trees)
+    {
+        t->blockSignals(true);
+        for (int r = 0; r < t->topLevelItemCount(); r++)
         {
-            t->blockSignals(true);
-            for (int r = 0; r < t->topLevelItemCount(); r++)
+            QTreeWidgetItem* rcvr = t->topLevelItem(r);
+            for (int c = 0; c < rcvr->childCount(); c++)
             {
-                QTreeWidgetItem* rcvr = t->topLevelItem(r);
-                for (int c = 0; c < rcvr->childCount(); c++)
-                {
-                    rcvr->child(c)->setCheckState(0, Qt::Checked);
-                    int idx = rcvr->child(c)->data(0, Qt::UserRole).toInt();
-                    m_view_model->setSeriesVisible(idx, true);
-                }
+                rcvr->child(c)->setCheckState(0, checked ? Qt::Checked : Qt::Unchecked);
+                int idx = rcvr->child(c)->data(0, Qt::UserRole).toInt();
+                m_view_model->setSeriesVisible(idx, checked);
             }
-            t->blockSignals(false);
         }
-        m_updating_from_vm = false;
-        rebuildChart();
-    });
-
-    // Select None: uncheck all channels
-    connect(select_none_btn, &QPushButton::clicked, this, [this]() {
-        if (!m_view_model) return;
-        m_updating_from_vm = true;
-        for (QTreeWidget* t : m_legend_trees)
-        {
-            t->blockSignals(true);
-            for (int r = 0; r < t->topLevelItemCount(); r++)
-            {
-                QTreeWidgetItem* rcvr = t->topLevelItem(r);
-                for (int c = 0; c < rcvr->childCount(); c++)
-                {
-                    rcvr->child(c)->setCheckState(0, Qt::Unchecked);
-                    int idx = rcvr->child(c)->data(0, Qt::UserRole).toInt();
-                    m_view_model->setSeriesVisible(idx, false);
-                }
-            }
-            t->blockSignals(false);
-        }
-        m_updating_from_vm = false;
-        rebuildChart();
-    });
+        t->blockSignals(false);
+    }
+    m_updating_from_vm = false;
+    rebuildChart();
 }

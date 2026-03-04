@@ -50,9 +50,7 @@ ui_*.h
 *.bat
 
 # Deployment staging and output
-deploy/staging/
-deploy/*.zip
-deploy/*.exe
+deploy/
 
 # Claude Code settings (ignore all except CLAUDE.md and .claudeignore)
 .claude/*
@@ -92,10 +90,9 @@ resources/icon_image.png
 
 # Input and Output files (you may want to keep these)
 *.csv
-
-
-# Agent Configuration
-.agent/
-.editorconfig
-.clang-tidy
-.clang-format
+continue_config_example.json
+.agent/agent_config.json
+.agent/workflows/chl.md
+tracked_files_tmp.txt
+.set_openclaw.sh
+.clangd

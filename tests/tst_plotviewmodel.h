@@ -26,6 +26,11 @@ private slots:
     void plotTitleChange();
     void loadInvalidFile();
     void loadEmptyFile();
+    void formatTimeZeroElapsed();
+    void formatTimeDayBoundary();
+    void formatTimeNegativeElapsed();
+    void loadCsvHeaderOnly();
+    void loadCsvMalformedRows();
 };
 
 #endif // TST_PLOTVIEWMODEL_H

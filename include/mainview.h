@@ -32,6 +32,7 @@ class PlotViewModel;
 class PlotWidget;
 class ReceiverGridWidget;
 class TimeExtractionWidget;
+struct BatchFileInfo;
 
 /**
  * @brief Thin View layer: builds widgets, connects to ViewModel signals,
@@ -46,8 +47,9 @@ class MainView : public QMainWindow
 
 public:
     /// @param[in] parent Optional parent widget.
-    MainView(QWidget *parent = nullptr);
-    ~MainView();
+    explicit MainView(QWidget *parent = nullptr);
+    ~MainView() override;
+    Q_DISABLE_COPY_MOVE(MainView)
 
 private slots:
     /// @name User-initiated action slots
@@ -107,6 +109,9 @@ private:
     void updateSettingsSummary();                         ///< Refreshes the settings summary label.
     void updateRecentFilesMenu();                        ///< Rebuilds the Recent Files submenu.
     void updateFileList();                                ///< Refreshes the file list tree from ViewModel state.
+    void populateBatchFileList();                         ///< Populates the file list tree in batch mode.
+    void populateSingleFileList();                        ///< Populates the file list tree in single-file mode.
+    static void applyBatchFileStatus(QTreeWidgetItem* item, const BatchFileInfo& info); ///< Sets status text/color on a batch file tree item.
     void saveLastBatchOutputDir();                        ///< Persists m_last_batch_output_dir to QSettings.
     void onShowPlot(const QString& csv_filepath);         ///< Loads CSV into plot and shows the plot dock.
     /// @}

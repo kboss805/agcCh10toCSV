@@ -99,6 +99,15 @@ private:
     void setUpConnections();
     void rebuildLegend();
 
+    /// @name Legend helpers (extracted to reduce cognitive complexity)
+    /// @{
+    void clearLegendContents();
+    void syncLegendScrollbars();
+    void connectExpandCollapseToggle(QPushButton* toggle_btn);
+    void connectLegendItemChanged(QTreeWidget* tree);
+    void setAllLegendChecks(bool checked);
+    /// @}
+
     PlotViewModel* m_view_model = nullptr;
 
     /// @name Chart

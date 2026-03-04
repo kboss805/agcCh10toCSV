@@ -14,6 +14,8 @@ private slots:
     void parameterNameUnknownChannels();
     void generateOutputFilenameFormat();
     void generateOutputFilenameNonEmpty();
+    void channelPrefixBoundaryIndex();
+    void channelPrefixLargeIndex();
 };
 
 #endif // TST_MAINVIEWMODEL_HELPERS_H

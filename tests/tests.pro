@@ -89,6 +89,7 @@ HEADERS += \
 SOURCES += \
     main.cpp \
     tst_channeldata.cpp \
+    tst_chapter10reader.cpp \
     tst_constants.cpp \
     tst_mainviewmodel_helpers.cpp \
     tst_mainviewmodel_state.cpp \
@@ -96,11 +97,15 @@ SOURCES += \
     tst_settingsdialog.cpp \
     tst_settingsmanager.cpp \
     tst_mainviewmodel_batch.cpp \
-    tst_plotviewmodel.cpp
+    tst_plotviewmodel.cpp \
+    tst_frameprocessor.cpp \
+    tst_timeextractionwidget.cpp \
+    tst_receivergridwidget.cpp
 
 # Test headers (needed for MOC processing)
 HEADERS += \
     tst_channeldata.h \
+    tst_chapter10reader.h \
     tst_constants.h \
     tst_mainviewmodel_batch.h \
     tst_mainviewmodel_helpers.h \
@@ -108,4 +113,7 @@ HEADERS += \
     tst_framesetup.h \
     tst_plotviewmodel.h \
     tst_settingsdialog.h \
-    tst_settingsmanager.h
+    tst_settingsmanager.h \
+    tst_frameprocessor.h \
+    tst_timeextractionwidget.h \
+    tst_receivergridwidget.h

@@ -7,7 +7,7 @@
 #define SETTINGSDATA_H
 
 #include <QString>
-#include "constants.h"
+
 
 /**
  * @brief Plain data struct capturing the complete UI configuration state.

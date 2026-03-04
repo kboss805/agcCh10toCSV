@@ -25,7 +25,7 @@ class SettingsDialog : public QDialog
     Q_OBJECT
 
 public:
-    SettingsDialog(QWidget* parent = nullptr);
+    explicit SettingsDialog(QWidget* parent = nullptr);
 
     void setData(const SettingsData& data);    ///< Populates all fields from a SettingsData snapshot.
     SettingsData getData() const;              ///< Returns current field values as a SettingsData snapshot.

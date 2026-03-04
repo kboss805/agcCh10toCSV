@@ -37,7 +37,7 @@ class FrameSetup : public QObject
     Q_OBJECT
 
 public:
-    FrameSetup(QObject* parent = nullptr);
+    explicit FrameSetup(QObject* parent = nullptr);
 
     /**
      * @brief Loads parameters from an INI file.
@@ -62,7 +62,7 @@ public:
 
 private:
     /// Reads INI section names in the order they appear in the file.
-    QStringList readGroupsInFileOrder(const QString& filename) const;
+    static QStringList readGroupsInFileOrder(const QString& filename);
 
     static const QStringList kSettingsGroups; ///< Reserved INI group names to skip.
     QList<ParameterInfo> m_parameters;        ///< Ordered list of frame parameters.

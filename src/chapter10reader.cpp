@@ -10,37 +10,36 @@
 using namespace Irig106;
 
 Chapter10Reader::Chapter10Reader(QObject* parent) :
-    QObject(parent)
+    QObject(parent),
+    m_status(I106_OK),
+    m_filename(""),
+    m_file_handle(0),
+    m_header(),
+    m_relative_start_time{},
+    m_relative_stop_time{},
+    m_file_start_time(),
+    m_file_stop_time(),
+    m_time_difference(0),
+    m_irig_time(),
+    m_tmats_info(),
+    m_current_time_channel(-1),
+    m_current_pcm_channel(-1)
 {
-    // set on UTC
-    putenv("TZ=GMT0");
-    tzset();
+    m_buffer.resize(PCMConstants::kDefaultBufferSize);
 
-    m_buffer = (unsigned char*)malloc(PCMConstants::kDefaultBufferSize);
-    m_buffer_size = m_buffer ? PCMConstants::kDefaultBufferSize : 0L;
-
-    m_current_time_channel = -1; // no channel selected
-    m_current_pcm_channel = -1;
-
-    m_file_start_time = nullptr;
-    m_file_stop_time = nullptr;
-
+    // Initialize start/stop time structures to zero
+    memset(&m_file_start_time, 0, sizeof(tm));
+    memset(&m_file_stop_time, 0, sizeof(tm));
 }
 
 Chapter10Reader::~Chapter10Reader()
 {
-    if (m_buffer)
-        free(m_buffer);
-    if (m_file_start_time)
-        free(m_file_start_time);
-    if (m_file_stop_time)
-        free(m_file_stop_time);
     qDeleteAll(m_channel_data);
 }
 
 bool Chapter10Reader::tryLoadingFile(const QString& filename)
 {
-    m_status = enI106Ch10Open(&m_file_handle, filename.toUtf8().constData(), I106_READ);
+    m_status = enI106Ch10Open(&m_file_handle, filename.toLocal8Bit().constData(), I106_READ);
 
     if (m_status != I106_OK && m_status != I106_OPEN_WARNING)
     {
@@ -61,13 +60,12 @@ bool Chapter10Reader::tryLoadingFile(const QString& filename)
     return true;
 }
 
-void Chapter10Reader::closeFile()
+void Chapter10Reader::closeFile() const
 {
     enI106Ch10Close(m_file_handle);
-    if (m_buffer)
-        free(m_buffer);
-    m_buffer = nullptr;
-    m_buffer_size = 0L;
+    // Vector manages its own memory, but we can clear it if desired,
+    // though keeping the buffer allocated for reuse is often better.
+    // m_buffer.clear();
 }
 
 void Chapter10Reader::clearSettings()
@@ -80,149 +78,121 @@ void Chapter10Reader::clearSettings()
     m_current_pcm_channel = -1;
 }
 
+void Chapter10Reader::inferChannelTypeFromHeader(int channel_id)
+{
+    if (!m_channel_data[channel_id]->channelType().isEmpty())
+    {
+        return;
+    }
+    if (m_header.ubyDataType == I106CH10_DTYPE_IRIG_TIME)
+    {
+        m_channel_data[channel_id]->setChannelType(PCMConstants::kChannelTypeTime);
+        if (m_channel_data[channel_id]->channelName().isEmpty())
+        {
+            m_channel_data[channel_id]->setChannelName("Time");
+        }
+    }
+    else if (m_header.ubyDataType == I106CH10_DTYPE_PCM_FMT_1)
+    {
+        m_channel_data[channel_id]->setChannelType(PCMConstants::kChannelTypePcm);
+        if (m_channel_data[channel_id]->channelName().isEmpty())
+        {
+            m_channel_data[channel_id]->setChannelName("PCM");
+        }
+    }
+}
+
 bool Chapter10Reader::loadChannels(const QString& filename)
 {
-    if (!tryLoadingFile(filename))
+    m_filename = filename;
+    QByteArray ba_filename = m_filename.toLocal8Bit();
+    char* psz_filename = ba_filename.data();
+
+    // Open the file
+    m_status = enI106Ch10Open(&m_file_handle, psz_filename, I106_READ);
+    if (m_status != I106_OK)
+    {
+        emit displayErrorMessage("Error opening file: " + m_filename);
         return false;
+    }
+
+    // Establish time reference so enI106_Rel2IrigTime() can convert
+    // relative header timestamps to absolute IRIG time.
+    m_status = enI106_SyncTime(m_file_handle, bFALSE, 0);
+    if (m_status != I106_OK)
+    {
+        emit displayErrorMessage("Error establishing time sync.");
+        closeFile();
+        return false;
+    }
 
     bool found_start_time = false;
+    qDeleteAll(m_channel_data);
+    m_channel_data.clear();
 
     while (true)
     {
+        // Read the next header
         m_status = enI106Ch10ReadNextHeader(m_file_handle, &m_header);
-
-        // Check for end of file or read errors
-        if (m_status != I106_OK)
+        if (m_status == I106_EOF)
+        {
             break;
+        }
+
+        if (m_status != I106_OK)
+        {
+            break;
+        }
 
         // Make sure our buffer is big enough
-        if (m_buffer_size < uGetDataLen(&m_header))
+        if (m_buffer.size() < uGetDataLen(&m_header))
         {
-            unsigned char* new_buffer = (unsigned char*)realloc(m_buffer, uGetDataLen(&m_header));
-            if (!new_buffer)
-            {
+            try {
+                m_buffer.resize(uGetDataLen(&m_header));
+            } catch (const std::bad_alloc&) {
                 emit displayErrorMessage("Memory allocation failed.");
                 closeFile();
                 return false;
             }
-            m_buffer = new_buffer;
-            m_buffer_size = uGetDataLen(&m_header);
         }
 
         // Read the data buffer
-        m_status = enI106Ch10ReadData(m_file_handle, m_buffer_size, m_buffer);
+        m_status = enI106Ch10ReadData(m_file_handle, m_buffer.size(), m_buffer.data());
 
         // Check for data read errors
         if (m_status != I106_OK)
-            break;
-
-        // Update the count for channel
-        addChannelInfoEntry(m_header.uChID);
-        m_channel_data[m_header.uChID]->incrementChannelCount();
-
-        // Save data start and stop times
-        if ((m_header.ubyDataType != I106CH10_DTYPE_TMATS) &&
-            (m_header.ubyDataType != I106CH10_DTYPE_IRIG_TIME) &&
-            (m_header.ubyDataType != I106CH10_DTYPE_RECORDING_INDEX))
         {
-            if (!found_start_time)
-            {
-                memcpy((char *)m_relative_start_time, (char *)m_header.aubyRefTime, 6);
-                found_start_time = true;
-            }
-            else
-            {
-                memcpy((char *)m_relative_stop_time, (char *)m_header.aubyRefTime, 6);
-            }
+            break;
         }
 
-        // If the header indicates a TMATS packet, parse it for channel types/names
+        int channel_id = m_header.uChID;
+
+        // If the channel is not in the map, add it
+        if (!m_channel_data.contains(channel_id))
+        {
+            m_channel_data.insert(channel_id, new ChannelData(channel_id));
+        }
+        m_channel_data[channel_id]->incrementChannelCount();
+
+        // Set channel type and fallback name from packet header when not already set by TMATS
+        inferChannelTypeFromHeader(channel_id);
+
+        processPacketTime(m_header, found_start_time);
+
+        // Check for TMATS
         if (m_header.ubyDataType == I106CH10_DTYPE_TMATS)
         {
-            memset(&m_tmats_info, 0, sizeof(m_tmats_info));
-            m_status = enI106_Decode_Tmats(&m_header, m_buffer, &m_tmats_info);
-            if (m_status != I106_OK)
-                break;
-
-            // Find channels mentioned in TMATS record
-            SuRRecord* r_record = m_tmats_info.psuFirstRRecord;
-            SuRDataSource* r_data_source;
-            int track_number;
-            while (r_record != nullptr)
+            if (!processTmatsPacket(m_header))
             {
-                // Get the first data source for this R record
-                r_data_source = r_record->psuFirstDataSource;
-                while (r_data_source != nullptr)
-                {
-                    // Make sure an entry exists
-                    track_number = atoi(r_data_source->szTrackNumber);
-                    addChannelInfoEntry(track_number);
-
-                    // Save channel type and name
-                    m_channel_data[track_number]->setChannelType(QString(r_data_source->szChannelDataType));
-                    m_channel_data[track_number]->setChannelName(QString(r_data_source->szDataSourceID));
-
-                    // Get the next R record data source
-                    r_data_source = r_data_source->psuNext;
-                }
-                // Get the next R record
-                r_record = r_record->psuNext;
-
-            } // end while walking R record linked list
+                break;
+            }
         }
-    }
+    } // end while
 
-    // Translate start and stop times
-    SuIrig106Time start_real_time;
-    if (!m_file_start_time)
-    {
-        m_file_start_time = (tm*)malloc(sizeof(tm));
-        if (!m_file_start_time)
-        {
-            emit displayErrorMessage("Memory allocation failed.");
-            closeFile();
-            return false;
-        }
-    }
-    enI106_Rel2IrigTime(m_file_handle, m_relative_start_time, &start_real_time);
-    gmtime_s(m_file_start_time, (time_t *)&(start_real_time.ulSecs));
-
-    SuIrig106Time stop_real_time;
-    if (!m_file_stop_time)
-    {
-        m_file_stop_time = (tm*)malloc(sizeof(tm));
-        if (!m_file_stop_time)
-        {
-            emit displayErrorMessage("Memory allocation failed.");
-            closeFile();
-            return false;
-        }
-    }
-    enI106_Rel2IrigTime(m_file_handle, m_relative_stop_time, &stop_real_time);
-    gmtime_s(m_file_stop_time, (time_t *)&(stop_real_time.ulSecs));
-
-    m_time_difference = start_real_time.ulSecs - (m_file_start_time->tm_yday*24*60*60 +
-                                                  m_file_start_time->tm_hour*60*60 +
-                                                  m_file_start_time->tm_min*60 +
-                                                  m_file_start_time->tm_sec);
-
-    // Go through m_channel_info and get the time channels and PCM channels
-    for (auto it = m_channel_data.begin(); it != m_channel_data.end(); it++)
-    {
-        ChannelData* channel_info = it.value();
-
-        // Ignore channels with no data
-        if (channel_info->channelCount() == 0)
-            continue;
-
-        // Store time channels and PCM channels
-        if (channel_info->channelType() == PCMConstants::kChannelTypeTime)
-            m_time_channels.append(channel_info);
-        else if (channel_info->channelType() == PCMConstants::kChannelTypePcm)
-            m_pcm_channels.append(channel_info);
-    }
-
+    finalizeTimeCalc();
+    categorizeChannels();
     closeFile();
+
     return true;
 }
 
@@ -231,14 +201,18 @@ void Chapter10Reader::addChannelInfoEntry(int channel_id)
     // If an entry for channel_id doesn't exist in m_channel_info, make one.
     // If the entry already exists, do nothing.
     if (!m_channel_data.contains(channel_id))
+    {
         m_channel_data.insert(channel_id, new ChannelData(channel_id));
+    }
 }
 
-QStringList Chapter10Reader::buildChannelComboBoxList(const QList<ChannelData*>& channels) const
+QStringList Chapter10Reader::buildChannelComboBoxList(const QList<ChannelData*>& channels)
 {
     QStringList list;
     for (const auto* channel : channels)
+    {
         list.append(QString::number(channel->channelID()) + " - " + channel->channelName());
+    }
     return list;
 }
 
@@ -255,94 +229,236 @@ QStringList Chapter10Reader::getPCMChannelComboBoxList() const
 // DOY is 1-indexed, so add 1
 int Chapter10Reader::getStartDayOfYear() const
 {
-    return m_file_start_time ? m_file_start_time->tm_yday + 1 : 0;
+    return m_times_loaded ? m_file_start_time.tm_yday + 1 : 0;
 }
 
 int Chapter10Reader::getStartHour() const
 {
-    return m_file_start_time ? m_file_start_time->tm_hour : 0;
+    return m_times_loaded ? m_file_start_time.tm_hour : 0;
 }
 
 int Chapter10Reader::getStartMinute() const
 {
-    return m_file_start_time ? m_file_start_time->tm_min : 0;
+    return m_times_loaded ? m_file_start_time.tm_min : 0;
 }
 
 int Chapter10Reader::getStartSecond() const
 {
-    return m_file_start_time ? m_file_start_time->tm_sec : 0;
+    return m_times_loaded ? m_file_start_time.tm_sec : 0;
 }
 
 // DOY is 1-indexed, so add 1
 int Chapter10Reader::getStopDayOfYear() const
 {
-    return m_file_stop_time ? m_file_stop_time->tm_yday + 1 : 0;
+    return m_times_loaded ? m_file_stop_time.tm_yday + 1 : 0;
 }
 
 int Chapter10Reader::getStopHour() const
 {
-    return m_file_stop_time ? m_file_stop_time->tm_hour : 0;
+    return m_times_loaded ? m_file_stop_time.tm_hour : 0;
 }
 
 int Chapter10Reader::getStopMinute() const
 {
-    return m_file_stop_time ? m_file_stop_time->tm_min : 0;
+    return m_times_loaded ? m_file_stop_time.tm_min : 0;
 }
 
 int Chapter10Reader::getStopSecond() const
 {
-    return m_file_stop_time ? m_file_stop_time->tm_sec : 0;
+    return m_times_loaded ? m_file_stop_time.tm_sec : 0;
+}
+
+void Chapter10Reader::processPacketTime(Irig106::SuI106Ch10Header& header, bool& found_start_time)
+{
+    // If we haven't found a time yet, checks to see if this is one
+    if (!found_start_time)
+    {
+        if (header.ubyDataType == I106CH10_DTYPE_IRIG_TIME)
+        {
+            found_start_time = true;
+            memcpy(m_relative_start_time.data(),
+                   &header.aubyRefTime[0],
+                   sizeof(m_relative_start_time));
+        }
+    }
+
+    // Always catch the last time, which will be the stop time
+    if (header.ubyDataType == I106CH10_DTYPE_IRIG_TIME)
+    {
+        memcpy(m_relative_stop_time.data(),
+               &header.aubyRefTime[0],
+               sizeof(m_relative_stop_time));
+    }
+}
+
+bool Chapter10Reader::processTmatsPacket(Irig106::SuI106Ch10Header& header)
+{
+    // Decode TMATS metadata into m_tmats_info for later use by applyTmatsNames().
+    // Name/type application is deferred to categorizeChannels() so that all channels
+    // are already in m_channel_data before the TMATS lookup runs.
+    memset(&m_tmats_info, 0, sizeof(m_tmats_info));
+    m_status = enI106_Decode_Tmats(&header, m_buffer.data(), &m_tmats_info);
+    return m_status == I106_OK;
+}
+
+void Chapter10Reader::finalizeTimeCalc()
+{
+    // Translate start and stop times
+    SuIrig106Time start_real_time;
+    enI106_Rel2IrigTime(m_file_handle, m_relative_start_time.data(), &start_real_time);
+    gmtime_s(&m_file_start_time, &(start_real_time.ulSecs));
+
+    SuIrig106Time stop_real_time;
+    enI106_Rel2IrigTime(m_file_handle, m_relative_stop_time.data(), &stop_real_time);
+    gmtime_s(&m_file_stop_time, &(stop_real_time.ulSecs));
+
+    m_times_loaded = true;
+
+    // Use constants and proper types to avoid overflow/implicit widening
+    const uint64_t seconds_in_day = static_cast<uint64_t>(PCMConstants::kHoursPerDay) *
+                                    PCMConstants::kMinutesPerHour *
+                                    PCMConstants::kSecondsPerMinute;
+
+    m_time_difference = start_real_time.ulSecs -
+        ((static_cast<uint64_t>(m_file_start_time.tm_yday) * seconds_in_day) +
+         (static_cast<uint64_t>(m_file_start_time.tm_hour) * PCMConstants::kMinutesPerHour * PCMConstants::kSecondsPerMinute) +
+         (static_cast<uint64_t>(m_file_start_time.tm_min) * PCMConstants::kSecondsPerMinute) +
+         static_cast<uint64_t>(m_file_start_time.tm_sec));
+}
+
+void Chapter10Reader::applyTmatsNames()
+{
+    // Apply TMATS-derived names and types now that all channels are in m_channel_data.
+    // processTmatsPacket() runs on the first packet when most channels aren't yet
+    // discovered, so we re-apply the TMATS metadata here where the map is complete.
+    SuRRecord* record = m_tmats_info.psuFirstRRecord;
+    while (record != nullptr)
+    {
+        SuRDataSource* data_source = record->psuFirstDataSource;
+        while (data_source != nullptr)
+        {
+            if (data_source->szTrackNumber != nullptr)
+            {
+                int track_number = atoi(data_source->szTrackNumber);
+                if (m_channel_data.contains(track_number))
+                {
+                    // Name priority: szDataSourceID (descriptive TMATS R-record identifier)
+                    //              → szChanDataLinkName (Ch10 rev 07+ link name, often generic)
+                    //              → szPcmDataLinkName (rev -04/-05 link name)
+                    QString dsid = (data_source->szDataSourceID != nullptr)
+                                   ? QString(data_source->szDataSourceID) : QString();
+                    QString cdln = (data_source->szChanDataLinkName != nullptr)
+                                   ? QString(data_source->szChanDataLinkName) : QString();
+                    QString pdln = (data_source->szPcmDataLinkName != nullptr)
+                                   ? QString(data_source->szPcmDataLinkName) : QString();
+                    if (!dsid.isEmpty())
+                    {
+                        m_channel_data[track_number]->setChannelName(dsid);
+                    }
+                    else if (!cdln.isEmpty())
+                    {
+                        m_channel_data[track_number]->setChannelName(cdln);
+                    }
+                    else if (!pdln.isEmpty())
+                    {
+                        m_channel_data[track_number]->setChannelName(pdln);
+                    }
+                    if (data_source->szChannelDataType != nullptr)
+                    {
+                        m_channel_data[track_number]->setChannelType(QString(data_source->szChannelDataType));
+                    }
+                }
+            }
+            data_source = data_source->psuNext;
+        }
+        record = record->psuNext;
+    }
+}
+
+void Chapter10Reader::categorizeChannels()
+{
+    applyTmatsNames();
+
+    // Go through m_channel_data and sort channels into time and PCM lists
+    for (auto it = m_channel_data.begin(); it != m_channel_data.end(); ++it)
+    {
+        ChannelData* channel = it.value();
+        if (channel->channelType() == PCMConstants::kChannelTypeTime)
+        {
+            m_time_channels.append(channel);
+            if (m_current_time_channel == -1)
+            {
+                m_current_time_channel = channel->channelID();
+            }
+        }
+        if (channel->channelType() == PCMConstants::kChannelTypePcm)
+        {
+            m_pcm_channels.append(channel);
+            if (m_current_pcm_channel == -1)
+            {
+                m_current_pcm_channel = channel->channelID();
+            }
+        }
+    }
 }
 
 void Chapter10Reader::timeChannelChanged(int combobox_index)
 {
     // subtract 1 from the index to account for "Select a Time Stream"
     int list_index = combobox_index - 1;
-    if (list_index < 0)
+    if (list_index < 0 || list_index >= m_time_channels.size())
+    {
         m_current_time_channel = -1;
-    else if (list_index >= m_time_channels.size())
-        m_current_time_channel = -1;
+    }
     else
+    {
         m_current_time_channel = m_time_channels[list_index]->channelID();
+    }
 }
 
 void Chapter10Reader::pcmChannelChanged(int combobox_index)
 {
     // subtract 1 from the index to account for "Select a PCM Stream"
     int list_index = combobox_index - 1;
-    if (list_index < 0)
+    if (list_index < 0 || list_index >= m_pcm_channels.size())
+    {
         m_current_pcm_channel = -1;
-    else if (list_index >= m_pcm_channels.size())
-        m_current_pcm_channel = -1;
+    }
     else
+    {
         m_current_pcm_channel = m_pcm_channels[list_index]->channelID();
+    }
 }
 
 uint64_t Chapter10Reader::dhmsToUInt64(int day, int hour, int minute, int second) const
 {
     return m_time_difference +
-            (day - 1) * 24 * 60 * 60 +
-            hour * 60 * 60 +
-            minute * 60 +
-            second;
+            (static_cast<uint64_t>(day - 1) * PCMConstants::kHoursPerDay * PCMConstants::kMinutesPerHour * PCMConstants::kSecondsPerMinute) +
+            (static_cast<uint64_t>(hour) * PCMConstants::kMinutesPerHour * PCMConstants::kSecondsPerMinute) +
+            (static_cast<uint64_t>(minute) * PCMConstants::kSecondsPerMinute) +
+            static_cast<uint64_t>(second);
 }
 
 int Chapter10Reader::getTimeChannelIndex(int channel_id) const
 {
-    for (int i = 0; i < m_time_channels.size(); i++)
+    for (qsizetype i = 0; i < m_time_channels.size(); i++)
     {
         if (m_time_channels[i]->channelID() == channel_id)
-            return i;
+        {
+            return static_cast<int>(i);
+        }
     }
     return -1;
 }
 
 int Chapter10Reader::getPCMChannelIndex(int channel_id) const
 {
-    for (int i = 0; i < m_pcm_channels.size(); i++)
+    for (qsizetype i = 0; i < m_pcm_channels.size(); i++)
     {
         if (m_pcm_channels[i]->channelID() == channel_id)
-            return i;
+        {
+            return static_cast<int>(i);
+        }
     }
     return -1;
 }
@@ -360,6 +476,8 @@ int Chapter10Reader::getCurrentPCMChannelID() const
 int Chapter10Reader::getFirstPCMChannelID() const
 {
     if (m_pcm_channels.isEmpty())
+    {
         return -1;
+    }
     return m_pcm_channels[0]->channelID();
 }

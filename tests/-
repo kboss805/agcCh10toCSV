@@ -1,0 +1,285 @@
+********* Start testing of TestChannelData *********
+Config: Using QtTest library 6.10.2, Qt 6.10.2 (x86_64-little_endian-llp64 shared (dynamic) release build; by GCC 13.1.0), windows 11
+PASS   : TestChannelData::initTestCase()
+PASS   : TestChannelData::constructorSetsChannelId()
+PASS   : TestChannelData::defaultChannelTypeIsEmpty()
+PASS   : TestChannelData::defaultChannelNameIsEmpty()
+PASS   : TestChannelData::defaultChannelCountIsZero()
+PASS   : TestChannelData::setChannelTypeSetsType()
+PASS   : TestChannelData::setChannelNameSetsName()
+PASS   : TestChannelData::incrementChannelCountIncrementsOnce()
+PASS   : TestChannelData::incrementChannelCountAccumulates()
+PASS   : TestChannelData::cleanupTestCase()
+Totals: 10 passed, 0 failed, 0 skipped, 0 blacklisted, 1ms
+********* Finished testing of TestChannelData *********
+********* Start testing of TestChapter10Reader *********
+Config: Using QtTest library 6.10.2, Qt 6.10.2 (x86_64-little_endian-llp64 shared (dynamic) release build; by GCC 13.1.0), windows 11
+PASS   : TestChapter10Reader::initTestCase()
+PASS   : TestChapter10Reader::loadChannelsReturnsTrueForValidFile()
+PASS   : TestChapter10Reader::loadChannelsPopulatesTimeChannels()
+PASS   : TestChapter10Reader::loadChannelsPopulatesPcmChannels()
+PASS   : TestChapter10Reader::comboBoxListsContainChannelIdAndName()
+PASS   : TestChapter10Reader::currentTimeChannelSetAfterLoad()
+PASS   : TestChapter10Reader::currentPcmChannelSetAfterLoad()
+PASS   : TestChapter10Reader::clearSettingsResetsChannels()
+PASS   : TestChapter10Reader::timeChannelChangedUpdatesSelection()
+PASS   : TestChapter10Reader::pcmChannelChangedUpdatesSelection()
+PASS   : TestChapter10Reader::loadChannelsReturnsFalseForInvalidFile()
+PASS   : TestChapter10Reader::getFirstPcmChannelIdReturnsValidId()
+PASS   : TestChapter10Reader::timeAccessorsReturnNonZeroAfterLoad()
+PASS   : TestChapter10Reader::cleanupTestCase()
+Totals: 14 passed, 0 failed, 0 skipped, 0 blacklisted, 1492ms
+********* Finished testing of TestChapter10Reader *********
+********* Start testing of TestConstants *********
+Config: Using QtTest library 6.10.2, Qt 6.10.2 (x86_64-little_endian-llp64 shared (dynamic) release build; by GCC 13.1.0), windows 11
+PASS   : TestConstants::initTestCase()
+PASS   : TestConstants::pcmMaxChannelCount()
+PASS   : TestConstants::pcmDefaultFrameSync()
+PASS   : TestConstants::pcmCommonWordLen()
+PASS   : TestConstants::pcmNumMinorFrames()
+PASS   : TestConstants::pcmTimeRoundingOffset()
+PASS   : TestConstants::pcmChannelTypeIdentifiers()
+PASS   : TestConstants::uiDefaultReceiverCount()
+PASS   : TestConstants::uiDefaultChannelsPerReceiver()
+PASS   : TestConstants::uiDefaultSlopeIndex()
+PASS   : TestConstants::uiDefaultScale()
+PASS   : TestConstants::uiTimeValidationLimits()
+PASS   : TestConstants::uiSampleRates()
+PASS   : TestConstants::uiMaxSampleRateIndex()
+PASS   : TestConstants::uiSlopeLabels()
+PASS   : TestConstants::uiSampleRateLabels()
+PASS   : TestConstants::uiChannelPrefixes()
+PASS   : TestConstants::uiNumKnownPrefixes()
+PASS   : TestConstants::uiOutputFormatConstants()
+PASS   : TestConstants::uiButtonText()
+PASS   : TestConstants::appVersionValues()
+PASS   : TestConstants::appVersionToString()
+PASS   : TestConstants::pcmMaxRawSampleValue()
+PASS   : TestConstants::pcmDefaultBufferSize()
+PASS   : TestConstants::pcmProgressReportInterval()
+PASS   : TestConstants::uiQSettingsKeys()
+PASS   : TestConstants::uiThemeIdentifiers()
+PASS   : TestConstants::uiLayoutConstants()
+PASS   : TestConstants::uiTimeConversionConstants()
+PASS   : TestConstants::uiPolarityConstants()
+PASS   : TestConstants::uiRecentFilesConstants()
+PASS   : TestConstants::uiDeploymentConstants()
+PASS   : TestConstants::uiBatchConstants()
+PASS   : TestConstants::plotConstants()
+PASS   : TestConstants::cleanupTestCase()
+Totals: 35 passed, 0 failed, 0 skipped, 0 blacklisted, 1ms
+********* Finished testing of TestConstants *********
+********* Start testing of TestFrameProcessor *********
+Config: Using QtTest library 6.10.2, Qt 6.10.2 (x86_64-little_endian-llp64 shared (dynamic) release build; by GCC 13.1.0), windows 11
+PASS   : TestFrameProcessor::initTestCase()
+PASS   : TestFrameProcessor::constructorDefaults()
+PASS   : TestFrameProcessor::requestAbortSetsFlag()
+PASS   : TestFrameProcessor::hasSyncPatternFindsMatch()
+PASS   : TestFrameProcessor::hasSyncPatternNoMatch()
+PASS   : TestFrameProcessor::hasSyncPatternShortBuffer()
+PASS   : TestFrameProcessor::derandomizeShortBufferIdentity()
+PASS   : TestFrameProcessor::derandomizeLongerBufferChanges()
+PASS   : TestFrameProcessor::writeTimeSampleFormat()
+PASS   : TestFrameProcessor::writeTimeSampleAveraging()
+PASS   : TestFrameProcessor::preScanInvalidChannelId()
+PASS   : TestFrameProcessor::preScanInvalidFile()
+QDEBUG : TestFrameProcessor::preScanWithNrzlFile() preScan params: pcm_id= 19 words= 26 bits= 416 sync_len= 32
+QDEBUG : TestFrameProcessor::preScanWithNrzlFile()   LOG: "Pre-scan: checking frame sync and encoding..."
+QDEBUG : TestFrameProcessor::preScanWithNrzlFile()   LOG: "Pre-scan: scanned 5 PCM packet(s) on channel 19."
+QDEBUG : TestFrameProcessor::preScanWithNrzlFile()   LOG: "  NRZ-L  sync found in 0 of 5 packets."
+QDEBUG : TestFrameProcessor::preScanWithNrzlFile()   LOG: "  RNRZ-L sync found in 0 of 5 packets."
+QDEBUG : TestFrameProcessor::preScanWithNrzlFile()   LOG: "WARNING: Pre-scan — frame sync pattern NOT found. Verify frame sync and PCM channel."
+FAIL!  : TestFrameProcessor::preScanWithNrzlFile() 'result' returned FALSE. (preScan should find sync pattern in NRZ-L file)
+tst_frameprocessor.cpp(307) : failure location
+PASS   : TestFrameProcessor::preScanWithRnrzlFile()
+PASS   : TestFrameProcessor::processInvalidTimeChannel()
+PASS   : TestFrameProcessor::processInvalidPcmChannel()
+PASS   : TestFrameProcessor::processInvalidFile()
+PASS   : TestFrameProcessor::processWithTestFile()
+PASS   : TestFrameProcessor::cleanupTestCase()
+Totals: 18 passed, 1 failed, 0 skipped, 0 blacklisted, 1125ms
+********* Finished testing of TestFrameProcessor *********
+********* Start testing of TestMainViewModelHelpers *********
+Config: Using QtTest library 6.10.2, Qt 6.10.2 (x86_64-little_endian-llp64 shared (dynamic) release build; by GCC 13.1.0), windows 11
+PASS   : TestMainViewModelHelpers::initTestCase()
+PASS   : TestMainViewModelHelpers::channelPrefixKnownIndices()
+PASS   : TestMainViewModelHelpers::channelPrefixUnknownIndices()
+PASS   : TestMainViewModelHelpers::parameterNameKnownChannels()
+PASS   : TestMainViewModelHelpers::parameterNameUnknownChannels()
+PASS   : TestMainViewModelHelpers::generateOutputFilenameFormat()
+PASS   : TestMainViewModelHelpers::generateOutputFilenameNonEmpty()
+PASS   : TestMainViewModelHelpers::channelPrefixBoundaryIndex()
+PASS   : TestMainViewModelHelpers::channelPrefixLargeIndex()
+PASS   : TestMainViewModelHelpers::cleanupTestCase()
+Totals: 10 passed, 0 failed, 0 skipped, 0 blacklisted, 4ms
+********* Finished testing of TestMainViewModelHelpers *********
+********* Start testing of TestMainViewModelState *********
+Config: Using QtTest library 6.10.2, Qt 6.10.2 (x86_64-little_endian-llp64 shared (dynamic) release build; by GCC 13.1.0), windows 11
+PASS   : TestMainViewModelState::initTestCase()
+PASS   : TestMainViewModelState::constructorDefaults()
+PASS   : TestMainViewModelState::setExtractAllTimeEmitsSignal()
+PASS   : TestMainViewModelState::setExtractAllTimeNoOpWhenUnchanged()
+PASS   : TestMainViewModelState::setSampleRateIndexEmitsSignal()
+PASS   : TestMainViewModelState::setSampleRateIndexNoOpWhenUnchanged()
+PASS   : TestMainViewModelState::setFrameSyncEmitsSignal()
+PASS   : TestMainViewModelState::setFrameSyncNoOpWhenUnchanged()
+PASS   : TestMainViewModelState::setPolarityIndexEmitsSignal()
+PASS   : TestMainViewModelState::setSlopeIndexEmitsSignal()
+PASS   : TestMainViewModelState::setScaleEmitsSignal()
+PASS   : TestMainViewModelState::setReceiverCountEmitsSignal()
+PASS   : TestMainViewModelState::setReceiverCountResizesGrid()
+PASS   : TestMainViewModelState::setChannelsPerReceiverEmitsSignal()
+PASS   : TestMainViewModelState::setChannelsPerReceiverResizesGrid()
+PASS   : TestMainViewModelState::receiverCheckedValidIndices()
+PASS   : TestMainViewModelState::receiverCheckedOutOfBoundsReturnsFalse()
+PASS   : TestMainViewModelState::setReceiverCheckedEmitsSignal()
+PASS   : TestMainViewModelState::setReceiverCheckedNoOpWhenUnchanged()
+PASS   : TestMainViewModelState::setAllReceiversCheckedTrue()
+PASS   : TestMainViewModelState::setAllReceiversCheckedFalse()
+PASS   : TestMainViewModelState::getSettingsDataApplySettingsDataRoundtrip()
+PASS   : TestMainViewModelState::applySettingsUpdatesProperties()
+PASS   : TestMainViewModelState::constructorDefaultFrameSync()
+PASS   : TestMainViewModelState::lastIniDirDefaultsToSettings()
+PASS   : TestMainViewModelState::loadFrameSetupComputesFrameSizeFromReceiverConfig()
+PASS   : TestMainViewModelState::loadFrameSetupSmallConfigAcceptsParams()
+PASS   : TestMainViewModelState::recentFilesEmptyByDefault()
+PASS   : TestMainViewModelState::addRecentFileAppearsInList()
+PASS   : TestMainViewModelState::addRecentFileMovesDuplicateToFront()
+PASS   : TestMainViewModelState::addRecentFileCapsAtMax()
+PASS   : TestMainViewModelState::clearRecentFilesEmptiesList()
+PASS   : TestMainViewModelState::fileMetadataSummaryNoFile()
+PASS   : TestMainViewModelState::cleanupTestCase()
+Totals: 34 passed, 0 failed, 0 skipped, 0 blacklisted, 49ms
+********* Finished testing of TestMainViewModelState *********
+********* Start testing of TestFrameSetup *********
+Config: Using QtTest library 6.10.2, Qt 6.10.2 (x86_64-little_endian-llp64 shared (dynamic) release build; by GCC 13.1.0), windows 11
+PASS   : TestFrameSetup::initTestCase()
+PASS   : TestFrameSetup::defaultLengthIsZero()
+PASS   : TestFrameSetup::clearParametersResetsToEmpty()
+PASS   : TestFrameSetup::getParameterInvalidIndexReturnsNull()
+PASS   : TestFrameSetup::getParameterNegativeIndexReturnsNull()
+PASS   : TestFrameSetup::tryLoadingFileValidFile()
+PASS   : TestFrameSetup::tryLoadingFileMissingWordKey()
+PASS   : TestFrameSetup::tryLoadingFileOutOfBoundsWord()
+PASS   : TestFrameSetup::tryLoadingFileWordZeroFails()
+PASS   : TestFrameSetup::tryLoadingFileWordEqualsFrameSize()
+PASS   : TestFrameSetup::saveToSettingsWritesCorrectData()
+PASS   : TestFrameSetup::tryLoadingFileSmallerFrameAccepts()
+PASS   : TestFrameSetup::tryLoadingFileSmallerFrameRejectsBoundary()
+PASS   : TestFrameSetup::tryLoadingFileLargerFrameAccepts()
+PASS   : TestFrameSetup::tryLoadingFileSingleChannelFrameSize()
+PASS   : TestFrameSetup::cleanupTestCase()
+Totals: 16 passed, 0 failed, 0 skipped, 0 blacklisted, 16ms
+********* Finished testing of TestFrameSetup *********
+********* Start testing of TestSettingsDialog *********
+Config: Using QtTest library 6.10.2, Qt 6.10.2 (x86_64-little_endian-llp64 shared (dynamic) release build; by GCC 13.1.0), windows 11
+PASS   : TestSettingsDialog::initTestCase()
+PASS   : TestSettingsDialog::defaultFrameSyncIsEmpty()
+PASS   : TestSettingsDialog::defaultPolarityIndexIsZero()
+PASS   : TestSettingsDialog::defaultSlopeIndexIsZero()
+PASS   : TestSettingsDialog::defaultScaleIsEmpty()
+PASS   : TestSettingsDialog::defaultReceiverCountIsZero()
+PASS   : TestSettingsDialog::defaultChannelsPerReceiverIsZero()
+PASS   : TestSettingsDialog::setGetFrameSync()
+PASS   : TestSettingsDialog::setGetPolarityIndex()
+PASS   : TestSettingsDialog::setGetSlopeIndex()
+PASS   : TestSettingsDialog::setGetScale()
+PASS   : TestSettingsDialog::setGetReceiverCount()
+PASS   : TestSettingsDialog::setGetChannelsPerReceiver()
+PASS   : TestSettingsDialog::slopeComboBoxHasFourItems()
+PASS   : TestSettingsDialog::slopeIndexClampedToValidRange()
+PASS   : TestSettingsDialog::setGetDataRoundtrip()
+PASS   : TestSettingsDialog::getDataPreservesNonEditedFields()
+PASS   : TestSettingsDialog::loadRequestedSignal()
+PASS   : TestSettingsDialog::saveAsRequestedSignal()
+PASS   : TestSettingsDialog::cleanupTestCase()
+Totals: 20 passed, 0 failed, 0 skipped, 0 blacklisted, 8ms
+********* Finished testing of TestSettingsDialog *********
+********* Start testing of TestSettingsManager *********
+Config: Using QtTest library 6.10.2, Qt 6.10.2 (x86_64-little_endian-llp64 shared (dynamic) release build; by GCC 13.1.0), windows 11
+PASS   : TestSettingsManager::initTestCase()
+PASS   : TestSettingsManager::loadFileValidIni()
+PASS   : TestSettingsManager::loadFileInvalidFrameSync()
+PASS   : TestSettingsManager::loadFileInvalidSlope()
+PASS   : TestSettingsManager::loadFileInvalidScale()
+PASS   : TestSettingsManager::loadFileInvalidReceiverCount()
+PASS   : TestSettingsManager::loadFileInvalidChannelsPerReceiver()
+PASS   : TestSettingsManager::loadFilePolarityNegative()
+PASS   : TestSettingsManager::loadFilePolarityPositive()
+PASS   : TestSettingsManager::loadFilePolarityInvalid()
+PASS   : TestSettingsManager::loadFileExceedsTotalParameters()
+PASS   : TestSettingsManager::saveFileRoundtrip()
+PASS   : TestSettingsManager::loadFilePreservesFrameSetup()
+PASS   : TestSettingsManager::loadFileParameterCountMismatch()
+PASS   : TestSettingsManager::cleanupTestCase()
+Totals: 15 passed, 0 failed, 0 skipped, 0 blacklisted, 46ms
+********* Finished testing of TestSettingsManager *********
+********* Start testing of TestMainViewModelBatch *********
+Config: Using QtTest library 6.10.2, Qt 6.10.2 (x86_64-little_endian-llp64 shared (dynamic) release build; by GCC 13.1.0), windows 11
+PASS   : TestMainViewModelBatch::initTestCase()
+PASS   : TestMainViewModelBatch::batchModeDefaultFalse()
+PASS   : TestMainViewModelBatch::batchFileCountDefaultZero()
+PASS   : TestMainViewModelBatch::batchFilesDefaultEmpty()
+PASS   : TestMainViewModelBatch::generateBatchOutputFilenameFormat()
+PASS   : TestMainViewModelBatch::generateBatchOutputFilenameSpecialChars()
+PASS   : TestMainViewModelBatch::batchStatusSummaryEmpty()
+PASS   : TestMainViewModelBatch::clearStateResetsBatchMode()
+PASS   : TestMainViewModelBatch::clearStateClearsBatchFiles()
+PASS   : TestMainViewModelBatch::cancelProcessingSetsBatchCancelled()
+PASS   : TestMainViewModelBatch::setBatchFilePcmChannelOutOfBoundsNoSignal()
+PASS   : TestMainViewModelBatch::setBatchFileTimeChannelOutOfBoundsNoSignal()
+PASS   : TestMainViewModelBatch::setBatchFileChannelNegativeIndexNoSignal()
+PASS   : TestMainViewModelBatch::cleanupTestCase()
+Totals: 14 passed, 0 failed, 0 skipped, 0 blacklisted, 3ms
+********* Finished testing of TestMainViewModelBatch *********
+********* Start testing of TestPlotViewModel *********
+Config: Using QtTest library 6.10.2, Qt 6.10.2 (x86_64-little_endian-llp64 shared (dynamic) release build; by GCC 13.1.0), windows 11
+PASS   : TestPlotViewModel::initTestCase()
+PASS   : TestPlotViewModel::defaultState()
+PASS   : TestPlotViewModel::loadCsvFile()
+PASS   : TestPlotViewModel::csvTimeConversion()
+PASS   : TestPlotViewModel::seriesColorAssignment()
+PASS   : TestPlotViewModel::yAutoRange()
+PASS   : TestPlotViewModel::yManualRange()
+PASS   : TestPlotViewModel::xTimeWindow()
+PASS   : TestPlotViewModel::seriesVisibility()
+PASS   : TestPlotViewModel::clearData()
+PASS   : TestPlotViewModel::plotTitleDefault()
+PASS   : TestPlotViewModel::plotTitleChange()
+PASS   : TestPlotViewModel::loadInvalidFile()
+PASS   : TestPlotViewModel::loadEmptyFile()
+PASS   : TestPlotViewModel::formatTimeZeroElapsed()
+PASS   : TestPlotViewModel::formatTimeDayBoundary()
+PASS   : TestPlotViewModel::formatTimeNegativeElapsed()
+PASS   : TestPlotViewModel::loadCsvHeaderOnly()
+PASS   : TestPlotViewModel::loadCsvMalformedRows()
+PASS   : TestPlotViewModel::cleanupTestCase()
+Totals: 20 passed, 0 failed, 0 skipped, 0 blacklisted, 9ms
+********* Finished testing of TestPlotViewModel *********
+********* Start testing of TestTimeExtractionWidget *********
+Config: Using QtTest library 6.10.2, Qt 6.10.2 (x86_64-little_endian-llp64 shared (dynamic) release build; by GCC 13.1.0), windows 11
+PASS   : TestTimeExtractionWidget::initTestCase()
+PASS   : TestTimeExtractionWidget::defaultExtractAllUnchecked()
+PASS   : TestTimeExtractionWidget::extractAllTimeToggle()
+PASS   : TestTimeExtractionWidget::sampleRateChange()
+PASS   : TestTimeExtractionWidget::fillTimesAndReadBack()
+PASS   : TestTimeExtractionWidget::clearTimesEmptiesFields()
+PASS   : TestTimeExtractionWidget::setAllEnabledDisablesFields()
+PASS   : TestTimeExtractionWidget::setSampleRateEnabledControl()
+PASS   : TestTimeExtractionWidget::sampleRateHasThreeOptions()
+PASS   : TestTimeExtractionWidget::cleanupTestCase()
+Totals: 10 passed, 0 failed, 0 skipped, 0 blacklisted, 3ms
+********* Finished testing of TestTimeExtractionWidget *********
+********* Start testing of TestReceiverGridWidget *********
+Config: Using QtTest library 6.10.2, Qt 6.10.2 (x86_64-little_endian-llp64 shared (dynamic) release build; by GCC 13.1.0), windows 11
+PASS   : TestReceiverGridWidget::initTestCase()
+PASS   : TestReceiverGridWidget::constructorCreatesWidget()
+PASS   : TestReceiverGridWidget::rebuildCreatesTreeItems()
+PASS   : TestReceiverGridWidget::setAllCheckedToggles()
+PASS   : TestReceiverGridWidget::selectAllSignalEmitted()
+PASS   : TestReceiverGridWidget::selectNoneSignalEmitted()
+PASS   : TestReceiverGridWidget::rebuildWithZeroReceivers()
+PASS   : TestReceiverGridWidget::rebuildWithOneReceiver()
+PASS   : TestReceiverGridWidget::cleanupTestCase()
+Totals: 9 passed, 0 failed, 0 skipped, 0 blacklisted, 9ms
+********* Finished testing of TestReceiverGridWidget *********

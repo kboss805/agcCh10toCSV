@@ -14,18 +14,20 @@
 
 #include "constants.h"
 
-int main(int argc, char *argv[])
+int main(int argc, char** argv)
 {
     QApplication a(argc, argv);
-    a.setOrganizationName(UIConstants::kOrganizationName);
-    a.setApplicationName(UIConstants::kApplicationName);
+    QCoreApplication::setOrganizationName(UIConstants::kOrganizationName);
+    QCoreApplication::setApplicationName(UIConstants::kApplicationName);
     QSettings::setDefaultFormat(QSettings::IniFormat);
 
     // Portable mode: if a "portable" marker file exists next to the executable,
     // redirect QSettings storage to the application directory instead of %APPDATA%.
     QString exe_dir = QCoreApplication::applicationDirPath();
     if (QFileInfo::exists(exe_dir + "/" + UIConstants::kPortableMarkerFilename))
+    {
         QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, exe_dir);
+    }
 
     QSettings app_settings;
     QString theme = app_settings.value(UIConstants::kSettingsKeyTheme, UIConstants::kThemeDark).toString();
@@ -41,9 +43,9 @@ int main(int argc, char *argv[])
         qss_file.close();
     }
 
-    a.setWindowIcon(QIcon(":/resources/icon.ico"));
+    QApplication::setWindowIcon(QIcon(":/resources/icon.ico"));
 
     MainView w;
     w.show();
-    return a.exec();
+    return QApplication::exec();
 }

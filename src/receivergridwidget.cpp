@@ -7,43 +7,120 @@
 
 #include <QString>
 
+#include "constants.h"
+
 ReceiverGridWidget::ReceiverGridWidget(QWidget* parent)
     : QWidget(parent),
+      m_layout(new QVBoxLayout),
       m_updating_externally(false)
 {
-    m_layout = new QVBoxLayout;
     m_layout->setContentsMargins(0, 0, 0, 0);
     m_layout->setSpacing(2);
     setLayout(m_layout);
     setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
 }
 
-void ReceiverGridWidget::rebuild(int receiver_count, int channels_per_receiver,
-                                 const std::function<QString(int)>& channel_prefix_fn,
-                                 const std::function<bool(int, int)>& checked_fn)
+void ReceiverGridWidget::clearLayout()
 {
-    // Clear existing contents
-    QLayoutItem* item;
+    QLayoutItem* item = nullptr;
     while ((item = m_layout->takeAt(0)) != nullptr)
     {
-        if (item->widget())
-            item->widget()->deleteLater();
-        if (item->layout())
+        if (item->widget() != nullptr)
         {
-            QLayoutItem* child;
+            item->widget()->deleteLater();
+        }
+        if (item->layout() != nullptr)
+        {
+            QLayoutItem* child = nullptr;
             while ((child = item->layout()->takeAt(0)) != nullptr)
             {
-                if (child->widget())
+                if (child->widget() != nullptr)
+                {
                     child->widget()->deleteLater();
+                }
                 delete child;
             }
         }
         delete item;
     }
     m_trees.clear();
+}
+
+QTreeWidget* ReceiverGridWidget::createColumnTree(
+    int start, int end, int per_column,
+    int channels_per_receiver,
+    const std::function<QString(int)>& channel_prefix_fn,
+    const std::function<bool(int, int)>& checked_fn)
+{
+    QTreeWidget* tree = new QTreeWidget;
+    tree->setHeaderHidden(true);
+    tree->setColumnCount(1);
+    tree->setRootIsDecorated(true);
+    tree->setAnimated(true);
+    tree->setIndentation(0);
+    tree->setFixedWidth(UIConstants::kTreeFixedWidth);
+    tree->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    tree->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    // Fixed height fits all collapsed receivers; scrollbar appears when expanded
+    tree->setFixedHeight((per_column * UIConstants::kTreeItemHeightFactor) + UIConstants::kTreeHeightBuffer);
+    tree->setStyleSheet("QTreeWidget { background: transparent; }");
+    tree->setAttribute(Qt::WA_TranslucentBackground);
+
+    for (int receiver_index = start; receiver_index < end; receiver_index++)
+    {
+        QTreeWidgetItem* receiver_item = new QTreeWidgetItem;
+        receiver_item->setText(0, "RCVR " + QString::number(receiver_index + 1));
+        receiver_item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsUserCheckable | Qt::ItemIsAutoTristate);
+        receiver_item->setData(0, Qt::UserRole, receiver_index);
+
+        for (int channel_index = 0; channel_index < channels_per_receiver; channel_index++)
+        {
+            QTreeWidgetItem* channel_item = new QTreeWidgetItem;
+            channel_item->setText(0, channel_prefix_fn(channel_index));
+            channel_item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsUserCheckable);
+            channel_item->setCheckState(0,
+                checked_fn(receiver_index, channel_index)
+                    ? Qt::Checked : Qt::Unchecked);
+            receiver_item->addChild(channel_item);
+        }
+
+        tree->addTopLevelItem(receiver_item);
+    }
+
+    tree->collapseAll();
+
+    connect(tree, &QTreeWidget::itemChanged,
+            this, &ReceiverGridWidget::onTreeItemChanged);
+
+    return tree;
+}
+
+void ReceiverGridWidget::syncScrollBars()
+{
+    if (m_trees.size() <= 1)
+    {
+        return;
+    }
+
+    QScrollBar* visible_bar = m_trees.last()->verticalScrollBar();
+    for (qsizetype i = 0; i < m_trees.size() - 1; i++)
+    {
+        m_trees[i]->verticalScrollBar()->setFixedWidth(0);
+        connect(visible_bar, &QScrollBar::valueChanged,
+                m_trees[i]->verticalScrollBar(), &QScrollBar::setValue);
+    }
+}
+
+void ReceiverGridWidget::rebuild(int receiver_count, int channels_per_receiver,
+                                 const std::function<QString(int)>& channel_prefix_fn,
+                                 const std::function<bool(int, int)>& checked_fn)
+{
+    clearLayout();
 
     if (receiver_count <= 0)
+    {
         return;
+    }
 
     // Button row: Expand All, Select All, Select None
     QHBoxLayout* btn_row = new QHBoxLayout;
@@ -76,48 +153,13 @@ void ReceiverGridWidget::rebuild(int receiver_count, int channels_per_receiver,
         int start = col * per_column;
         int end = qMin(start + per_column, receiver_count);
         if (start >= receiver_count)
-            break;
-
-        QTreeWidget* tree = new QTreeWidget;
-        tree->setHeaderHidden(true);
-        tree->setColumnCount(1);
-        tree->setRootIsDecorated(true);
-        tree->setAnimated(true);
-        tree->setIndentation(0);
-        tree->setFixedWidth(UIConstants::kTreeFixedWidth);
-        tree->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-        tree->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-        // Fixed height fits all collapsed receivers; scrollbar appears when expanded
-        tree->setFixedHeight(per_column * UIConstants::kTreeItemHeightFactor + UIConstants::kTreeHeightBuffer);
-        tree->setStyleSheet("QTreeWidget { background: transparent; }");
-        tree->setAttribute(Qt::WA_TranslucentBackground);
-
-        for (int receiver_index = start; receiver_index < end; receiver_index++)
         {
-            QTreeWidgetItem* receiver_item = new QTreeWidgetItem;
-            receiver_item->setText(0, "RCVR " + QString::number(receiver_index + 1));
-            receiver_item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsUserCheckable | Qt::ItemIsAutoTristate);
-            receiver_item->setData(0, Qt::UserRole, receiver_index);
-
-            for (int channel_index = 0; channel_index < channels_per_receiver; channel_index++)
-            {
-                QTreeWidgetItem* channel_item = new QTreeWidgetItem;
-                channel_item->setText(0, channel_prefix_fn(channel_index));
-                channel_item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsUserCheckable);
-                channel_item->setCheckState(0,
-                    checked_fn(receiver_index, channel_index)
-                        ? Qt::Checked : Qt::Unchecked);
-                receiver_item->addChild(channel_item);
-            }
-
-            tree->addTopLevelItem(receiver_item);
+            break;
         }
 
-        tree->collapseAll();
-
-        connect(tree, &QTreeWidget::itemChanged,
-                this, &ReceiverGridWidget::onTreeItemChanged);
-
+        QTreeWidget* tree = createColumnTree(start, end, per_column,
+                                             channels_per_receiver,
+                                             channel_prefix_fn, checked_fn);
         columns_layout->addWidget(tree);
         m_trees.append(tree);
     }
@@ -125,32 +167,32 @@ void ReceiverGridWidget::rebuild(int receiver_count, int channels_per_receiver,
     columns_layout->addStretch(1);
     m_layout->addLayout(columns_layout);
 
-    // Hide scrollbar on non-last columns; sync all from the visible one
-    if (m_trees.size() > 1)
-    {
-        QScrollBar* visible_bar = m_trees.last()->verticalScrollBar();
-        for (int i = 0; i < m_trees.size() - 1; i++)
-        {
-            m_trees[i]->verticalScrollBar()->setFixedWidth(0);
-            connect(visible_bar, &QScrollBar::valueChanged,
-                    m_trees[i]->verticalScrollBar(), &QScrollBar::setValue);
-        }
-    }
+    syncScrollBars();
 
     // Connect expand/collapse toggle
     connect(toggle_btn, &QPushButton::clicked, this, [this, toggle_btn]() {
         bool any_collapsed = false;
         for (QTreeWidget* t : m_trees)
+        {
             for (int i = 0; i < t->topLevelItemCount(); i++)
+            {
                 if (!t->topLevelItem(i)->isExpanded())
+                {
                     any_collapsed = true;
+                }
+            }
+        }
 
         for (QTreeWidget* t : m_trees)
         {
             if (any_collapsed)
+            {
                 t->expandAll();
+            }
             else
+            {
                 t->collapseAll();
+            }
         }
         toggle_btn->setText(any_collapsed ? "Collapse All" : "Expand All");
     });
@@ -177,12 +219,16 @@ void ReceiverGridWidget::setReceiverChecked(int receiver_index, int channel_inde
                 break;
             }
         }
-        if (target)
+        if (target != nullptr)
+        {
             break;
+        }
     }
 
-    if (!target || channel_index < 0 || channel_index >= target->childCount())
+    if (target == nullptr || channel_index < 0 || channel_index >= target->childCount())
+    {
         return;
+    }
 
     m_updating_externally = true;
     target_tree->blockSignals(true);
@@ -195,7 +241,9 @@ void ReceiverGridWidget::setReceiverChecked(int receiver_index, int channel_inde
 void ReceiverGridWidget::setAllEnabled(bool enabled)
 {
     for (QTreeWidget* tree : m_trees)
+    {
         tree->setEnabled(enabled);
+    }
 }
 
 void ReceiverGridWidget::setAllChecked(bool checked)
@@ -208,7 +256,9 @@ void ReceiverGridWidget::setAllChecked(bool checked)
         {
             QTreeWidgetItem* receiver_item = tree->topLevelItem(r);
             for (int c = 0; c < receiver_item->childCount(); c++)
+            {
                 receiver_item->child(c)->setCheckState(0, state);
+            }
         }
         tree->blockSignals(false);
     }
@@ -217,15 +267,21 @@ void ReceiverGridWidget::setAllChecked(bool checked)
 void ReceiverGridWidget::onTreeItemChanged(QTreeWidgetItem* item, int column)
 {
     if (column != 0)
+    {
         return;
+    }
     if (m_updating_externally)
+    {
         return;
+    }
 
     // Only forward leaf (channel) items.
     // Parent (receiver) items have their state managed by Qt::ItemIsAutoTristate.
     QTreeWidgetItem* parent = item->parent();
-    if (!parent)
+    if (parent == nullptr)
+    {
         return;
+    }
 
     int receiver_index = parent->data(0, Qt::UserRole).toInt();
     int channel_index = parent->indexOfChild(item);

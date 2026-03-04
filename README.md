@@ -30,6 +30,11 @@ This application reads IRIG 106 Chapter 10 (.ch10) files, extracts telemetry dat
 - **Pre-Process Summary**: Logs input file, channels, time range, sample rate, receiver count, and output path before processing
 - **Recent Files Menu**: File > Recent Files with up to 5 entries, persisted across sessions
 - **Clickable Log Links**: Output file path and "Open Folder" links in the log window after processing completes
+- **Batch Processing**: Multi-file selection and sequential queue-based batch processing with per-file channel selection, encoding detection, and color-coded status tracking
+- **AGC Signal Plot Window**: Interactive QCustomPlot chart with mouse wheel zoom, click-drag pan, auto-scale axes, per-receiver-channel visibility toggles, and auto-assigned color palette
+- **Plot PDF Export**: Export current plot to high-quality PDF file via QCustomPlot's built-in `savePdf()` method
+- **X-Axis Time Display**: Actual file time (DDD:HH:MM:SS) on the X axis instead of elapsed seconds
+- **Installer & Portable Distribution**: Inno Setup EXE installer with admin/non-admin support, portable ZIP with local settings, INI upgrade logic, and optional `.ch10` file association
 
 ## System Requirements
 
@@ -62,7 +67,7 @@ mingw32-make -f Makefile.Debug
 mingw32-make -f Makefile.Release
 
 # Run the application
-debug\agcCh10toCSV.exe
+debug\agcCH10toCSV.exe
 ```
 
 ### Using VS Code
@@ -120,7 +125,9 @@ agcCH10toCSV/
 │   ├── frameprocessor.cpp     # PCM frame extraction and CSV output (Model)
 │   ├── framesetup.cpp         # Frame configuration parameters (Model)
 │   ├── channeldata.cpp        # Channel metadata (Model)
-│   └── settingsmanager.cpp    # Settings persistence (Model)
+│   ├── settingsmanager.cpp    # Settings persistence (Model)
+│   ├── plotviewmodel.cpp      # Plot data parsing and axis management (ViewModel)
+│   └── plotwidget.cpp         # QCustomPlot chart widget (View)
 ├── include/                    # Header files
 │   ├── mainview.h
 │   ├── receivergridwidget.h
@@ -133,10 +140,15 @@ agcCH10toCSV/
 │   ├── channeldata.h
 │   ├── settingsmanager.h
 │   ├── settingsdata.h
+│   ├── batchfileinfo.h
+│   ├── plotviewmodel.h
+│   ├── plotwidget.h
 │   └── constants.h
 ├── lib/irig106/                # Third-party IRIG 106 library
 │   ├── src/                   # irig106utils C source files
 │   └── include/               # irig106utils C header files
+├── lib/qcustomplot/            # Third-party QCustomPlot 2.1.1 charting library
+├── deploy/                     # Build automation, installer, and release packaging
 ├── tests/                      # Qt Test framework unit tests
 ├── settings/                   # Default and user settings files
 ├── resources/                  # Resources (stylesheets, icons)
@@ -155,7 +167,7 @@ agcCH10toCSV/
 
 ## Credits
 
-This project incorporates code from the [irig106utils](https://github.com/atac/irig106utils) library for IRIG 106 Chapter 10 file handling.
+This project incorporates code from the [irig106utils](https://github.com/atac/irig106utils) library for IRIG 106 Chapter 10 file handling and [QCustomPlot](https://www.qcustomplot.com/) 2.1.1 for interactive charting.
 
 ## License
 

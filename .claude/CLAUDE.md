@@ -7,7 +7,7 @@ This file provides context and guidelines for AI assistants working on the agcCh
 - **Qt Version**: 6.10.2 (minimum: Qt 6.0.0)
 - **MinGW Version**: 13.1.0 (minimum: GCC/MinGW 7.0)
 - **C++ Standard**: C++17 (required — `inline constexpr` used throughout constants.h)
-- **Project Version**: 3.0.0 — defined in `AppVersion` struct in `include/constants.h`
+- **Project Version**: 3.1.1 — defined in `AppVersion` struct in `include/constants.h`
 
 - **Target Users:** Telemetry engineers and data analysts who need to convert RCC IRIG 106 chapter 10 formated files that include automatic gain control (AGC) signals information from telmetery receivers to comma separated values so AGC signals can be plotted and analyzed in capplications like Microsoft Excel or Matlab. 
 
@@ -223,6 +223,13 @@ This file provides context and guidelines for AI assistants working on the agcCh
 - ✅ Custom `TimeHackTicker` axis ticker with 10 major tick marks
 - ✅ `PlotViewModel::formatTime()` converts elapsed seconds to absolute time using base DOY/time
 - ✅ Batch mode plot support (plot per file or overlay)
+
+### v3.1.1 — Code Quality & Test Coverage
+- ✅ Clang-tidy efficiency improvements: removed unused variable, `NULL` → `nullptr` modernization (6 instances), `int` → `qsizetype` narrowing fixes (7 loops)
+- ✅ Simplified iterator loop to `QMap::keys()` in PlotWidget legend builder
+- ✅ TestFrameProcessor unit tests (17 test cases) — covers constructor, abort flag, `hasSyncPattern()`, `derandomizeBitstream()`, `writeTimeSample()`, `preScan()`, and `process()` with real Ch10 test files
+- ✅ TestTimeExtractionWidget unit tests (8 test cases) — covers defaults, signal emission, time population/clearing, enable/disable controls, sample rate options
+- ✅ TestReceiverGridWidget unit tests (7 test cases) — covers construction, rebuild, mass check/uncheck, Select All/None signal emission, edge cases (0 and 1 receivers)
 
 ## Future Version Functions
 
@@ -565,6 +572,9 @@ Automated unit tests use the **Qt Test** framework. Test sources are in the `tes
 - **TestSettingsManager** (`tst_settingsmanager`) — INI load/save validation (invalid FrameSync, Slope, Scale, Polarity, receiver counts, parameter count mismatch, roundtrip, frame setup preservation)
 - **TestMainViewModelBatch** (`tst_mainviewmodel_batch`) — Batch mode defaults, generateBatchOutputFilename format, batchStatusSummary, clearState/cancelProcessing batch reset, per-file channel setter bounds checking
 - **TestPlotViewModel** (`tst_plotviewmodel`) — PlotViewModel default state, CSV loading, time conversion, series color assignment, Y auto/manual range, X time window, series visibility, clear data, plot title, invalid/empty file handling
+- **TestFrameProcessor** (`tst_frameprocessor`) — FrameProcessor constructor, abort flag, private static helpers (hasSyncPattern, derandomizeBitstream, writeTimeSample), preScan with valid/invalid files and encodings, process with real Ch10 test data
+- **TestTimeExtractionWidget** (`tst_timeextractionwidget`) — Widget defaults, extractAllTime toggle, sampleRate setter/getter, fillTimes/clearTimes, enable/disable controls, sample rate options
+- **TestReceiverGridWidget** (`tst_receivergridwidget`) — Widget construction, rebuild with tree items, mass check/uncheck, Select All/Select None signal emission, zero and single receiver edge cases
 
 ### Running Tests
 ```bash

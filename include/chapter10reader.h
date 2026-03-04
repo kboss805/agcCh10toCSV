@@ -9,7 +9,8 @@
 #ifndef CHAPTER10READER_H
 #define CHAPTER10READER_H
 
-#include <time.h>
+#include <array>
+#include <vector>
 
 #include <QDateTime>
 #include <QMap>
@@ -19,10 +20,8 @@
 #include "irig106ch10.h"
 #include "i106_time.h"
 #include "i106_decode_tmats.h"
-#include "i106_decode_time.h"
 
 #include "channeldata.h"
-#include "constants.h"
 
 
 /**
@@ -37,8 +36,14 @@ class Chapter10Reader : public QObject
     Q_OBJECT
 
 public:
-    Chapter10Reader(QObject* parent = nullptr);
+    explicit Chapter10Reader(QObject* parent = nullptr);
     ~Chapter10Reader();
+
+    // Rule of 5: Delete copy/move operations to manage resources safely
+    Chapter10Reader(const Chapter10Reader&) = delete;
+    Chapter10Reader& operator=(const Chapter10Reader&) = delete;
+    Chapter10Reader(Chapter10Reader&&) = delete;
+    Chapter10Reader& operator=(Chapter10Reader&&) = delete;
 
     /**
      * @brief Opens a Chapter 10 file and synchronizes the time reference.
@@ -48,7 +53,7 @@ public:
     bool tryLoadingFile(const QString& filename);
 
     /// Closes the currently open Chapter 10 file and frees the read buffer.
-    void closeFile();
+    void closeFile() const;
 
     /// Resets channel lists and selection state.
     void clearSettings();
@@ -97,6 +102,7 @@ signals:
     void displayErrorMessage(const QString& message);
 
 public slots:
+
     /// Updates the selected time channel from a combo box index.
     void timeChannelChanged(int combobox_index);
     /// Updates the selected PCM channel from a combo box index.
@@ -104,21 +110,28 @@ public slots:
 
 private:
     /// Builds combo box display strings from a list of channel metadata.
-    QStringList buildChannelComboBoxList(const QList<ChannelData*>& channels) const;
+    static QStringList buildChannelComboBoxList(const QList<ChannelData*>& channels);
+    void processPacketTime(Irig106::SuI106Ch10Header& header, bool& found_start_time);
+    bool processTmatsPacket(Irig106::SuI106Ch10Header& header);
+    void finalizeTimeCalc();
+    void applyTmatsNames();
+    void inferChannelTypeFromHeader(int channel_id);
+    void categorizeChannels();
 
     Irig106::EnI106Status m_status;                             ///< Last irig106 API return status.
     QString m_filename;                                         ///< Path to the currently loaded file.
     int m_file_handle;                                          ///< irig106 file handle.
+
     Irig106::SuI106Ch10Header m_header;                         ///< Reusable packet header buffer.
-    unsigned char* m_buffer;                                    ///< Packet data read buffer.
-    unsigned long m_buffer_size;                                ///< Current allocated size of m_buffer.
-    Irig106::SuTmatsInfo m_tmats_info;                          ///< Parsed TMATS metadata.
-    unsigned char m_relative_start_time[6];                     ///< Relative time of first data packet.
-    unsigned char m_relative_stop_time[6];                      ///< Relative time of last data packet.
-    tm* m_file_start_time;                                      ///< Decoded calendar start time.
-    tm* m_file_stop_time;                                       ///< Decoded calendar stop time.
+    std::vector<unsigned char> m_buffer;                        ///< Packet data read buffer.
+    std::array<unsigned char, 6> m_relative_start_time;         ///< Relative time of first data packet.
+    std::array<unsigned char, 6> m_relative_stop_time;          ///< Relative time of last data packet.
+    tm m_file_start_time;                                       ///< Decoded calendar start time.
+    tm m_file_stop_time;                                        ///< Decoded calendar stop time.
+    bool m_times_loaded = false;                                ///< True if start/stop times have been decoded.
     uint64_t m_time_difference;                                 ///< Offset between DOY-based and IRIG absolute seconds.
     Irig106::SuIrig106Time m_irig_time;                         ///< Reusable IRIG time struct.
+    Irig106::SuTmatsInfo m_tmats_info;                          ///< TMATS info structure.
 
     QMap<int, ChannelData*> m_channel_data;  ///< All channels discovered in the file.
     QList<ChannelData*> m_time_channels;     ///< Subset of channels with type "TIMEIN".

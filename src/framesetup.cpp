@@ -13,11 +13,13 @@ const QStringList FrameSetup::kSettingsGroups = {
     "Defaults", "Frame", "Parameters", "Time", "Receivers", "Bounds"
 };
 
-QStringList FrameSetup::readGroupsInFileOrder(const QString& filename) const
+QStringList FrameSetup::readGroupsInFileOrder(const QString& filename)
 {
     QFile file(filename);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+    {
         return {};
+    }
 
     static const QRegularExpression sectionPattern(R"(^\[(.+)\]\s*$)");
     QStringList groups;
@@ -28,7 +30,9 @@ QStringList FrameSetup::readGroupsInFileOrder(const QString& filename) const
         QString line = in.readLine().trimmed();
         QRegularExpressionMatch match = sectionPattern.match(line);
         if (match.hasMatch())
+        {
             groups.append(match.captured(1));
+        }
     }
 
     return groups;
@@ -46,16 +50,22 @@ bool FrameSetup::tryLoadingFile(const QString& filename, int num_words_in_minor_
 
     QSettings settings(filename, QSettings::IniFormat);
     if (settings.status() != QSettings::NoError)
+    {
         return false;
+    }
 
     QStringList groups = readGroupsInFileOrder(filename);
     if (groups.isEmpty())
+    {
         return false;
+    }
 
     for (const QString& group : groups)
     {
         if (kSettingsGroups.contains(group))
+        {
             continue;
+        }
 
         settings.beginGroup(group);
 
@@ -65,7 +75,7 @@ bool FrameSetup::tryLoadingFile(const QString& filename, int num_words_in_minor_
             return false;
         }
 
-        bool word_ok;
+        bool word_ok = false;
         int parameter_word = settings.value("Word").toInt(&word_ok) - 1;
 
         if (!word_ok || parameter_word < 0 || parameter_word >= num_words_in_minor_frame - 1)
@@ -92,20 +102,24 @@ bool FrameSetup::tryLoadingFile(const QString& filename, int num_words_in_minor_
 
 int FrameSetup::length() const
 {
-    return m_parameters.size();
+    return static_cast<int>(m_parameters.size());
 }
 
 const ParameterInfo* FrameSetup::getParameter(int i) const
 {
     if (i < 0 || i >= m_parameters.size())
+    {
         return nullptr;
+    }
     return &(m_parameters[i]);
 }
 
 ParameterInfo* FrameSetup::getParameter(int i)
 {
     if (i < 0 || i >= m_parameters.size())
+    {
         return nullptr;
+    }
     return &(m_parameters[i]);
 }
 

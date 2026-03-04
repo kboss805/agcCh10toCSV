@@ -47,7 +47,7 @@ void SettingsManager::loadFile(const QString& filename)
 
     // --- Parameters ---
     loaded_settings.beginGroup("Parameters");
-    bool polarity_ok;
+    bool polarity_ok = false;
     data.polarityIndex = loaded_settings.value("Polarity").toInt(&polarity_ok);
     if (!polarity_ok || data.polarityIndex < 0 || data.polarityIndex > UIConstants::kMaxPolarityIndex)
     {
@@ -56,7 +56,7 @@ void SettingsManager::loadFile(const QString& filename)
         data.polarityIndex = UIConstants::kDefaultPolarityIndex;
     }
 
-    bool slope_ok;
+    bool slope_ok = false;
     data.slopeIndex = loaded_settings.value("Slope").toInt(&slope_ok);
     if (!slope_ok || data.slopeIndex < 0 || data.slopeIndex > UIConstants::kMaxSlopeIndex)
     {
@@ -65,7 +65,7 @@ void SettingsManager::loadFile(const QString& filename)
         data.slopeIndex = UIConstants::kDefaultSlopeIndex;
     }
 
-    bool scale_ok;
+    bool scale_ok = false;
     data.scale = loaded_settings.value("Scale").toString().trimmed();
     double scale_value = data.scale.toDouble(&scale_ok);
     if (!scale_ok || scale_value <= 0)
@@ -78,7 +78,8 @@ void SettingsManager::loadFile(const QString& filename)
 
     // --- Receivers ---
     loaded_settings.beginGroup("Receivers");
-    bool count_ok, channels_ok;
+    bool count_ok = false;
+    bool channels_ok = false;
     data.receiverCount = loaded_settings.value("Count").toInt(&count_ok);
     if (!count_ok || data.receiverCount < UIConstants::kMinReceiverCount ||
         data.receiverCount > UIConstants::kMaxReceiverCount)
@@ -117,7 +118,7 @@ void SettingsManager::loadFile(const QString& filename)
     // --- Time ---
     loaded_settings.beginGroup("Time");
     data.extractAllTime = loaded_settings.value("ExtractAllTime").toBool();
-    bool rate_ok;
+    bool rate_ok = false;
     data.sampleRateIndex = loaded_settings.value("SampleRate").toInt(&rate_ok);
     if (!rate_ok || data.sampleRateIndex < 0 || data.sampleRateIndex > UIConstants::kMaxSampleRateIndex)
     {
@@ -135,8 +136,8 @@ void SettingsManager::loadFile(const QString& filename)
                     ", Channels=" + QString::number(data.channelsPerReceiver) +
                     ", SampleRate=" + QString(UIConstants::kSampleRateLabels[data.sampleRateIndex]));
     emit logMessage("  Total parameters=" + QString::number(data.receiverCount * data.channelsPerReceiver) +
-                    ", Frame=" + QString::number(data.receiverCount * data.channelsPerReceiver * PCMConstants::kCommonWordLen +
-                                                  data.frameSync.length() * 4) + " bits");
+                    ", Frame=" + QString::number((static_cast<qsizetype>(data.receiverCount * data.channelsPerReceiver) * PCMConstants::kCommonWordLen) +
+                                                  (data.frameSync.length() * 4)) + " bits");
 
     // Count parameter sections in the INI file (groups with a "Word" key, excluding reserved groups)
     static const QStringList reserved_groups = {"Defaults", "Frame", "Parameters", "Time", "Receivers", "Bounds"};
@@ -144,10 +145,14 @@ void SettingsManager::loadFile(const QString& filename)
     for (const QString& group : loaded_settings.childGroups())
     {
         if (reserved_groups.contains(group))
+        {
             continue;
+        }
         loaded_settings.beginGroup(group);
         if (loaded_settings.contains("Word"))
+        {
             ini_param_count++;
+        }
         loaded_settings.endGroup();
     }
 

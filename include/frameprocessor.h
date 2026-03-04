@@ -16,8 +16,6 @@
 #include "irig106ch10.h"
 #include "i106_time.h"
 #include "i106_decode_tmats.h"
-#include "i106_decode_pcmf1.h"
-#include "i106_decode_time.h"
 
 #include "constants.h"
 
@@ -29,7 +27,7 @@ struct ParameterInfo;
  *
  * Mirrors the irig106utils Hungarian-notation style.
  */
-typedef struct _SuChanInfo
+typedef struct SuChanInfo
 {
     uint16_t                uChID;              ///< Channel identifier.
     int                     bEnabled;           ///< Non-zero if channel is enabled.
@@ -46,10 +44,18 @@ typedef struct _SuChanInfo
 class FrameProcessor : public QObject
 {
     Q_OBJECT
+    friend class TestFrameProcessor;
 
 public:
     explicit FrameProcessor(QObject* parent = nullptr);
     ~FrameProcessor();
+
+    FrameProcessor(const FrameProcessor&) = delete;
+    FrameProcessor& operator=(const FrameProcessor&) = delete;
+    FrameProcessor(FrameProcessor&&) = delete;
+    FrameProcessor& operator=(FrameProcessor&&) = delete;
+
+
 
     /**
      * @brief Extracts AGC samples from a Chapter 10 file and writes CSV output.
@@ -70,6 +76,7 @@ public:
      * @param[in] start_seconds         Start of the extraction window (IRIG seconds).
      * @param[in] stop_seconds          End of the extraction window (IRIG seconds).
      * @param[in] sample_rate           Output sample rate in Hz.
+     * @param[in] is_randomized         True if RNRZ-L encoding detected by preScan().
      * @return true if processing completed without errors.
      */
     bool process(const QString& filename,
@@ -83,7 +90,8 @@ public:
                  int bits_in_minor_frame,
                  uint64_t start_seconds,
                  uint64_t stop_seconds,
-                 int sample_rate);
+                 int sample_rate,
+                 bool is_randomized);
 
     /// Requests a cooperative abort of the current processing run.
     void requestAbort();
@@ -102,6 +110,7 @@ public:
      * @param[in] sync_pattern_len Sync pattern length in bits.
      * @param[in] words_in_minor_frame Words per PCM minor frame (data words + 1).
      * @param[in] bits_in_minor_frame  Total bits per PCM minor frame.
+     * @param[out] is_randomized       Set to true if RNRZ-L encoding is detected.
      * @param[in] max_packets      Maximum number of PCM packets to scan.
      * @return true if at least one sync pattern was found.
      */
@@ -111,6 +120,7 @@ public:
                  int sync_pattern_len,
                  int words_in_minor_frame,
                  int bits_in_minor_frame,
+                 bool& is_randomized,
                  int max_packets = PCMConstants::kPreScanMaxPackets);
 
 signals:
@@ -134,29 +144,26 @@ private:
     /// @name File I/O helpers
     /// @{
     bool openFile(const QString& filename);
-    void closeFile();
+    void closeFile() const;
     /// @}
 
     /// @name irig106 C helper wrappers
     /// @{
     /**
      * @brief Deallocates the per-channel info table and associated attributes.
-     * @param[in,out] channel_info Array of SuChanInfo pointers to free.
-     * @param[in]     max_channels Length of the channel_info array.
+     * @param[in,out] channel_info Vector of SuChanInfo pointers to free.
      */
-    void freeChanInfoTable(SuChanInfo* channel_info[], int max_channels);
+    static void freeChanInfoTable(std::vector<SuChanInfo*>& channel_info);
 
     /**
      * @brief Builds per-channel attribute structures from TMATS metadata.
      * @param[in]     tmats_info    Parsed TMATS metadata.
-     * @param[in,out] channel_info  Array of SuChanInfo pointers to populate.
-     * @param[in]     max_channels  Length of the channel_info array.
+     * @param[in,out] channel_info  Vector of SuChanInfo pointers to populate.
      * @return I106_OK on success.
      */
-    Irig106::EnI106Status assembleAttributesFromTMATS(
+    static Irig106::EnI106Status assembleAttributesFromTMATS(
         Irig106::SuTmatsInfo* tmats_info,
-        SuChanInfo* channel_info[],
-        int max_channels);
+        std::vector<SuChanInfo*>& channel_info);
     /// @}
 
     /// @name PCM bit-level helpers
@@ -167,7 +174,7 @@ private:
      * @param[in]     total_bits Number of valid bits in the buffer.
      * @param[in,out] lfsr       15-bit LFSR state carried across packets.
      */
-    void derandomizeBitstream(uint8_t* data, uint64_t total_bits, uint16_t& lfsr);
+    static void derandomizeBitstream(uint8_t* data, uint64_t total_bits, uint16_t& lfsr);
 
     /**
      * @brief Scans a bitstream for the first occurrence of a sync pattern.
@@ -178,9 +185,9 @@ private:
      * @param[in] sync_pat_len Sync pattern length in bits.
      * @return true if the pattern was found.
      */
-    bool hasSyncPattern(const uint8_t* data, uint64_t total_bits,
-                        uint64_t sync_pat, uint64_t sync_mask,
-                        uint32_t sync_pat_len) const;
+    static bool hasSyncPattern(const uint8_t* data, uint64_t total_bits,
+                               uint64_t sync_pat, uint64_t sync_mask,
+                               uint32_t sync_pat_len);
     /// @}
 
     /**
@@ -190,18 +197,17 @@ private:
      * @param[in]     n_samples           Number of raw samples to average.
      * @param[in]     enabled_params      Parameter definitions for column output.
      */
-    void writeTimeSample(std::ofstream& output,
-                         double current_time_sample,
-                         int n_samples,
-                         const std::vector<ParameterInfo*>& enabled_params);
+    static void writeTimeSample(std::ofstream& output,
+                                double current_time_sample,
+                                int n_samples,
+                                const std::vector<ParameterInfo*>& enabled_params);
 
     Irig106::EnI106Status m_status;                             ///< Last irig106 API return status.
     int m_file_handle;                                          ///< irig106 file handle.
     Irig106::SuI106Ch10Header m_header;                         ///< Reusable packet header buffer.
-    unsigned char* m_buffer;                                    ///< Packet data read buffer.
-    unsigned long m_buffer_size;                                ///< Current allocated size of m_buffer.
+    std::vector<unsigned char> m_buffer;                        ///< Packet data read buffer.
     Irig106::SuTmatsInfo m_tmats_info;                          ///< Parsed TMATS metadata.
-    SuChanInfo* m_channel_info[PCMConstants::kMaxChannelCount];  ///< Per-channel attribute table.
+    std::vector<SuChanInfo*> m_channel_info;                    ///< Per-channel attribute table.
     Irig106::SuIrig106Time m_irig_time;                         ///< Reusable IRIG time struct.
     int64_t m_total_file_size;                                  ///< Input file size in bytes (for progress).
     std::atomic<bool> m_abort_requested;                         ///< Thread-safe abort flag.

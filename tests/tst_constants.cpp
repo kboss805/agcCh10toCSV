@@ -121,13 +121,13 @@ void TestConstants::uiButtonText()
 void TestConstants::appVersionValues()
 {
     QCOMPARE(AppVersion::kMajor, 3);
-    QCOMPARE(AppVersion::kMinor, 0);
-    QCOMPARE(AppVersion::kPatch, 0);
+    QCOMPARE(AppVersion::kMinor, 1);
+    QCOMPARE(AppVersion::kPatch, 1);
 }
 
 void TestConstants::appVersionToString()
 {
-    QCOMPARE(AppVersion::toString(), QString("3.0.0"));
+    QCOMPARE(AppVersion::toString(), QString("3.1.2"));
 }
 
 void TestConstants::pcmMaxRawSampleValue()
@@ -220,8 +220,23 @@ void TestConstants::plotConstants()
     QCOMPARE(PlotConstants::kAxisMarginFactor, 0.05);
     QCOMPARE(QString(PlotConstants::kDefaultPlotTitle), QString("AGC Signal Plot"));
     QCOMPARE(QString(PlotConstants::kYAxisLabel), QString("Amplitude (dB)"));
-    QCOMPARE(QString(PlotConstants::kXAxisLabel), QString("Time (s)"));
+    QCOMPARE(QString(PlotConstants::kXAxisLabel), QString("Time (DDD:HH:MM:SS)"));
     QCOMPARE(PlotConstants::kZoomFactor, 0.1);
     QCOMPARE(PlotConstants::kNumReceiverColors, 10);
     QCOMPARE(QString(UIConstants::kSettingsKeyPlotVisible), QString("PlotVisible"));
+
+    // Theme colors
+    QCOMPARE(PlotConstants::kDarkBackground, QColor(32, 32, 32));
+    QCOMPARE(PlotConstants::kLightBackground, QColor(255, 255, 255));
+    QCOMPARE(PlotConstants::kDarkForeground, QColor(220, 220, 220));
+    QCOMPARE(PlotConstants::kLightForeground, QColor(30, 30, 30));
+    QCOMPARE(PlotConstants::kDarkGridColor, QColor(60, 60, 60));
+    QCOMPARE(PlotConstants::kLightGridColor, QColor(200, 200, 200));
+
+    // Plot widget parameters
+    QCOMPARE(PlotConstants::kTickCount, 10);
+    QCOMPARE(PlotConstants::kGraphPenWidth, 1.5);
+    QCOMPARE(PlotConstants::kTitleFontSize, 10);
+    QCOMPARE(PlotConstants::kSpinBoxMaxRange, 1e9);
+    QCOMPARE(PlotConstants::kYSpinBoxMax, 999.0);
 }

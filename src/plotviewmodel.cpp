@@ -24,21 +24,27 @@ bool PlotViewModel::loadCsvFile(const QString& filepath)
 {
     QFile file(filepath);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+    {
         return false;
+    }
 
     QTextStream stream(&file);
 
     // Parse header line: "Day,Time,param1,param2,..."
     QString header_line = stream.readLine();
     if (header_line.isEmpty())
+    {
         return false;
+    }
 
     QStringList columns = header_line.split(',');
     if (columns.size() < 3)
+    {
         return false;
+    }
 
     // Build series list from columns 2..N (skip Day, Time)
-    int param_count = columns.size() - 2;
+    int param_count = static_cast<int>(columns.size() - 2);
     QVector<PlotSeriesData> series(param_count);
 
     // Count channels per receiver for shade assignment
@@ -50,7 +56,7 @@ bool PlotViewModel::loadCsvFile(const QString& filepath)
         s.name = columns[i + 2].trimmed();
 
         // Extract receiver index from "_RCVR<N>" suffix
-        int rcvr_pos = s.name.lastIndexOf("_RCVR");
+        int rcvr_pos = static_cast<int>(s.name.lastIndexOf("_RCVR"));
         if (rcvr_pos >= 0)
         {
             bool ok = false;
@@ -63,9 +69,11 @@ bool PlotViewModel::loadCsvFile(const QString& filepath)
     }
 
     // Estimate row count from remaining file size for pre-allocation
+    constexpr int kBytesPerRowEstimate = 20;
+    constexpr int kMinRowsEstimate = 100;
     qint64 remaining_bytes = file.size() - stream.pos();
-    int estimated_rows = static_cast<int>(remaining_bytes / (param_count * 8 + 20));
-    if (estimated_rows < 100) estimated_rows = 100;
+    int estimated_rows = static_cast<int>(remaining_bytes / (param_count * 8 + kBytesPerRowEstimate));
+    estimated_rows = std::max(estimated_rows, kMinRowsEstimate);
     for (int i = 0; i < param_count; i++)
     {
         series[i].xValues.reserve(estimated_rows);
@@ -73,47 +81,7 @@ bool PlotViewModel::loadCsvFile(const QString& filepath)
     }
 
     // Parse data rows
-    double first_time = -1.0;
-    int first_day = 0;
-
-    while (!stream.atEnd())
-    {
-        QString line = stream.readLine();
-        if (line.isEmpty())
-            continue;
-
-        QStringList fields = line.split(',');
-        if (fields.size() < param_count + 2)
-            continue;
-
-        int day = fields[0].toInt();
-        double time_seconds = parseTimeToSeconds(fields[1]);
-
-        // Convert DOY + time to elapsed seconds from first sample
-        if (first_time < 0.0)
-        {
-            first_day = day;
-            first_time = time_seconds;
-            m_base_day = day;
-            m_base_time_offset = time_seconds;
-        }
-
-        double elapsed = (day - first_day) * UIConstants::kSecondsPerDay
-                         + (time_seconds - first_time);
-
-        for (int i = 0; i < param_count; i++)
-        {
-            bool ok = false;
-            double value = fields[i + 2].toDouble(&ok);
-            if (ok)
-            {
-                series[i].xValues.append(elapsed);
-                series[i].yValues.append(value);
-                if (value < series[i].yMinCached) series[i].yMinCached = value;
-                if (value > series[i].yMaxCached) series[i].yMaxCached = value;
-            }
-        }
-    }
+    parseCsvDataRows(stream, param_count, series);
 
     file.close();
 
@@ -129,7 +97,9 @@ bool PlotViewModel::loadCsvFile(const QString& filepath)
     }
 
     if (!has_any_data)
+    {
         return false;
+    }
 
     m_series = std::move(series);
 
@@ -139,7 +109,9 @@ bool PlotViewModel::loadCsvFile(const QString& filepath)
     for (const auto& s : m_series)
     {
         if (!s.xValues.isEmpty() && s.xValues.last() > m_x_max)
+        {
             m_x_max = s.xValues.last();
+        }
     }
     m_x_view_min = m_x_min;
     m_x_view_max = m_x_max;
@@ -149,6 +121,55 @@ bool PlotViewModel::loadCsvFile(const QString& filepath)
 
     emit dataChanged();
     return true;
+}
+
+void PlotViewModel::parseCsvDataRows(QTextStream& stream, int param_count, QVector<PlotSeriesData>& series)
+{
+    double first_time = -1.0;
+    int first_day = 0;
+
+    while (!stream.atEnd())
+    {
+        QString line = stream.readLine();
+        if (line.isEmpty())
+        {
+            continue;
+        }
+
+        QStringList fields = line.split(',');
+        if (fields.size() < param_count + 2)
+        {
+            continue;
+        }
+
+        int day = fields[0].toInt();
+        double time_seconds = parseTimeToSeconds(fields[1]);
+
+        // Convert DOY + time to elapsed seconds from first sample
+        if (first_time < 0.0)
+        {
+            first_day = day;
+            first_time = time_seconds;
+            m_base_day = day;
+            m_base_time_offset = time_seconds;
+        }
+
+        double elapsed = ((day - first_day) * UIConstants::kSecondsPerDay)
+                         + (time_seconds - first_time);
+
+        for (int i = 0; i < param_count; i++)
+        {
+            bool ok = false;
+            double value = fields[i + 2].toDouble(&ok);
+            if (ok)
+            {
+                series[i].xValues.append(elapsed);
+                series[i].yValues.append(value);
+                series[i].yMinCached = std::min(series[i].yMinCached, value);
+                series[i].yMaxCached = std::max(series[i].yMaxCached, value);
+            }
+        }
+    }
 }
 
 void PlotViewModel::clearData()
@@ -171,7 +192,7 @@ bool PlotViewModel::hasData() const
 
 int PlotViewModel::seriesCount() const
 {
-    return m_series.size();
+    return static_cast<int>(m_series.size());
 }
 
 const PlotSeriesData& PlotViewModel::seriesAt(int index) const
@@ -237,9 +258,13 @@ double PlotViewModel::xViewMax() const
 void PlotViewModel::setSeriesVisible(int index, bool visible)
 {
     if (index < 0 || index >= m_series.size())
+    {
         return;
+    }
     if (m_series[index].visible == visible)
+    {
         return;
+    }
 
     m_series[index].visible = visible;
     emit seriesVisibilityChanged(index);
@@ -254,7 +279,9 @@ void PlotViewModel::setSeriesVisible(int index, bool visible)
 void PlotViewModel::setPlotTitle(const QString& title)
 {
     if (m_plot_title == title)
+    {
         return;
+    }
     m_plot_title = title;
     emit plotTitleChanged();
 }
@@ -270,10 +297,14 @@ void PlotViewModel::setYManualRange(double min, double max)
 void PlotViewModel::setYAutoScale(bool enabled)
 {
     if (m_y_auto_scale == enabled)
+    {
         return;
+    }
     m_y_auto_scale = enabled;
     if (enabled)
+    {
         computeYRange();
+    }
     emit axisRangeChanged();
 }
 
@@ -303,19 +334,25 @@ void PlotViewModel::assignColors()
     for (auto& s : m_series)
     {
         int color_idx = (s.receiverIndex - 1) % PlotConstants::kNumReceiverColors;
-        if (color_idx < 0) color_idx = 0;
+        color_idx = std::max(0, color_idx);
 
         QColor base = PlotConstants::kReceiverColors[color_idx];
 
         // Vary saturation for channels within the same receiver
         if (s.channelIndex > 0)
         {
-            int h, sat, val;
+            int h = 0;
+            int sat = 0;
+            int val = 0;
             base.getHsv(&h, &sat, &val);
             // Reduce saturation by 25% per subsequent channel, minimum 40
-            sat = std::max(40, sat - s.channelIndex * 60);
+            constexpr int kMinSaturation = 40;
+            constexpr int kSaturationStep = 60;
+            sat = std::max(kMinSaturation, sat - (s.channelIndex * kSaturationStep));
             // Increase value slightly for lighter shade
-            val = std::min(255, val + s.channelIndex * 20);
+            constexpr int kMaxValue = 255;
+            constexpr int kValueStep = 20;
+            val = std::min(kMaxValue, val + (s.channelIndex * kValueStep));
             base.setHsv(h, sat, val);
         }
 
@@ -332,11 +369,13 @@ void PlotViewModel::computeYRange()
     for (const auto& s : m_series)
     {
         if (!s.visible || s.yValues.isEmpty())
+        {
             continue;
+        }
 
         has_visible = true;
-        if (s.yMinCached < y_min) y_min = s.yMinCached;
-        if (s.yMaxCached > y_max) y_max = s.yMaxCached;
+        y_min = std::min(y_min, s.yMinCached);
+        y_max = std::max(y_max, s.yMaxCached);
     }
 
     if (!has_visible)
@@ -347,10 +386,13 @@ void PlotViewModel::computeYRange()
     }
 
     // Round to nearest 5 dB, clip min at 0
-    m_data_y_min = std::max(0.0, std::floor(y_min / 5.0) * 5.0);
-    m_data_y_max = std::ceil(y_max / 5.0) * 5.0;
+    constexpr double kRoundingStep = 5.0;
+    m_data_y_min = std::max(0.0, std::floor(y_min / kRoundingStep) * kRoundingStep);
+    m_data_y_max = std::ceil(y_max / kRoundingStep) * kRoundingStep;
     if (m_data_y_max <= m_data_y_min)
-        m_data_y_max = m_data_y_min + 5.0;
+    {
+        m_data_y_max = m_data_y_min + kRoundingStep;
+    }
 }
 
 double PlotViewModel::parseTimeToSeconds(const QString& time_str)
@@ -358,7 +400,9 @@ double PlotViewModel::parseTimeToSeconds(const QString& time_str)
     // Format: "HH:MM:SS.mmm"
     QStringList parts = time_str.split(':');
     if (parts.size() != 3)
+    {
         return 0.0;
+    }
 
     int hours = parts[0].toInt();
     int minutes = parts[1].toInt();
@@ -366,8 +410,8 @@ double PlotViewModel::parseTimeToSeconds(const QString& time_str)
     // Seconds may include milliseconds: "SS.mmm"
     double seconds = parts[2].toDouble();
 
-    return hours * UIConstants::kSecondsPerHour
-           + minutes * UIConstants::kSecondsPerMinute
+    return (hours * UIConstants::kSecondsPerHour)
+           + (minutes * UIConstants::kSecondsPerMinute)
            + seconds;
 }
 
@@ -380,15 +424,20 @@ QString PlotViewModel::formatTime(double elapsed) const
 
     int day = m_base_day + static_cast<int>(total / UIConstants::kSecondsPerDay);
     total = std::fmod(total, static_cast<double>(UIConstants::kSecondsPerDay));
-    if (total < 0.0) { total += UIConstants::kSecondsPerDay; day--; }
+    if (total < 0.0)
+    {
+        total += UIConstants::kSecondsPerDay;
+        day--;
+    }
 
     int hours   = static_cast<int>(total) / UIConstants::kSecondsPerHour;
     int minutes = (static_cast<int>(total) % UIConstants::kSecondsPerHour) / UIConstants::kSecondsPerMinute;
     int seconds = static_cast<int>(total) % UIConstants::kSecondsPerMinute;
 
+    constexpr int kBase10 = 10;
     return QString("%1:%2:%3:%4")
-        .arg(day, 3, 10, QChar('0'))
-        .arg(hours, 2, 10, QChar('0'))
-        .arg(minutes, 2, 10, QChar('0'))
-        .arg(seconds, 2, 10, QChar('0'));
+        .arg(day, 3, kBase10, QChar('0'))
+        .arg(hours, 2, kBase10, QChar('0'))
+        .arg(minutes, 2, kBase10, QChar('0'))
+        .arg(seconds, 2, kBase10, QChar('0'));
 }

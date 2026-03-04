@@ -28,9 +28,8 @@
 
 MainView::MainView(QWidget *parent)
     : QMainWindow(parent)
+    , m_view_model(new MainViewModel(this))
 {
-    m_view_model = new MainViewModel(this);
-
     setAcceptDrops(true);
 
     setUpMainLayout();
@@ -38,9 +37,12 @@ MainView::MainView(QWidget *parent)
     QSettings app_settings;
     m_last_ch10_dir = app_settings.value(UIConstants::kSettingsKeyLastCh10Dir).toString();
     if (m_last_ch10_dir.isEmpty())
+    {
         m_last_ch10_dir = QCoreApplication::applicationDirPath();
+    }
     m_last_csv_dir  = app_settings.value(UIConstants::kSettingsKeyLastCsvDir).toString();
     m_last_batch_output_dir = app_settings.value(UIConstants::kSettingsKeyLastBatchDir).toString();
+
 
     setUpConnections();
     m_view_model->logStartupInfo();
@@ -70,7 +72,7 @@ void MainView::setUpMainLayout()
 {
     m_controls_layout = new QVBoxLayout;
     m_controls_layout->setSpacing(0);
-    m_controls_layout->setContentsMargins(2, 8, 16, 8);
+    m_controls_layout->setContentsMargins(2, UIConstants::kLayoutSpacingSmall, UIConstants::kLayoutSpacingLarge, UIConstants::kLayoutSpacingSmall);
 
     // set up constituent parts
     setUpMenuBar();
@@ -79,21 +81,21 @@ void MainView::setUpMainLayout()
     m_receiver_grid->rebuild(
         m_view_model->receiverCount(),
         m_view_model->channelsPerReceiver(),
-        [this](int i) { return m_view_model->channelPrefix(i); },
+        [](int i) { return MainViewModel::channelPrefix(i); },
         [this](int r, int c) { return m_view_model->receiverChecked(r, c); });
 
     m_time_widget = new TimeExtractionWidget;
 
     m_progress_bar = new QProgressBar;
     m_progress_bar->setMinimum(0);
-    m_progress_bar->setMaximum(100);
+    m_progress_bar->setMaximum(UIConstants::kProgressBarMax);
     m_progress_bar->setValue(0);
 
     m_settings_tree = new QTreeWidget;
     m_settings_tree->setHeaderHidden(true);
     m_settings_tree->setColumnCount(2);
     m_settings_tree->setRootIsDecorated(true);
-    m_settings_tree->setIndentation(12);
+    m_settings_tree->setIndentation(UIConstants::kTreeIndentation);
     m_settings_tree->setSelectionMode(QAbstractItemView::NoSelection);
     m_settings_tree->setFocusPolicy(Qt::NoFocus);
     m_settings_tree->setAnimated(true);
@@ -108,7 +110,7 @@ void MainView::setUpMainLayout()
 
     connect(m_settings_tree, &QTreeWidget::itemExpanded, this, [this, row_h, frame_h](QTreeWidgetItem* item) {
         int total_rows = 1 + item->childCount();
-        m_settings_tree->setFixedHeight(total_rows * row_h + frame_h);
+        m_settings_tree->setFixedHeight((total_rows * row_h) + frame_h);
     });
     connect(m_settings_tree, &QTreeWidget::itemCollapsed, this, [this, collapsed_h]() {
         m_settings_tree->setFixedHeight(collapsed_h);
@@ -146,13 +148,13 @@ void MainView::setUpMainLayout()
     m_plot_widget->initReceiverLegend(
         m_view_model->receiverCount(),
         m_view_model->channelsPerReceiver(),
-        [this](int i) { return m_view_model->channelPrefix(i); });
+        [](int i) { return MainViewModel::channelPrefix(i); });
 
     // Wrap plot in a layout with a vertical separator on the left
     QWidget* central_wrapper = new QWidget;
     QHBoxLayout* central_layout = new QHBoxLayout(central_wrapper);
     central_layout->setContentsMargins(0, 0, 0, 0);
-    central_layout->setSpacing(16);
+    central_layout->setSpacing(UIConstants::kLayoutSpacingLarge);
 
     QFrame* vsep = new QFrame;
     vsep->setFrameShape(QFrame::VLine);
@@ -165,7 +167,7 @@ void MainView::setUpMainLayout()
     // Log as standalone dialog window
     m_log_dialog = new QDialog(this);
     m_log_dialog->setWindowTitle("Log");
-    m_log_dialog->resize(600, 400);
+    m_log_dialog->resize(UIConstants::kLogDialogWidth, UIConstants::kLogDialogHeight);
     m_log_window = new QTextBrowser;
     m_log_window->setReadOnly(true);
     m_log_window->setOpenLinks(false);
@@ -239,7 +241,8 @@ void MainView::setUpMenuBar()
         QMessageBox about_box(this);
         about_box.setWindowTitle("About");
         about_box.setIconPixmap(QPixmap(":/resources/icon.ico").scaled(
-            64, 64, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+            UIConstants::kAboutIconSize, UIConstants::kAboutIconSize,
+            Qt::KeepAspectRatio, Qt::SmoothTransformation));
         about_box.setText(
             "<h3>Chapter 10 to CSV AGC Converter</h3>"
             "<p>Version " + AppVersion::toString() + "</p>"
@@ -253,7 +256,7 @@ void MainView::setUpMenuBar()
     m_toolbar->setMovable(false);
     m_toolbar->setFloatable(false);
     m_toolbar->setToolButtonStyle(Qt::ToolButtonIconOnly);
-    m_toolbar->setIconSize(QSize(24, 24));
+    m_toolbar->setIconSize(QSize(UIConstants::kToolbarIconSize, UIConstants::kToolbarIconSize));
 
     m_toolbar_open_action = m_toolbar->addAction(
         QIcon(":/resources/folder-open.svg"), "Open Ch10 File");
@@ -304,7 +307,7 @@ void MainView::setUpFileList()
     m_file_list->setColumnCount(3);
     m_file_list->setRootIsDecorated(true);
     m_file_list->setAnimated(true);
-    m_file_list->setIndentation(12);
+    m_file_list->setIndentation(UIConstants::kTreeIndentation);
     m_file_list->setFixedHeight(UIConstants::kBatchFileListHeight);
     m_file_list->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_file_list->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
@@ -354,10 +357,14 @@ void MainView::setUpConnections()
     connect(m_view_model, &MainViewModel::batchFileUpdated, this, [this](int fileIndex) {
         // Update just the status cell for the affected file — no full tree rebuild
         if (m_file_list->topLevelItemCount() == 0)
+        {
             return;
+        }
         QTreeWidgetItem* root = m_file_list->topLevelItem(0);
         if (fileIndex < 0 || fileIndex >= root->childCount())
+        {
             return;
+        }
         QTreeWidgetItem* file_item = root->child(fileIndex);
         const QVector<BatchFileInfo>& files = m_view_model->batchFiles();
         const BatchFileInfo& info = files[fileIndex];
@@ -397,12 +404,13 @@ void MainView::setUpConnections()
         m_receiver_grid->rebuild(
             m_view_model->receiverCount(),
             m_view_model->channelsPerReceiver(),
-            [this](int i) { return m_view_model->channelPrefix(i); },
+            [](int i) { return MainViewModel::channelPrefix(i); },
             [this](int r, int c) { return m_view_model->receiverChecked(r, c); });
         m_plot_widget->initReceiverLegend(
             m_view_model->receiverCount(),
             m_view_model->channelsPerReceiver(),
-            [this](int i) { return m_view_model->channelPrefix(i); });
+
+            [](int i) { return MainViewModel::channelPrefix(i); });
     });
     connect(m_view_model, &MainViewModel::receiverCheckedChanged,
             m_receiver_grid, &ReceiverGridWidget::setReceiverChecked);
@@ -463,9 +471,13 @@ void MainView::onFileLoadedChanged()
             // Single file: enable time controls, auto-select first channels
             m_time_widget->setAllEnabled(true);
             if (m_view_model->timeChannelIndex() == 0)
+            {
                 m_view_model->setTimeChannelIndex(1);
+            }
             if (m_view_model->pcmChannelIndex() == 0)
+            {
                 m_view_model->setPcmChannelIndex(1);
+            }
         }
     }
     else
@@ -486,7 +498,9 @@ void MainView::onFileLoadedChanged()
 void MainView::onFileTimesChanged()
 {
     if (!m_view_model->fileLoaded())
+    {
         return;
+    }
     m_time_widget->fillTimes(
         m_view_model->startDayOfYear(), m_view_model->startHour(),
         m_view_model->startMinute(), m_view_model->startSecond(),
@@ -521,10 +535,10 @@ void MainView::onProcessingFinished(bool success, const QString& output_file)
     {
         if (success)
         {
-            m_progress_bar->setValue(100);
+            m_progress_bar->setValue(UIConstants::kProgressBarMax);
             QString folder_url = QUrl::fromLocalFile(output_file).toString();
-            QString ts = QTime::currentTime().toString("HH:mm:ss");
-            QString html = "<span style='color: green;'>" + ts +
+            QString timestamp = QTime::currentTime().toString("HH:mm:ss");
+            QString html = "<span style='color: green;'>" + timestamp +
                            "  Batch complete. [<a href='" + folder_url + "'>Open Output Folder</a>]</span>";
             m_log_window->append(html);
             m_log_window->verticalScrollBar()->setValue(m_log_window->verticalScrollBar()->maximum());
@@ -569,7 +583,9 @@ void MainView::onProcessingFinished(bool success, const QString& output_file)
                 connect(ok_btn, &QPushButton::clicked, &plot_dialog, &QDialog::accept);
 
                 if (plot_dialog.exec() == QDialog::Accepted)
+                {
                     onShowPlot(csv_paths[combo->currentIndex()]);
+                }
             }
         }
         updateFileList();
@@ -578,12 +594,12 @@ void MainView::onProcessingFinished(bool success, const QString& output_file)
     {
         if (success)
         {
-            m_progress_bar->setValue(100);
+            m_progress_bar->setValue(UIConstants::kProgressBarMax);
 
             QString file_url = QUrl::fromLocalFile(output_file).toString();
             QString folder_url = QUrl::fromLocalFile(QFileInfo(output_file).absolutePath()).toString();
-            QString ts = QTime::currentTime().toString("HH:mm:ss");
-            QString html = "<span style='color: green;'>" + ts +
+            QString timestamp = QTime::currentTime().toString("HH:mm:ss");
+            QString html = "<span style='color: green;'>" + timestamp +
                            "  Output: <a href='" + file_url + "'>" + output_file.toHtmlEscaped() + "</a>"
                            " [<a href='" + folder_url + "'>Open Folder</a>]</span>";
             m_log_window->append(html);
@@ -599,11 +615,17 @@ void MainView::onProcessingFinished(bool success, const QString& output_file)
 void MainView::onLogMessage(const QString& message)
 {
     if (message.contains("ERROR"))
+    {
         logError(message);
+    }
     else if (message.contains("WARNING"))
+    {
         logWarning(message);
+    }
     else if (message.startsWith("Pre-scan result:") || message.startsWith("Processing complete"))
+    {
         logSuccess(message);
+    }
     else
     {
         QString plain = QTime::currentTime().toString("HH:mm:ss") + "  " + message.toHtmlEscaped();
@@ -630,15 +652,21 @@ void MainView::inputFileButtonPressed()
                                                           tr("Chapter 10 Files (*.ch10);;All Files (*.*)"));
 
     if (filenames.isEmpty())
+    {
         return;
+    }
 
     m_last_ch10_dir = QFileInfo(filenames.first()).absolutePath();
     saveLastCh10Dir();
 
     if (filenames.size() == 1)
+    {
         m_view_model->openFile(filenames.first());
+    }
     else
+    {
         m_view_model->openFiles(filenames);
+    }
 }
 
 void MainView::onSettings()
@@ -652,7 +680,9 @@ void MainView::onSettings()
                                                         start_dir,
                                                         tr("Configuration Settings Files (*.ini)"));
         if (filename.isEmpty())
+        {
             return;
+        }
 
         m_view_model->loadSettings(filename);
         dialog.setData(m_view_model->getSettingsData());
@@ -666,11 +696,15 @@ void MainView::onSettings()
                                                         save_dir,
                                                         tr("Configuration Settings Files (*.ini)"));
         if (!filename.isEmpty())
+        {
             m_view_model->saveSettings(filename);
+        }
     });
 
     if (dialog.exec() == QDialog::Accepted)
+    {
         m_view_model->applySettingsData(dialog.getData());
+    }
 }
 
 void MainView::onToggleTheme()
@@ -686,7 +720,7 @@ void MainView::onToggleTheme()
     QFile qss_file(qss_path);
     if (qss_file.open(QFile::ReadOnly))
     {
-        static_cast<QApplication*>(QApplication::instance())->setStyleSheet(
+        qobject_cast<QApplication*>(QApplication::instance())->setStyleSheet(
             QLatin1String(qss_file.readAll()));
         qss_file.close();
     }
@@ -713,7 +747,9 @@ void MainView::progressProcessButtonPressed()
         QString out_dir = QFileDialog::getExistingDirectory(this, tr("Select Output Directory"),
                                                              m_last_batch_output_dir);
         if (out_dir.isEmpty())
+        {
             return;
+        }
 
         m_last_batch_output_dir = out_dir;
         saveLastBatchOutputDir();
@@ -725,7 +761,7 @@ void MainView::progressProcessButtonPressed()
     // Single-file mode: pre-validate time fields before prompting for output file
     if (!m_time_widget->extractAllTime())
     {
-        QString warning = m_view_model->validateTimeRange(
+        QString warning = MainViewModel::validateTimeRange(
             m_time_widget->startTimeText(), m_time_widget->stopTimeText());
         if (!warning.isEmpty())
         {
@@ -742,7 +778,9 @@ void MainView::progressProcessButtonPressed()
                                                         m_last_csv_dir + "/" + m_view_model->generateOutputFilename(),
                                                         tr("CSV Files (*.csv);;All Files (*.*)"));
         if (outfile.isEmpty())
+        {
             return;
+        }
 
         m_last_csv_dir = QFileInfo(outfile).absolutePath();
         saveLastCsvDir();
@@ -783,19 +821,27 @@ void MainView::dropEvent(QDropEvent* event)
     {
         QString file = url.toLocalFile();
         if (file.endsWith(".ch10", Qt::CaseInsensitive))
+        {
             ch10_files.append(file);
+        }
     }
 
     if (ch10_files.isEmpty())
+    {
         return;
+    }
 
     m_last_ch10_dir = QFileInfo(ch10_files.first()).absolutePath();
     saveLastCh10Dir();
 
     if (ch10_files.size() == 1)
+    {
         m_view_model->openFile(ch10_files.first());
+    }
     else
+    {
         m_view_model->openFiles(ch10_files);
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -890,7 +936,9 @@ void MainView::updateSettingsSummary()
 {
     bool was_expanded = false;
     if (m_settings_tree->topLevelItemCount() > 0)
+    {
         was_expanded = m_settings_tree->topLevelItem(0)->isExpanded();
+    }
 
     m_settings_tree->clear();
 
@@ -925,147 +973,80 @@ void MainView::updateFileList()
 
     if (m_view_model->batchMode())
     {
-        m_file_list->setHeaderHidden(true);
-        m_file_list->setFixedHeight(UIConstants::kBatchFileListHeight);
-
-        const QVector<BatchFileInfo>& files = m_view_model->batchFiles();
-
-        QTreeWidgetItem* root = new QTreeWidgetItem;
-        root->setText(0, m_view_model->batchStatusSummary());
-        root->setFlags(Qt::ItemIsEnabled);
-
-        // Build tree structure first (items must be in the tree before
-        // setItemWidget and setExpanded can work)
-        QVector<QTreeWidgetItem*> file_items;
-        QVector<QTreeWidgetItem*> combo_items;
-        for (int i = 0; i < files.size(); i++)
-        {
-            const BatchFileInfo& info = files[i];
-
-            // File row: filename | status | encoding
-            QTreeWidgetItem* file_item = new QTreeWidgetItem;
-            file_item->setText(0, info.filename);
-
-            if (info.skip)
-            {
-                file_item->setText(1, "Skip");
-                file_item->setForeground(1, QColor("#DAA520"));
-                file_item->setToolTip(1, info.skipReason);
-            }
-            else if (info.processed && info.processedOk)
-            {
-                file_item->setText(1, "Done");
-                file_item->setForeground(1, QColor("green"));
-            }
-            else if (info.processed && !info.processedOk)
-            {
-                file_item->setText(1, "Error");
-                file_item->setForeground(1, QColor("red"));
-            }
-            else if (info.preScanOk)
-            {
-                file_item->setText(1, "Valid");
-                file_item->setForeground(1, QColor("green"));
-            }
-            else
-            {
-                file_item->setText(1, "Ready");
-                file_item->setForeground(1, QColor("green"));
-            }
-
-            if (info.preScanOk)
-                file_item->setText(2, info.isRandomized ? "RNRZ-L" : "NRZ-L");
-            else
-                file_item->setText(2, QString::fromUtf8("\xe2\x80\x94"));
-
-            root->addChild(file_item);
-
-            // Time and PCM combo rows (children of file item) — widgets added after tree insertion
-            QTreeWidgetItem* time_item = new QTreeWidgetItem;
-            time_item->setFlags(Qt::ItemIsEnabled);
-            file_item->addChild(time_item);
-
-            QTreeWidgetItem* pcm_item = new QTreeWidgetItem;
-            pcm_item->setFlags(Qt::ItemIsEnabled);
-            file_item->addChild(pcm_item);
-
-            file_items.append(file_item);
-            combo_items.append(time_item);
-            combo_items.append(pcm_item);
-        }
-
-        // Insert tree into widget — setItemWidget and setExpanded require this
-        m_file_list->addTopLevelItem(root);
-        root->setExpanded(true);
-
-        // Now attach combo box widgets and expand file items
-        for (int i = 0; i < files.size(); i++)
-        {
-            const BatchFileInfo& info = files[i];
-            QTreeWidgetItem* time_item = combo_items[i * 2];
-            QTreeWidgetItem* pcm_item  = combo_items[i * 2 + 1];
-            file_items[i]->setExpanded(true);
-
-            // Time channel combo — own row, column 0
-            QWidget* time_container = new QWidget;
-            time_container->setAttribute(Qt::WA_TranslucentBackground);
-            QHBoxLayout* time_layout = new QHBoxLayout(time_container);
-            time_layout->setContentsMargins(0, 0, 4, 0);
-            time_layout->addWidget(new QLabel("Time:"));
-            QComboBox* time_combo = new QComboBox;
-            time_combo->addItems(info.timeChannelStrings);
-            if (info.resolvedTimeIndex >= 0 && info.resolvedTimeIndex < info.timeChannelStrings.size())
-            {
-                QSignalBlocker blocker(time_combo);
-                time_combo->setCurrentIndex(info.resolvedTimeIndex);
-            }
-            if (info.timeChannelStrings.isEmpty())
-                time_combo->setEnabled(false);
-            connect(time_combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                    this, [this, i](int idx) { m_view_model->setBatchFileTimeChannel(i, idx); });
-            time_layout->addWidget(time_combo, 1);
-            m_file_list->setItemWidget(time_item, 0, time_container);
-
-            // PCM channel combo — own row, column 0
-            QWidget* pcm_container = new QWidget;
-            pcm_container->setAttribute(Qt::WA_TranslucentBackground);
-            QHBoxLayout* pcm_layout = new QHBoxLayout(pcm_container);
-            pcm_layout->setContentsMargins(0, 0, 4, 0);
-            pcm_layout->addWidget(new QLabel("PCM:"));
-            QComboBox* pcm_combo = new QComboBox;
-            pcm_combo->addItems(info.pcmChannelStrings);
-            if (info.resolvedPcmIndex >= 0 && info.resolvedPcmIndex < info.pcmChannelStrings.size())
-            {
-                QSignalBlocker blocker(pcm_combo);
-                pcm_combo->setCurrentIndex(info.resolvedPcmIndex);
-            }
-            if (info.pcmChannelStrings.isEmpty())
-                pcm_combo->setEnabled(false);
-            connect(pcm_combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                    this, [this, i](int idx) { m_view_model->setBatchFilePcmChannel(i, idx); });
-            pcm_layout->addWidget(pcm_combo, 1);
-            m_file_list->setItemWidget(pcm_item, 0, pcm_container);
-        }
-
-        m_file_list->header()->setStretchLastSection(true);
-        m_file_list->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
-        m_file_list->resizeColumnToContents(0);
-        m_file_list->resizeColumnToContents(1);
-        m_file_list->resizeColumnToContents(2);
+        populateBatchFileList();
     }
     else
     {
-        // Single-file or no-file mode
-        m_file_list->setHeaderHidden(true);
+        populateSingleFileList();
+    }
+}
 
+void MainView::applyBatchFileStatus(QTreeWidgetItem* item, const BatchFileInfo& info)
+{
+    if (info.skip)
+    {
+        item->setText(1, "Skip");
+        item->setForeground(1, QColor("#DAA520"));
+        item->setToolTip(1, info.skipReason);
+    }
+    else if (info.processed && info.processedOk)
+    {
+        item->setText(1, "Done");
+        item->setForeground(1, QColor("green"));
+    }
+    else if (info.processed && !info.processedOk)
+    {
+        item->setText(1, "Error");
+        item->setForeground(1, QColor("red"));
+    }
+    else if (info.preScanOk)
+    {
+        item->setText(1, "Valid");
+        item->setForeground(1, QColor("green"));
+    }
+    else
+    {
+        item->setText(1, "Ready");
+        item->setForeground(1, QColor("green"));
+    }
+
+    if (info.preScanOk)
+    {
+        item->setText(2, info.isRandomized ? "RNRZ-L" : "NRZ-L");
+    }
+    else
+    {
+        item->setText(2, QString::fromUtf8("\xe2\x80\x94"));
+    }
+}
+
+void MainView::populateBatchFileList()
+{
+    m_file_list->setHeaderHidden(true);
+    m_file_list->setFixedHeight(UIConstants::kBatchFileListHeight);
+
+    const QVector<BatchFileInfo>& files = m_view_model->batchFiles();
+
+    QTreeWidgetItem* root = new QTreeWidgetItem;
+    root->setText(0, m_view_model->batchStatusSummary());
+    root->setFlags(Qt::ItemIsEnabled);
+
+    // Build tree structure first (items must be in the tree before
+    // setItemWidget and setExpanded can work)
+    QVector<QTreeWidgetItem*> file_items;
+    QVector<QTreeWidgetItem*> combo_items;
+    for (int i = 0; i < files.size(); i++)
+    {
+        const BatchFileInfo& info = files[i];
+
+        // File row: filename | status | encoding
         QTreeWidgetItem* file_item = new QTreeWidgetItem;
-        if (m_view_model->fileLoaded())
-            file_item->setText(0, m_view_model->inputFilename());
-        else
-            file_item->setText(0, "No file loaded");
-        file_item->setFlags(Qt::ItemIsEnabled);
+        file_item->setText(0, info.filename);
+        applyBatchFileStatus(file_item, info);
 
-        // Add Time and PCM combo child rows
+        root->addChild(file_item);
+
+        // Time and PCM combo rows (children of file item) — widgets added after tree insertion
         QTreeWidgetItem* time_item = new QTreeWidgetItem;
         time_item->setFlags(Qt::ItemIsEnabled);
         file_item->addChild(time_item);
@@ -1074,61 +1055,154 @@ void MainView::updateFileList()
         pcm_item->setFlags(Qt::ItemIsEnabled);
         file_item->addChild(pcm_item);
 
-        m_file_list->addTopLevelItem(file_item);
+        file_items.append(file_item);
+        combo_items.append(time_item);
+        combo_items.append(pcm_item);
+    }
 
-        // Attach combo widgets now that items are in the tree
-        QStringList time_channels = m_view_model->timeChannelList();
-        QStringList pcm_channels = m_view_model->pcmChannelList();
-        bool loaded = m_view_model->fileLoaded();
+    // Insert tree into widget — setItemWidget and setExpanded require this
+    m_file_list->addTopLevelItem(root);
+    root->setExpanded(true);
 
-        // Time channel combo
+    // Now attach combo box widgets and expand file items
+    for (int i = 0; i < files.size(); i++)
+    {
+        const BatchFileInfo& info = files[i];
+        QTreeWidgetItem* time_item = combo_items[static_cast<qsizetype>(i) * 2];
+        QTreeWidgetItem* pcm_item  = combo_items[(static_cast<qsizetype>(i) * 2) + 1];
+        file_items[i]->setExpanded(true);
+
+        // Time channel combo — own row, column 0
         QWidget* time_container = new QWidget;
         time_container->setAttribute(Qt::WA_TranslucentBackground);
         QHBoxLayout* time_layout = new QHBoxLayout(time_container);
         time_layout->setContentsMargins(0, 0, 4, 0);
         time_layout->addWidget(new QLabel("Time:"));
         QComboBox* time_combo = new QComboBox;
-        time_combo->addItems(time_channels);
-        time_combo->setEnabled(loaded && !time_channels.isEmpty());
-        if (loaded && !time_channels.isEmpty())
+        time_combo->addItems(info.timeChannelStrings);
+        if (info.resolvedTimeIndex >= 0 && info.resolvedTimeIndex < info.timeChannelStrings.size())
         {
-            // Auto-select first channel; +1 offset for ViewModel placeholder convention
-            int idx = (m_view_model->timeChannelIndex() > 0)
-                          ? m_view_model->timeChannelIndex() - 1 : 0;
             QSignalBlocker blocker(time_combo);
-            time_combo->setCurrentIndex(idx);
+            time_combo->setCurrentIndex(info.resolvedTimeIndex);
+        }
+        if (info.timeChannelStrings.isEmpty())
+        {
+            time_combo->setEnabled(false);
         }
         connect(time_combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                this, [this](int idx) { m_view_model->setTimeChannelIndex(idx + 1); });
+                this, [this, i](int idx) { m_view_model->setBatchFileTimeChannel(i, idx); });
         time_layout->addWidget(time_combo, 1);
         m_file_list->setItemWidget(time_item, 0, time_container);
 
-        // PCM channel combo
+        // PCM channel combo — own row, column 0
         QWidget* pcm_container = new QWidget;
         pcm_container->setAttribute(Qt::WA_TranslucentBackground);
         QHBoxLayout* pcm_layout = new QHBoxLayout(pcm_container);
         pcm_layout->setContentsMargins(0, 0, 4, 0);
         pcm_layout->addWidget(new QLabel("PCM:"));
         QComboBox* pcm_combo = new QComboBox;
-        pcm_combo->addItems(pcm_channels);
-        pcm_combo->setEnabled(loaded && !pcm_channels.isEmpty());
-        if (loaded && !pcm_channels.isEmpty())
+        pcm_combo->addItems(info.pcmChannelStrings);
+        if (info.resolvedPcmIndex >= 0 && info.resolvedPcmIndex < info.pcmChannelStrings.size())
         {
-            int idx = (m_view_model->pcmChannelIndex() > 0)
-                          ? m_view_model->pcmChannelIndex() - 1 : 0;
             QSignalBlocker blocker(pcm_combo);
-            pcm_combo->setCurrentIndex(idx);
+            pcm_combo->setCurrentIndex(info.resolvedPcmIndex);
+        }
+        if (info.pcmChannelStrings.isEmpty())
+        {
+            pcm_combo->setEnabled(false);
         }
         connect(pcm_combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                this, [this](int idx) { m_view_model->setPcmChannelIndex(idx + 1); });
+                this, [this, i](int idx) { m_view_model->setBatchFilePcmChannel(i, idx); });
         pcm_layout->addWidget(pcm_combo, 1);
         m_file_list->setItemWidget(pcm_item, 0, pcm_container);
-
-        file_item->setExpanded(loaded);
-
-        m_file_list->header()->setStretchLastSection(false);
-        m_file_list->header()->setSectionResizeMode(0, QHeaderView::Stretch);
     }
+
+    m_file_list->header()->setStretchLastSection(true);
+    m_file_list->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+    m_file_list->resizeColumnToContents(0);
+    m_file_list->resizeColumnToContents(1);
+    m_file_list->resizeColumnToContents(2);
+}
+
+void MainView::populateSingleFileList()
+{
+    // Single-file or no-file mode
+    m_file_list->setHeaderHidden(true);
+
+    QTreeWidgetItem* file_item = new QTreeWidgetItem;
+    if (m_view_model->fileLoaded())
+    {
+        file_item->setText(0, m_view_model->inputFilename());
+    }
+    else
+    {
+        file_item->setText(0, "No file loaded");
+    }
+    file_item->setFlags(Qt::ItemIsEnabled);
+
+    // Add Time and PCM combo child rows
+    QTreeWidgetItem* time_item = new QTreeWidgetItem;
+    time_item->setFlags(Qt::ItemIsEnabled);
+    file_item->addChild(time_item);
+
+    QTreeWidgetItem* pcm_item = new QTreeWidgetItem;
+    pcm_item->setFlags(Qt::ItemIsEnabled);
+    file_item->addChild(pcm_item);
+
+    m_file_list->addTopLevelItem(file_item);
+
+    // Attach combo widgets now that items are in the tree
+    QStringList time_channels = m_view_model->timeChannelList();
+    QStringList pcm_channels = m_view_model->pcmChannelList();
+    bool loaded = m_view_model->fileLoaded();
+
+    // Time channel combo
+    QWidget* time_container = new QWidget;
+    time_container->setAttribute(Qt::WA_TranslucentBackground);
+    QHBoxLayout* time_layout = new QHBoxLayout(time_container);
+    time_layout->setContentsMargins(0, 0, 4, 0);
+    time_layout->addWidget(new QLabel("Time:"));
+    QComboBox* time_combo = new QComboBox;
+    time_combo->addItems(time_channels);
+    time_combo->setEnabled(loaded && !time_channels.isEmpty());
+    if (loaded && !time_channels.isEmpty())
+    {
+        // Auto-select first channel; +1 offset for ViewModel placeholder convention
+        int idx = (m_view_model->timeChannelIndex() > 0)
+                      ? m_view_model->timeChannelIndex() - 1 : 0;
+        QSignalBlocker blocker(time_combo);
+        time_combo->setCurrentIndex(idx);
+    }
+    connect(time_combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [this](int idx) { m_view_model->setTimeChannelIndex(idx + 1); });
+    time_layout->addWidget(time_combo, 1);
+    m_file_list->setItemWidget(time_item, 0, time_container);
+
+    // PCM channel combo
+    QWidget* pcm_container = new QWidget;
+    pcm_container->setAttribute(Qt::WA_TranslucentBackground);
+    QHBoxLayout* pcm_layout = new QHBoxLayout(pcm_container);
+    pcm_layout->setContentsMargins(0, 0, 4, 0);
+    pcm_layout->addWidget(new QLabel("PCM:"));
+    QComboBox* pcm_combo = new QComboBox;
+    pcm_combo->addItems(pcm_channels);
+    pcm_combo->setEnabled(loaded && !pcm_channels.isEmpty());
+    if (loaded && !pcm_channels.isEmpty())
+    {
+        int idx = (m_view_model->pcmChannelIndex() > 0)
+                      ? m_view_model->pcmChannelIndex() - 1 : 0;
+        QSignalBlocker blocker(pcm_combo);
+        pcm_combo->setCurrentIndex(idx);
+    }
+    connect(pcm_combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [this](int idx) { m_view_model->setPcmChannelIndex(idx + 1); });
+    pcm_layout->addWidget(pcm_combo, 1);
+    m_file_list->setItemWidget(pcm_item, 0, pcm_container);
+
+    file_item->setExpanded(loaded);
+
+    m_file_list->header()->setStretchLastSection(false);
+    m_file_list->header()->setSectionResizeMode(0, QHeaderView::Stretch);
 }
 
 void MainView::saveLastBatchOutputDir()

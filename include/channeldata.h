@@ -20,8 +20,12 @@ class ChannelData
 {
 public:
     /// @param[in] channel_id Numeric channel identifier from the Chapter 10 header.
-    ChannelData(int channel_id);
+    explicit ChannelData(int channel_id);
     ~ChannelData() = default;
+    ChannelData(const ChannelData&) = default;
+    ChannelData& operator=(const ChannelData&) = default;
+    ChannelData(ChannelData&&) = default;
+    ChannelData& operator=(ChannelData&&) = default;
 
     int channelID() const;       ///< @return The channel identifier.
     QString channelType() const; ///< @return The TMATS channel type string.

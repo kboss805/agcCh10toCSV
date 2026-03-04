@@ -101,6 +101,8 @@ private:
     void computeYRange();
     /// Parses a "HH:MM:SS.mmm" time string to seconds since midnight.
     static double parseTimeToSeconds(const QString& time_str);
+    /// Parses the CSV data rows into the series structure.
+    void parseCsvDataRows(QTextStream& stream, int param_count, QVector<PlotSeriesData>& series);
 
     QVector<PlotSeriesData> m_series;              ///< All loaded series data.
     QString m_plot_title;                          ///< User-defined plot title.

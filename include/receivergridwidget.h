@@ -16,7 +16,7 @@
 #include <QVBoxLayout>
 #include <QVector>
 
-#include "constants.h"
+
 
 /**
  * @brief Multi-column tree grid for selecting receiver/channel combinations.
@@ -63,6 +63,18 @@ signals:
 private:
     /// Forwards tree item check-state changes, filtering to leaf (channel) items only.
     void onTreeItemChanged(QTreeWidgetItem* item, int column);
+
+    /// Removes and deletes all items from m_layout.
+    void clearLayout();
+
+    /// Creates and configures a single column tree widget for a range of receivers.
+    QTreeWidget* createColumnTree(int start, int end, int per_column,
+                                  int channels_per_receiver,
+                                  const std::function<QString(int)>& channel_prefix_fn,
+                                  const std::function<bool(int, int)>& checked_fn);
+
+    /// Hides scrollbars on non-last columns and syncs scroll positions.
+    void syncScrollBars();
 
     QVBoxLayout* m_layout;                 ///< Internal vertical layout.
     QVector<QTreeWidget*> m_trees;         ///< Column tree widgets.

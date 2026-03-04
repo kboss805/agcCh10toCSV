@@ -1,0 +1,69 @@
+On branch main
+Your branch is ahead of 'origin/main' by 2 commits.
+  (use "git push" to publish your local commits)
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	deleted:    deploy/README_portable.txt
+	deleted:    deploy/RELEASENOTES.txt
+	deleted:    deploy/agcCh10toCSV.iss
+	deleted:    deploy/build_release.cmd
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   .claude/CLAUDE.md
+	modified:   .gitignore
+	modified:   README.md
+	modified:   agcCh10toCSV.pro
+	modified:   agcCh10toCSV_resource.rc
+	modified:   include/channeldata.h
+	modified:   include/chapter10reader.h
+	modified:   include/constants.h
+	modified:   include/frameprocessor.h
+	modified:   include/framesetup.h
+	modified:   include/mainview.h
+	modified:   include/mainviewmodel.h
+	modified:   include/plotviewmodel.h
+	modified:   include/plotwidget.h
+	modified:   include/receivergridwidget.h
+	modified:   include/settingsdata.h
+	modified:   include/settingsdialog.h
+	modified:   include/settingsmanager.h
+	modified:   include/timeextractionwidget.h
+	modified:   src/channeldata.cpp
+	modified:   src/chapter10reader.cpp
+	modified:   src/frameprocessor.cpp
+	modified:   src/framesetup.cpp
+	modified:   src/main.cpp
+	modified:   src/mainview.cpp
+	modified:   src/mainviewmodel.cpp
+	modified:   src/plotviewmodel.cpp
+	modified:   src/plotwidget.cpp
+	modified:   src/receivergridwidget.cpp
+	modified:   src/settingsdialog.cpp
+	modified:   src/settingsmanager.cpp
+	modified:   src/timeextractionwidget.cpp
+	modified:   tests/main.cpp
+	modified:   tests/tests.pro
+	modified:   tests/tst_constants.cpp
+	modified:   tests/tst_mainviewmodel_helpers.cpp
+	modified:   tests/tst_mainviewmodel_helpers.h
+	modified:   tests/tst_plotviewmodel.cpp
+	modified:   tests/tst_plotviewmodel.h
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	status.txt
+	tests/-
+	tests/channel_dump.cpp
+	tests/channel_dump.pro
+	tests/tst_chapter10reader.cpp
+	tests/tst_chapter10reader.h
+	tests/tst_frameprocessor.cpp
+	tests/tst_frameprocessor.h
+	tests/tst_receivergridwidget.cpp
+	tests/tst_receivergridwidget.h
+	tests/tst_timeextractionwidget.cpp
+	tests/tst_timeextractionwidget.h
+

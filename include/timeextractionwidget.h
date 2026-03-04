@@ -13,7 +13,7 @@
 #include <QLineEdit>
 #include <QSignalBlocker>
 
-#include "constants.h"
+
 
 /**
  * @brief Widget containing the extract-all toggle, start/stop time inputs,

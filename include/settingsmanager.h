@@ -22,7 +22,7 @@ class SettingsManager : public QObject
 
 public:
     /// @param[in] view_model Pointer to the owning MainViewModel.
-    SettingsManager(MainViewModel* view_model);
+    explicit SettingsManager(MainViewModel* view_model);
 
     /// Loads settings from @p filename, validates values, and applies them to the MainViewModel.
     void loadFile(const QString& filename);

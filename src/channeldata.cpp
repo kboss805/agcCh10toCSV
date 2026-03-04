@@ -6,9 +6,9 @@
 #include "channeldata.h"
 
 ChannelData::ChannelData(int channel_id) :
-    m_channel_id(channel_id)
+    m_channel_id(channel_id),
+    m_channel_count(0)
 {
-    m_channel_count = 0;
 }
 
 int ChannelData::channelID() const

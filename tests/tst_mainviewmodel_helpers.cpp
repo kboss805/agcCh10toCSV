@@ -58,3 +58,20 @@ void TestMainViewModelHelpers::generateOutputFilenameNonEmpty()
     QVERIFY(f2.startsWith("output"));
     QVERIFY(f2.endsWith(".csv"));
 }
+
+void TestMainViewModelHelpers::channelPrefixBoundaryIndex()
+{
+    MainViewModel vm;
+    // Last known prefix (index 2 = "C")
+    QCOMPARE(vm.channelPrefix(2), QString("C"));
+    // First unknown prefix (index 3 → "CH4")
+    QCOMPARE(vm.channelPrefix(3), QString("CH4"));
+}
+
+void TestMainViewModelHelpers::channelPrefixLargeIndex()
+{
+    MainViewModel vm;
+    // Large index should compute correctly without overflow
+    QCOMPARE(vm.channelPrefix(999), QString("CH1000"));
+    QCOMPARE(vm.channelPrefix(9999), QString("CH10000"));
+}

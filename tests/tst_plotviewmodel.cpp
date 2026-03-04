@@ -289,3 +289,113 @@ void TestPlotViewModel::loadEmptyFile()
     QVERIFY(!vm.hasData());
     QFile::remove(path);
 }
+
+void TestPlotViewModel::formatTimeZeroElapsed()
+{
+    // Load CSV to set base day/time, then test formatTime at zero elapsed
+    QString csv =
+        "Day,Time,L_RCVR1\n"
+        "45,10:30:15.000,-80.0\n";
+    QString path = writeTempCsv(csv);
+
+    PlotViewModel vm;
+    QVERIFY(vm.loadCsvFile(path));
+
+    // At elapsed=0, should return base time: 045:10:30:15
+    QString result = vm.formatTime(0.0);
+    QCOMPARE(result, QString("045:10:30:15"));
+
+    QFile::remove(path);
+}
+
+void TestPlotViewModel::formatTimeDayBoundary()
+{
+    // Test elapsed seconds crossing into the next day
+    QString csv =
+        "Day,Time,L_RCVR1\n"
+        "45,23:59:50.000,-80.0\n";
+    QString path = writeTempCsv(csv);
+
+    PlotViewModel vm;
+    QVERIFY(vm.loadCsvFile(path));
+
+    // 10 seconds after 23:59:50 = next day 00:00:00
+    QString result = vm.formatTime(10.0);
+    QCOMPARE(result, QString("046:00:00:00"));
+
+    // 70 seconds after 23:59:50 = next day 00:01:00
+    result = vm.formatTime(70.0);
+    QCOMPARE(result, QString("046:00:01:00"));
+
+    QFile::remove(path);
+}
+
+void TestPlotViewModel::formatTimeNegativeElapsed()
+{
+    // Negative elapsed should wrap to previous day
+    QString csv =
+        "Day,Time,L_RCVR1\n"
+        "45,00:00:30.000,-80.0\n";
+    QString path = writeTempCsv(csv);
+
+    PlotViewModel vm;
+    QVERIFY(vm.loadCsvFile(path));
+
+    // -30 seconds from 00:00:30 = 00:00:00 same day
+    QString result = vm.formatTime(-30.0);
+    QCOMPARE(result, QString("045:00:00:00"));
+
+    // -31 seconds from 00:00:30 = previous day 23:59:59
+    result = vm.formatTime(-31.0);
+    QCOMPARE(result, QString("044:23:59:59"));
+
+    QFile::remove(path);
+}
+
+void TestPlotViewModel::loadCsvHeaderOnly()
+{
+    // CSV with header but no data rows
+    QString csv = "Day,Time,L_RCVR1,R_RCVR1\n";
+    QString path = writeTempCsv(csv);
+
+    PlotViewModel vm;
+    bool loaded = vm.loadCsvFile(path);
+
+    // Should either fail or load with no data points
+    if (loaded)
+    {
+        // If it loaded, series should have no data points
+        for (int i = 0; i < vm.seriesCount(); i++)
+        {
+            QVERIFY(vm.seriesAt(i).xValues.isEmpty());
+        }
+    }
+    else
+    {
+        QVERIFY(!vm.hasData());
+    }
+
+    QFile::remove(path);
+}
+
+void TestPlotViewModel::loadCsvMalformedRows()
+{
+    // CSV with some valid and some malformed rows
+    QString csv =
+        "Day,Time,L_RCVR1\n"
+        "45,10:00:00.000,-80.0\n"
+        "short_row\n"
+        "45,10:00:02.000,-78.0\n"
+        ",,-999.0\n"
+        "45,10:00:04.000,-76.0\n";
+    QString path = writeTempCsv(csv);
+
+    PlotViewModel vm;
+    QVERIFY(vm.loadCsvFile(path));
+
+    // Should load at least the valid rows without crashing
+    QVERIFY(vm.hasData());
+    QVERIFY(vm.seriesAt(0).xValues.size() >= 2);
+
+    QFile::remove(path);
+}

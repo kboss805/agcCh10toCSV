@@ -6,6 +6,8 @@
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
 
+#include <array>
+#include <cstdint>
 #include <QColor>
 #include <QString>
 
@@ -13,7 +15,7 @@
 struct AppVersion {
     static constexpr int kMajor = 3;   ///< Major version number.
     static constexpr int kMinor = 1;   ///< Minor version number.
-    static constexpr int kPatch = 0;   ///< Patch version number.
+    static constexpr int kPatch = 1;   ///< Patch version number.
 
     /// @return Version string in "major.minor.patch" format.
     static QString toString() { return QString("%1.%2.%3").arg(kMajor).arg(kMinor).arg(kPatch); }
@@ -22,6 +24,9 @@ struct AppVersion {
 /// @brief Constants for PCM frame structure and channel type identifiers.
 namespace PCMConstants {
     inline constexpr int kCommonWordLen        = 16;    ///< Bits per word.
+    inline constexpr int kSecondsPerMinute     = 60;    ///< Seconds in a minute.
+    inline constexpr int kMinutesPerHour       = 60;    ///< Minutes in an hour.
+    inline constexpr int kHoursPerDay          = 24;    ///< Hours in a day.
     inline constexpr int kNumMinorFrames       = 1;     ///< Minor frames per major frame.
     inline constexpr int kMaxChannelCount      = 0x10000; ///< Maximum channel ID range.
     inline constexpr const char* kDefaultFrameSync = "FE6B2840"; ///< Default frame sync hex pattern.
@@ -92,7 +97,7 @@ namespace UIConstants {
     inline constexpr int kMinChannelsPerReceiver      = 1;     ///< Minimum valid channels per receiver.
     inline constexpr int kMaxChannelsPerReceiver      = 48;    ///< Maximum valid channels per receiver.
     inline constexpr int kMaxTotalParameters          = 48;    ///< Maximum total parameter words (receivers x channels).
-    inline const char* kChannelPrefixes[]             = {"L", "R", "C"}; ///< Channel prefix labels.
+    inline constexpr std::array<const char*, 3> kChannelPrefixes = {"L", "R", "C"}; ///< Channel prefix labels.
     inline constexpr int kNumKnownPrefixes            = 3;     ///< Number of known channel prefixes.
 
     /// @name Button text
@@ -120,21 +125,21 @@ namespace UIConstants {
 
     /// @name Voltage scale bounds (indexed by scale combo box)
     /// @{
-    inline constexpr double kSlopeVoltageLower[] = {-10.0, -5.0, 0.0, 0.0}; ///< Lower voltage bound per scale option.
-    inline constexpr double kSlopeVoltageUpper[] = {10.0, 5.0, 10.0, 5.0};  ///< Upper voltage bound per scale option.
+    inline constexpr std::array<double, 4> kSlopeVoltageLower = {-10.0, -5.0, 0.0, 0.0}; ///< Lower voltage bound per scale option.
+    inline constexpr std::array<double, 4> kSlopeVoltageUpper = {10.0, 5.0, 10.0, 5.0};  ///< Upper voltage bound per scale option.
     /// @}
 
     /// @name Display labels for combo box indices
     /// @{
-    inline const char* kSlopeLabels[]     = {"+/-10V", "+/-5V", "0-10V", "0-5V"};          ///< Voltage slope display labels.
-    inline const char* kSampleRateLabels[] = {"1 Hz", "10 Hz", "100 Hz"};         ///< Sample rate display labels.
+    inline constexpr std::array<const char*, 4> kSlopeLabels     = {"+/-10V", "+/-5V", "0-10V", "0-5V"};          ///< Voltage slope display labels.
+    inline constexpr std::array<const char*, 3> kSampleRateLabels = {"1 Hz", "10 Hz", "100 Hz"};         ///< Sample rate display labels.
     /// @}
 
     /// @name Polarity combo box
     /// @{
     inline constexpr int kDefaultPolarityIndex = 1;  ///< Default polarity combo index (Negative).
     inline constexpr int kMaxPolarityIndex     = 1;  ///< Maximum valid polarity combo index.
-    inline const char* kPolarityLabels[]       = {"Positive", "Negative"}; ///< Polarity display labels.
+    inline constexpr std::array<const char*, 2> kPolarityLabels  = {"Positive", "Negative"}; ///< Polarity display labels.
     /// @}
 
     /// @name Output filename format
@@ -149,6 +154,19 @@ namespace UIConstants {
     inline constexpr const char* kBatchOutputPrefix      = "AGC_";                       ///< Output filename prefix for batch mode.
     inline constexpr const char* kSettingsKeyLastBatchDir = "LastBatchOutputDirectory";   ///< QSettings key for last batch output directory.
     inline constexpr int kBatchFileListHeight            = 180;                          ///< Fixed height for file list tree (px).
+    inline constexpr int kProgressBarMax                 = 100;                          ///< Maximum value for the progress bar.
+    inline constexpr int kTreeIndentation                = 12;                           ///< Indentation width for tree widgets (px).
+    inline constexpr int kLayoutSpacingSmall             = 8;                            ///< Small layout spacing (px).
+    inline constexpr int kLayoutSpacingLarge             = 16;                           ///< Large layout spacing (px).
+    inline constexpr int kToolbarIconSize                = 24;                           ///< Toolbar icon size (px).
+    inline constexpr int kAboutIconSize                  = 64;                           ///< About dialog icon size (px).
+    inline constexpr int kLogDialogWidth                 = 600;                          ///< Default log dialog width (px).
+    inline constexpr int kLogDialogHeight                = 400;                          ///< Default log dialog height (px).
+    inline constexpr int kTimeInputMaxWidth               = 100;                          ///< Maximum width for time input fields (px).
+    inline constexpr int kDecimalBase                    = 10;                           ///< Decimal (base-10) radix for QString::arg formatting.
+    inline constexpr int kHexBase                        = 16;                           ///< Hexadecimal (base-16) radix for string parsing.
+    inline constexpr int kBytesPerKB                     = 1024;                         ///< Bytes per kilobyte.
+    inline constexpr int kBytesPerMB                     = 1048576;                      ///< Bytes per megabyte.
     /// @}
 
     /// @name Deployment / portable mode
@@ -169,9 +187,28 @@ namespace PlotConstants {
     inline constexpr const char* kXAxisLabel = "Time (DDD:HH:MM:SS)";             ///< X-axis label.
     inline constexpr double kZoomFactor      = 0.1;   ///< Wheel zoom step (10% per notch).
 
+    /// @name Theme colors
+    /// @{
+    inline constexpr QColor kDarkBackground  {32, 32, 32};       ///< Dark theme chart background.
+    inline constexpr QColor kLightBackground {255, 255, 255};    ///< Light theme chart background.
+    inline constexpr QColor kDarkForeground  {220, 220, 220};    ///< Dark theme axis/text color.
+    inline constexpr QColor kLightForeground {30, 30, 30};       ///< Light theme axis/text color.
+    inline constexpr QColor kDarkGridColor   {60, 60, 60};       ///< Dark theme grid line color.
+    inline constexpr QColor kLightGridColor  {200, 200, 200};    ///< Light theme grid line color.
+    /// @}
+
+    /// @name Plot widget parameters
+    /// @{
+    inline constexpr int kTickCount          = 10;               ///< Number of major tick marks on X axis.
+    inline constexpr double kGraphPenWidth   = 1.5;              ///< Width of series graph pen.
+    inline constexpr int kTitleFontSize      = 10;               ///< Plot title font size in points.
+    inline constexpr double kSpinBoxMaxRange = 1e9;              ///< Maximum range for X axis spinboxes.
+    inline constexpr double kYSpinBoxMax     = 999.0;            ///< Maximum range for Y axis spinboxes.
+    /// @}
+
     /// @brief Base color palette for receiver series (one hue per receiver).
     inline constexpr int kNumReceiverColors = 10;
-    inline const QColor kReceiverColors[] = {
+    inline constexpr std::array<QColor, kNumReceiverColors> kReceiverColors = {
         QColor(31, 119, 180),   ///< Blue
         QColor(255, 127, 14),   ///< Orange
         QColor(44, 160, 44),    ///< Green

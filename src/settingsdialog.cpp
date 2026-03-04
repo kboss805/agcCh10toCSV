@@ -11,7 +11,14 @@
 #include <QVBoxLayout>
 
 SettingsDialog::SettingsDialog(QWidget* parent)
-    : QDialog(parent), m_data{}
+    : QDialog(parent),
+      m_data{},
+      m_frame_sync(new QLineEdit),
+      m_polarity(new QComboBox),
+      m_slope(new QComboBox),
+      m_scale(new QLineEdit),
+      m_receiver_count(new QLineEdit),
+      m_channels_per_receiver(new QLineEdit)
 {
     setWindowTitle("Settings");
 
@@ -23,7 +30,6 @@ SettingsDialog::SettingsDialog(QWidget* parent)
 
     QHBoxLayout* sync_row = new QHBoxLayout;
     sync_row->addWidget(new QLabel("Frame Sync: "));
-    m_frame_sync = new QLineEdit;
     sync_row->addWidget(m_frame_sync);
 
     frame_layout->addLayout(sync_row);
@@ -35,13 +41,11 @@ SettingsDialog::SettingsDialog(QWidget* parent)
 
     QHBoxLayout* params_row = new QHBoxLayout;
     params_row->addWidget(new QLabel("Polarity: "));
-    m_polarity = new QComboBox;
     m_polarity->addItem("Positive");
     m_polarity->addItem("Negative");
     params_row->addWidget(m_polarity);
 
     params_row->addWidget(new QLabel("    Slope: "));
-    m_slope = new QComboBox;
     m_slope->addItem(QString::fromUtf8("\xc2\xb1") + "10V");
     m_slope->addItem(QString::fromUtf8("\xc2\xb1") + "5V");
     m_slope->addItem("0-10V");
@@ -49,7 +53,6 @@ SettingsDialog::SettingsDialog(QWidget* parent)
     params_row->addWidget(m_slope);
 
     params_row->addWidget(new QLabel("    Scale (dB/V): "));
-    m_scale = new QLineEdit;
     params_row->addWidget(m_scale);
 
     params_layout->addLayout(params_row);
@@ -61,12 +64,10 @@ SettingsDialog::SettingsDialog(QWidget* parent)
 
     QHBoxLayout* rcvr_count_row = new QHBoxLayout;
     rcvr_count_row->addWidget(new QLabel("Number of Receivers: "));
-    m_receiver_count = new QLineEdit;
     rcvr_count_row->addWidget(m_receiver_count);
 
     QHBoxLayout* channels_row = new QHBoxLayout;
     channels_row->addWidget(new QLabel("Channels per Receiver: "));
-    m_channels_per_receiver = new QLineEdit;
     channels_row->addWidget(m_channels_per_receiver);
 
     receivers_layout->addLayout(rcvr_count_row);
