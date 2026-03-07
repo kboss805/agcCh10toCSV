@@ -5,18 +5,17 @@
 #include <QTemporaryFile>
 #include <QtTest>
 
-#include "constants.h"
 #include "framesetup.h"
 
 /// Test frame size: 48 data words + 1 (matches default 16 receivers x 3 channels).
 static constexpr int kTestWordsInFrame = 49;
 
-static QString testDataPath(const QString& filename)
+static QString testFixturePath(const QString& filename)
 {
     // The test executable is built in tests/debug/ or tests/release/.
-    // Navigate back to tests/data/.
+    // Navigate back to tests/fixtures/.
     return QDir(QCoreApplication::applicationDirPath())
-        .filePath("../../tests/data/" + filename);
+        .filePath("../../tests/fixtures/" + filename);
 }
 
 void TestFrameSetup::defaultLengthIsZero()
@@ -28,7 +27,7 @@ void TestFrameSetup::defaultLengthIsZero()
 void TestFrameSetup::clearParametersResetsToEmpty()
 {
     FrameSetup fs;
-    QString path = testDataPath("test_framesetup.ini");
+    QString path = testFixturePath("test_framesetup.ini");
     if (QFile::exists(path))
     {
         fs.tryLoadingFile(path, kTestWordsInFrame);
@@ -53,7 +52,7 @@ void TestFrameSetup::getParameterNegativeIndexReturnsNull()
 
 void TestFrameSetup::tryLoadingFileValidFile()
 {
-    QString path = testDataPath("test_framesetup.ini");
+    QString path = testFixturePath("test_framesetup.ini");
     if (!QFile::exists(path))
         QSKIP("Test fixture file not found");
 
@@ -88,7 +87,7 @@ void TestFrameSetup::tryLoadingFileValidFile()
 
 void TestFrameSetup::tryLoadingFileMissingWordKey()
 {
-    QString path = testDataPath("test_framesetup_missing_word.ini");
+    QString path = testFixturePath("test_framesetup_missing_word.ini");
     if (!QFile::exists(path))
         QSKIP("Test fixture file not found");
 
@@ -100,7 +99,7 @@ void TestFrameSetup::tryLoadingFileMissingWordKey()
 
 void TestFrameSetup::tryLoadingFileOutOfBoundsWord()
 {
-    QString path = testDataPath("test_framesetup_out_of_bounds.ini");
+    QString path = testFixturePath("test_framesetup_out_of_bounds.ini");
     if (!QFile::exists(path))
         QSKIP("Test fixture file not found");
 
@@ -148,7 +147,7 @@ void TestFrameSetup::tryLoadingFileWordEqualsFrameSize()
 
 void TestFrameSetup::saveToSettingsWritesCorrectData()
 {
-    QString path = testDataPath("test_framesetup.ini");
+    QString path = testFixturePath("test_framesetup.ini");
     if (!QFile::exists(path))
         QSKIP("Test fixture file not found");
 
@@ -181,7 +180,7 @@ void TestFrameSetup::tryLoadingFileSmallerFrameAccepts()
 {
     // test_framesetup.ini has 3 params with Word=1,2,3.
     // A frame with 3 data words + 1 = 4 total words should accept all three.
-    QString path = testDataPath("test_framesetup.ini");
+    QString path = testFixturePath("test_framesetup.ini");
     if (!QFile::exists(path))
         QSKIP("Test fixture file not found");
 
@@ -196,7 +195,7 @@ void TestFrameSetup::tryLoadingFileSmallerFrameRejectsBoundary()
     // test_framesetup.ini has Word=3 for C_RCVR1.
     // A frame with 2 data words + 1 = 3 total words should reject Word=3
     // because parameter_word = 2, and the boundary check is parameter_word >= (3 - 1).
-    QString path = testDataPath("test_framesetup.ini");
+    QString path = testFixturePath("test_framesetup.ini");
     if (!QFile::exists(path))
         QSKIP("Test fixture file not found");
 
@@ -209,7 +208,7 @@ void TestFrameSetup::tryLoadingFileLargerFrameAccepts()
 {
     // test_framesetup.ini has Word=1,2,3. A larger frame (e.g., 100 words)
     // should accept all parameters since they're well within range.
-    QString path = testDataPath("test_framesetup.ini");
+    QString path = testFixturePath("test_framesetup.ini");
     if (!QFile::exists(path))
         QSKIP("Test fixture file not found");
 

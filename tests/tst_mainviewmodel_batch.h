@@ -13,6 +13,7 @@ private slots:
     void batchFilesDefaultEmpty();
     void generateBatchOutputFilenameFormat();
     void generateBatchOutputFilenameSpecialChars();
+    void generateBatchOutputFilenamePath();
     void batchStatusSummaryEmpty();
     void clearStateResetsBatchMode();
     void clearStateClearsBatchFiles();

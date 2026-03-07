@@ -433,6 +433,9 @@ void MainView::setUpConnections()
     connect(m_log_window, &QTextBrowser::anchorClicked, this, [](const QUrl& url) {
         QDesktopServices::openUrl(url);
     });
+    connect(m_log_preview, &QTextBrowser::anchorClicked, this, [](const QUrl& url) {
+        QDesktopServices::openUrl(url);
+    });
 
     // Uncheck toolbar toggle when user closes the log dialog via its own X button
     connect(m_log_dialog, &QDialog::finished, this, [this]() {
@@ -628,9 +631,12 @@ void MainView::onLogMessage(const QString& message)
     }
     else
     {
-        QString plain = QTime::currentTime().toString("HH:mm:ss") + "  " + message.toHtmlEscaped();
-        m_log_window->append(plain);
-        m_log_preview->append(plain);
+        // Wrap in a neutral <span> so Qt treats this as explicit HTML and does not
+        // auto-detect bare file paths (e.g. C:/...) as clickable anchors.
+        QString html = "<span>" + QTime::currentTime().toString("HH:mm:ss") + "&nbsp;&nbsp;" +
+                       message.toHtmlEscaped() + "</span>";
+        m_log_window->append(html);
+        m_log_preview->append(html);
         m_log_preview->verticalScrollBar()->setValue(m_log_preview->verticalScrollBar()->maximum());
     }
     m_log_window->verticalScrollBar()->setValue(m_log_window->verticalScrollBar()->maximum());
@@ -753,6 +759,38 @@ void MainView::progressProcessButtonPressed()
 
         m_last_batch_output_dir = out_dir;
         saveLastBatchOutputDir();
+
+        // Check for files that would be overwritten
+        QStringList conflicts;
+        for (const BatchFileInfo& info : m_view_model->batchFiles())
+        {
+            if (info.skip)
+            {
+                continue;
+            }
+            QString candidate = out_dir + "/" +
+                                MainViewModel::generateBatchOutputFilename(info.filepath);
+            if (QFileInfo::exists(candidate))
+            {
+                conflicts.append(QFileInfo(candidate).fileName());
+            }
+        }
+
+        if (!conflicts.isEmpty())
+        {
+            QString msg = tr("The following files already exist and will be overwritten:\n\n") +
+                          conflicts.join("\n") +
+                          tr("\n\nDo you want to continue?");
+            int result = QMessageBox::warning(this,
+                                              tr("Overwrite Existing Files?"),
+                                              msg,
+                                              QMessageBox::Ok | QMessageBox::Cancel,
+                                              QMessageBox::Cancel);
+            if (result != QMessageBox::Ok)
+            {
+                return;
+            }
+        }
 
         m_view_model->startBatchProcessing(out_dir, m_time_widget->sampleRateIndex());
         return;

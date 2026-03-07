@@ -63,8 +63,9 @@ int main(int argc, char* argv[])
     app.setApplicationName("agcCh10toCSV_tests");
     QSettings::setDefaultFormat(QSettings::IniFormat);
 
-    // Determine output log path: use -o argument if provided, else "results.txt"
-    QString log_path = "results.txt";
+    // Determine output log path: use -o argument if provided, else output/results.txt
+    // output/ is gitignored so results never clutter the repo.
+    QString log_path = "output/results.txt";
     for (int i = 1; i < argc; ++i)
     {
         QString arg = QString::fromLocal8Bit(argv[i]);

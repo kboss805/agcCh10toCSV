@@ -3,7 +3,6 @@
 #include <QSignalSpy>
 #include <QtTest>
 
-#include "constants.h"
 #include "mainviewmodel.h"
 
 void TestMainViewModelBatch::batchModeDefaultFalse()
@@ -38,6 +37,16 @@ void TestMainViewModelBatch::generateBatchOutputFilenameSpecialChars()
     QString result = vm.generateBatchOutputFilename("C:/data/my file (2024).ch10");
 
     QCOMPARE(result, QString("AGC_my file (2024).csv"));
+}
+
+void TestMainViewModelBatch::generateBatchOutputFilenamePath()
+{
+    // Verify the full path assembled by the overwrite-check logic is correct
+    QString out_dir = "C:/output";
+    QString filepath = "C:/data/flight001.ch10";
+    QString result = out_dir + "/" + MainViewModel::generateBatchOutputFilename(filepath);
+
+    QCOMPARE(result, QString("C:/output/AGC_flight001.csv"));
 }
 
 void TestMainViewModelBatch::batchStatusSummaryEmpty()
@@ -89,10 +98,10 @@ void TestMainViewModelBatch::setBatchFilePcmChannelOutOfBoundsNoSignal()
 
     // Out-of-bounds file index on empty batch — should not crash or emit
     vm.setBatchFilePcmChannel(0, 0);
-    QCOMPARE(spy.count(), 0);
+    QCOMPARE(spy.size(), 0);
 
     vm.setBatchFilePcmChannel(5, 0);
-    QCOMPARE(spy.count(), 0);
+    QCOMPARE(spy.size(), 0);
 }
 
 void TestMainViewModelBatch::setBatchFileTimeChannelOutOfBoundsNoSignal()
@@ -102,10 +111,10 @@ void TestMainViewModelBatch::setBatchFileTimeChannelOutOfBoundsNoSignal()
 
     // Out-of-bounds file index on empty batch — should not crash or emit
     vm.setBatchFileTimeChannel(0, 0);
-    QCOMPARE(spy.count(), 0);
+    QCOMPARE(spy.size(), 0);
 
     vm.setBatchFileTimeChannel(5, 0);
-    QCOMPARE(spy.count(), 0);
+    QCOMPARE(spy.size(), 0);
 }
 
 void TestMainViewModelBatch::setBatchFileChannelNegativeIndexNoSignal()
@@ -115,8 +124,8 @@ void TestMainViewModelBatch::setBatchFileChannelNegativeIndexNoSignal()
 
     // Negative indices — should not crash or emit
     vm.setBatchFilePcmChannel(-1, 0);
-    QCOMPARE(spy.count(), 0);
+    QCOMPARE(spy.size(), 0);
 
     vm.setBatchFileTimeChannel(-1, 0);
-    QCOMPARE(spy.count(), 0);
+    QCOMPARE(spy.size(), 0);
 }

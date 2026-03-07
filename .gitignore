@@ -74,11 +74,14 @@ Thumbs.db
 desktop.ini
 
 # Test artifacts
+tests/-
 tests/*.txt
 tests/run_tests.ps1
 tests/nul
 tests/stderr.txt
-tests/data/*.ch10
+tests/data/
+tests/output/
+!tests/output/.gitkeep
 
 # User-specific INI configurations
 settings/RASA.ini
@@ -88,7 +91,7 @@ settings/airborne.ini
 # Source artwork (only icon.ico is needed by the build)
 resources/icon_image.png
 
-# Input and Output files (you may want to keep these)
+# Input and Output files
 *.csv
 continue_config_example.json
 .agent/agent_config.json
@@ -96,3 +99,6 @@ continue_config_example.json
 tracked_files_tmp.txt
 .set_openclaw.sh
 .clangd
+tests/data/report.pdf
+status.txt
+cleanup_repo.ps1
