@@ -7,7 +7,7 @@ This file provides context and guidelines for AI assistants working on the agcCh
 - **Qt Version**: 6.10.2 (minimum: Qt 6.0.0)
 - **MinGW Version**: 13.1.0 (minimum: GCC/MinGW 7.0)
 - **C++ Standard**: C++17 (required — `inline constexpr` used throughout constants.h)
-- **Project Version**: 3.1.1 — defined in `AppVersion` struct in `include/constants.h`
+- **Project Version**: 3.1.2 — defined in `AppVersion` struct in `include/constants.h`
 
 - **Target Users:** Telemetry engineers and data analysts who need to convert RCC IRIG 106 chapter 10 formated files that include automatic gain control (AGC) signals information from telmetery receivers to comma separated values so AGC signals can be plotted and analyzed in capplications like Microsoft Excel or Matlab. 
 
@@ -230,6 +230,16 @@ This file provides context and guidelines for AI assistants working on the agcCh
 - ✅ TestFrameProcessor unit tests (17 test cases) — covers constructor, abort flag, `hasSyncPattern()`, `derandomizeBitstream()`, `writeTimeSample()`, `preScan()`, and `process()` with real Ch10 test files
 - ✅ TestTimeExtractionWidget unit tests (8 test cases) — covers defaults, signal emission, time population/clearing, enable/disable controls, sample rate options
 - ✅ TestReceiverGridWidget unit tests (7 test cases) — covers construction, rebuild, mass check/uncheck, Select All/None signal emission, edge cases (0 and 1 receivers)
+
+### v3.1.2 — Code Quality & UX Polish
+- ✅ Fixed dangling `m_current_processor` pointer after worker thread cleanup
+- ✅ Initialized all PlotWidget member pointers to `nullptr`
+- ✅ Added `QDoubleSpinBox`/`QSpinBox` dark and light theme styling
+- ✅ Added keyboard shortcuts: Ctrl+O (Open), Ctrl+R (Process)
+- ✅ Added busy cursor during file processing
+- ✅ Added tooltips to all plot controls (spinboxes, buttons, title)
+- ✅ Fixed README sample rate typo (20 Hz → 100 Hz)
+- ✅ Updated portable README version to current release
 
 ## Future Version Functions
 

@@ -1,0 +1,108 @@
+{
+    "version": "2.0.0",
+    "options": {
+        "env": {
+            "QTDIR": "C:\\Qt\\6.10.2\\mingw_64",
+            "MINGW_DIR": "C:\\Qt\\Tools\\mingw1310_64"
+        }
+    },
+    "tasks": [
+        {
+            "label": "qmake: Configure",
+            "type": "shell",
+            "command": "powershell.exe",
+            "args": [
+                "-ExecutionPolicy", "Bypass",
+                "-Command",
+                "New-Item -ItemType Directory -Force -Path build; Set-Location build; & \"$env:QTDIR/bin/qmake.exe\" ../agcCh10toCSV.pro -spec win32-g++ CONFIG+=debug CONFIG+=qml_debug"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "PATH": "${env:QTDIR}\\bin;${env:MINGW_DIR}\\bin;${env:PATH}"
+                }
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Build (Debug)",
+            "type": "shell",
+            "command": "powershell.exe",
+            "args": [
+                "-ExecutionPolicy", "Bypass",
+                "-Command",
+                "New-Item -ItemType Directory -Force -Path \"${workspaceFolder}/build\"; Set-Location \"${workspaceFolder}/build\"; if (!(Test-Path Makefile)) { & \"$env:QTDIR/bin/qmake.exe\" ../agcCh10toCSV.pro -spec win32-g++ CONFIG+=debug CONFIG+=qml_debug }; & \"$env:MINGW_DIR/bin/mingw32-make.exe\" -f Makefile.Debug"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "PATH": "${env:QTDIR}\\bin;${env:MINGW_DIR}\\bin;${env:PATH}"
+                }
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Build (Release)",
+            "type": "shell",
+            "command": "powershell.exe",
+            "args": [
+                "-ExecutionPolicy", "Bypass",
+                "-Command",
+                "New-Item -ItemType Directory -Force -Path \"${workspaceFolder}/build\"; Set-Location \"${workspaceFolder}/build\"; if (!(Test-Path Makefile)) { & \"$env:QTDIR/bin/qmake.exe\" ../agcCh10toCSV.pro -spec win32-g++ CONFIG+=debug CONFIG+=qml_debug }; & \"$env:MINGW_DIR/bin/mingw32-make.exe\" -f Makefile.Release"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "PATH": "${env:QTDIR}\\bin;${env:MINGW_DIR}\\bin;${env:PATH}"
+                }
+            },
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Clean",
+            "type": "shell",
+            "command": "powershell.exe",
+            "args": [
+                "-ExecutionPolicy", "Bypass",
+                "-Command",
+                "New-Item -ItemType Directory -Force -Path \"${workspaceFolder}/build\"; Set-Location \"${workspaceFolder}/build\"; & \"$env:MINGW_DIR/bin/mingw32-make.exe\" clean"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "PATH": "${env:QTDIR}\\bin;${env:MINGW_DIR}\\bin;${env:PATH}"
+                }
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Force Build (Debug)",
+            "type": "shell",
+            "command": "powershell.exe",
+            "args": [
+                "-ExecutionPolicy", "Bypass",
+                "-Command",
+                "New-Item -ItemType Directory -Force -Path \"${workspaceFolder}/build\"; Set-Location \"${workspaceFolder}/build\"; if (!(Test-Path Makefile)) { & \"$env:QTDIR/bin/qmake.exe\" ../agcCh10toCSV.pro -spec win32-g++ CONFIG+=debug CONFIG+=qml_debug }; Get-ChildItem ../src,../include -Recurse -Include *.cpp,*.h | ForEach-Object { $_.LastWriteTime = Get-Date }; & \"$env:MINGW_DIR/bin/mingw32-make.exe\" -f Makefile.Debug"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "PATH": "${env:QTDIR}\\bin;${env:MINGW_DIR}\\bin;${env:PATH}"
+                }
+            },
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Rebuild",
+            "dependsOn": ["Clean", "Build (Debug)"],
+            "dependsOrder": "sequence",
+            "problemMatcher": []
+        }
+    ]
+}

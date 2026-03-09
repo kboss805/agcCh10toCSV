@@ -112,22 +112,22 @@ private:
 
     /// @name Chart
     /// @{
-    QCustomPlot* m_plot;
+    QCustomPlot* m_plot = nullptr;
     /// @}
 
     /// @name Top toolbar controls
     /// @{
-    QLineEdit* m_title_edit;
-    QDoubleSpinBox* m_y_min_spin;
-    QDoubleSpinBox* m_y_max_spin;
+    QLineEdit* m_title_edit = nullptr;
+    QDoubleSpinBox* m_y_min_spin = nullptr;
+    QDoubleSpinBox* m_y_max_spin = nullptr;
     /// @}
 
     /// @name Bottom controls
     /// @{
-    QDoubleSpinBox* m_x_start_spin;
-    QDoubleSpinBox* m_x_stop_spin;
-    QPushButton* m_reset_btn;
-    QPushButton* m_export_pdf_btn;
+    QDoubleSpinBox* m_x_start_spin = nullptr;
+    QDoubleSpinBox* m_x_stop_spin = nullptr;
+    QPushButton* m_reset_btn = nullptr;
+    QPushButton* m_export_pdf_btn = nullptr;
     /// @}
 
     /// @name Graph tracking

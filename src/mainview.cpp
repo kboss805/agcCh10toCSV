@@ -260,7 +260,8 @@ void MainView::setUpMenuBar()
 
     m_toolbar_open_action = m_toolbar->addAction(
         QIcon(":/resources/folder-open.svg"), "Open Ch10 File");
-    m_toolbar_open_action->setToolTip("Open Ch10 File");
+    m_toolbar_open_action->setToolTip("Open Ch10 File (Ctrl+O)");
+    m_toolbar_open_action->setShortcut(QKeySequence::Open);
     connect(m_toolbar_open_action, &QAction::triggered,
             this, &MainView::inputFileButtonPressed);
 
@@ -268,7 +269,8 @@ void MainView::setUpMenuBar()
 
     m_process_action = m_toolbar->addAction(
         QIcon(":/resources/play.svg"), "Process");
-    m_process_action->setToolTip("Process Ch10 to CSV");
+    m_process_action->setToolTip("Process Ch10 to CSV (Ctrl+R)");
+    m_process_action->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_R));
     m_process_action->setEnabled(false);
     connect(m_process_action, &QAction::triggered,
             this, &MainView::progressProcessButtonPressed);
@@ -520,6 +522,7 @@ void MainView::onProcessingChanged()
 {
     if (m_view_model->processing())
     {
+        QApplication::setOverrideCursor(Qt::WaitCursor);
         setAllControlsEnabled(false);
         m_process_action->setEnabled(false);
         m_cancel_action->setEnabled(true);
@@ -527,6 +530,7 @@ void MainView::onProcessingChanged()
     }
     else
     {
+        QApplication::restoreOverrideCursor();
         setAllControlsEnabled(true);
         m_cancel_action->setEnabled(false);
     }

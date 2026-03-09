@@ -261,6 +261,52 @@ QLineEdit::disabled
 }
 
 
+/*-----QSpinBox / QDoubleSpinBox-----*/
+QSpinBox,
+QDoubleSpinBox
+{
+    background-color: #2D2D2D;
+    color: #FFFFFF;
+    border: 1px solid #303030;
+    border-radius: 4px;
+    padding: 4px 8px;
+}
+
+
+QSpinBox:hover,
+QDoubleSpinBox:hover
+{
+    border: 1px solid #353535;
+}
+
+
+QSpinBox:focus,
+QDoubleSpinBox:focus
+{
+    border: 1px solid #60CDFF;
+}
+
+
+QSpinBox::disabled,
+QDoubleSpinBox::disabled
+{
+    background-color: #2A2A2A;
+    color: rgba(255, 255, 255, 0.36);
+    border: 1px solid #303030;
+}
+
+
+QSpinBox::up-button,
+QDoubleSpinBox::up-button,
+QSpinBox::down-button,
+QDoubleSpinBox::down-button
+{
+    background-color: transparent;
+    border: none;
+    width: 16px;
+}
+
+
 /*-----QGroupBox-----*/
 QGroupBox
 {

@@ -112,7 +112,7 @@ To build and debug:
 5. **Set Time Range**
    - Check "All" to process entire file
    - Or specify start/stop times (DDD HH:MM:SS format)
-   - Select sample rate (1 Hz, 10 Hz, or 20 Hz)
+   - Select sample rate (1 Hz, 10 Hz, or 100 Hz)
 
 6. **Process**
    - Click the play icon in the toolbar to begin conversion

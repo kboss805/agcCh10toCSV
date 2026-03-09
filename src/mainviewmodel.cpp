@@ -1476,6 +1476,7 @@ void MainViewModel::launchWorkerThread(const ProcessingParams& params)
         m_worker_thread->wait();
         delete m_worker_thread;
         m_worker_thread = nullptr;
+        m_current_processor = nullptr;
     }
 
     m_worker_thread = new QThread;

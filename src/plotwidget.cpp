@@ -452,6 +452,7 @@ void PlotWidget::setUpLayout()
     title_bar->addWidget(new QLabel("Title:"));
     m_title_edit = new QLineEdit;
     m_title_edit->setPlaceholderText(PlotConstants::kDefaultPlotTitle);
+    m_title_edit->setToolTip("Plot title");
     m_title_edit->setEnabled(false);
     title_bar->addWidget(m_title_edit, 1);
     main_layout->addLayout(title_bar);
@@ -477,6 +478,7 @@ void PlotWidget::setUpLayout()
     m_x_start_spin->setRange(0.0, PlotConstants::kSpinBoxMaxRange);
     m_x_start_spin->setDecimals(1);
     m_x_start_spin->setSuffix(" s");
+    m_x_start_spin->setToolTip("X axis start time (seconds)");
     m_x_start_spin->setEnabled(false);
     axis_grid->addWidget(m_x_start_spin, 0, 1);
 
@@ -485,6 +487,7 @@ void PlotWidget::setUpLayout()
     m_x_stop_spin->setRange(0.0, PlotConstants::kSpinBoxMaxRange);
     m_x_stop_spin->setDecimals(1);
     m_x_stop_spin->setSuffix(" s");
+    m_x_stop_spin->setToolTip("X axis stop time (seconds)");
     m_x_stop_spin->setEnabled(false);
     axis_grid->addWidget(m_x_stop_spin, 0, 3);
 
@@ -492,6 +495,7 @@ void PlotWidget::setUpLayout()
     m_y_min_spin = new QDoubleSpinBox;
     m_y_min_spin->setRange(0.0, PlotConstants::kYSpinBoxMax);
     m_y_min_spin->setDecimals(1);
+    m_y_min_spin->setToolTip("Y axis minimum (dB)");
     m_y_min_spin->setEnabled(false);
     axis_grid->addWidget(m_y_min_spin, 1, 1);
 
@@ -499,14 +503,17 @@ void PlotWidget::setUpLayout()
     m_y_max_spin = new QDoubleSpinBox;
     m_y_max_spin->setRange(0.0, PlotConstants::kYSpinBoxMax);
     m_y_max_spin->setDecimals(1);
+    m_y_max_spin->setToolTip("Y axis maximum (dB)");
     m_y_max_spin->setEnabled(false);
     axis_grid->addWidget(m_y_max_spin, 1, 3);
 
     m_reset_btn = new QPushButton("Reset");
+    m_reset_btn->setToolTip("Reset axes to auto range");
     m_reset_btn->setEnabled(false);
     axis_grid->addWidget(m_reset_btn, 1, 4);
 
     m_export_pdf_btn = new QPushButton("Export PDF");
+    m_export_pdf_btn->setToolTip("Export plot to PDF");
     m_export_pdf_btn->setEnabled(false);
     axis_grid->addWidget(m_export_pdf_btn, 1, 5);
 

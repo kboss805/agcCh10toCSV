@@ -122,7 +122,7 @@ void TestConstants::appVersionValues()
 {
     QCOMPARE(AppVersion::kMajor, 3);
     QCOMPARE(AppVersion::kMinor, 1);
-    QCOMPARE(AppVersion::kPatch, 1);
+    QCOMPARE(AppVersion::kPatch, 2);
 }
 
 void TestConstants::appVersionToString()

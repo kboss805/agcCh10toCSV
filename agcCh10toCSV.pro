@@ -3,7 +3,7 @@ QT       += core gui printsupport
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++17
-VERSION = 3.1.1
+VERSION = 3.1.2
 
 
 INCLUDEPATH += \
