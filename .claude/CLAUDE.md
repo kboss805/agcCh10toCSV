@@ -479,8 +479,8 @@ Order includes in each `.cpp` / `.h` file as follows, with a blank line between 
 - Includes platform-specific libraries (ws2_32 for Windows sockets)
 
 ### Build Targets
-- **Debug**: `mingw32-make -f Makefile.Debug` → `debug/agcCh10toCSV.exe`
-- **Release**: `mingw32-make -f Makefile.Release` → `release/agcCh10toCSV.exe`
+- **Debug**: `mingw32-make -f Makefile.Debug` inside `build/` → `build/debug/agcCh10toCSV.exe`
+- **Release**: `mingw32-make -f Makefile.Release` inside `build/` → `build/release/agcCh10toCSV.exe`
 
 ### VS Code Integration
 Tasks are defined in `.vscode/tasks.json`:
@@ -496,7 +496,7 @@ Tasks are defined in `.vscode/tasks.json`:
 - **Portable ZIP**: Flat layout with `portable` marker file; QSettings redirected to app directory via `QSettings::setPath()` in `main.cpp`; includes LICENSE.txt and README.txt
 - **Release notes**: `deploy/RELEASENOTES.txt` — shown as "What's New" page in installer (`InfoBeforeFile`)
 - **Portable README**: `deploy/README_portable.txt` — copied as README.txt into portable ZIP
-- **App root auto-detection** (`mainviewmodel.cpp`): Checks if `settings/` exists next to the exe (portable) or one level up (installed/dev)
+- **App root auto-detection** (`mainviewmodel.cpp`): Checks if `settings/` exists next to the exe (portable) or one level up (installed/dev/build)
 - **Installed layout**: `{install}/bin/agcCh10toCSV.exe` + `{install}/settings/default.ini`
 - **Portable layout**: `agcCh10toCSV.exe` + `settings/default.ini` + `portable` marker + `LICENSE.txt` + `README.txt` in same directory
 - **Code signing**: Optional via `SIGN_CERT_SHA1` environment variable (SHA-1 thumbprint of certificate in Windows Certificate Store)

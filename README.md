@@ -55,20 +55,29 @@ This application reads IRIG 106 Chapter 10 (.ch10) files, extracts telemetry dat
 2. Configure the project with your Qt kit
 3. Build and run (Ctrl+R)
 
-### Using Command Line (Windows with MinGW)
-```bash
-# Configure the project
-qmake agcCh10toCSV.pro -spec win32-g++
+58: ### Using Command Line (Windows with MinGW)
+59: ```bash
+60: # We use a shadow build directory to keep the source tree clean
+61: mkdir build
+62: cd build
+63: 
+64: # Configure the project
+65: qmake ../agcCh10toCSV.pro -spec win32-g++
+66: 
+67: # Build debug version
+68: mingw32-make -f Makefile.Debug
+69: 
+70: # Build release version
+71: mingw32-make -f Makefile.Release
+72: 
+73: # Run the application
+74: debug\agcCH10toCSV.exe
+75: cd ..
+76: 
+77: # Alternatively, use the provided build script
+78: scripts\build.bat
+79: ```
 
-# Build debug version
-mingw32-make -f Makefile.Debug
-
-# Build release version
-mingw32-make -f Makefile.Release
-
-# Run the application
-debug\agcCH10toCSV.exe
-```
 
 ### Using VS Code
 The project includes VS Code configuration files:
@@ -151,7 +160,8 @@ agcCH10toCSV/
 ├── deploy/                     # Build automation, installer, and release packaging
 ├── tests/                      # Qt Test framework unit tests
 ├── settings/                   # Default and user settings files
-├── resources/                  # Resources (stylesheets, icons)
+├── resources/                  # Resources (stylesheets, icons, rc)
+│   ├── agcCh10toCSV_resource.rc # Windows resource file
 │   ├── win11-dark.qss         # Dark theme stylesheet
 │   ├── win11-light.qss        # Light theme stylesheet
 │   ├── chevron-down-*.svg     # Combo box dropdown arrow icons
@@ -159,6 +169,9 @@ agcCH10toCSV/
 │   ├── folder-open.svg        # Toolbar open icon
 │   ├── play.svg               # Toolbar process icon
 │   └── icon.ico               # Application icon
+├── scripts/                    # Build and utility scripts
+│   ├── build.bat              # Command-line shadow build generator
+│   └── commit.bat             # Git staging and commit helper
 ├── .vscode/                    # VS Code configuration
 ├── agcCh10toCSV.pro            # Qt project file
 ├── CLAUDE.md                   # AI assistant guide

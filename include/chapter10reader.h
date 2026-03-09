@@ -10,8 +10,8 @@
 #define CHAPTER10READER_H
 
 #include <array>
-#include <vector>
 
+#include <QByteArray>
 #include <QDateTime>
 #include <QMap>
 #include <QObject>
@@ -123,7 +123,7 @@ private:
     int m_file_handle;                                          ///< irig106 file handle.
 
     Irig106::SuI106Ch10Header m_header;                         ///< Reusable packet header buffer.
-    std::vector<unsigned char> m_buffer;                        ///< Packet data read buffer.
+    QByteArray m_buffer;                                        ///< Packet data read buffer.
     std::array<unsigned char, 6> m_relative_start_time;         ///< Relative time of first data packet.
     std::array<unsigned char, 6> m_relative_stop_time;          ///< Relative time of last data packet.
     tm m_file_start_time;                                       ///< Decoded calendar start time.

@@ -1,14 +1,10 @@
 # Build directories
-debug/
-release/
 samplefiles/
 
 # Qt generated files
 *.pro.user
 *.pro.user.*
 *.autosave
-Makefile
-Makefile.*
 .qmake.stash
 moc_*.cpp
 moc_*.h
@@ -45,9 +41,7 @@ ui_*.h
 *.ncb
 *.sdf
 *.opensdf
-*.VC.db
 *.VC.opendb
-*.bat
 
 # Deployment staging and output
 deploy/
@@ -61,6 +55,7 @@ deploy/
 *.pdb
 *.ilk
 *.log
+build/
 
 # Temporary files
 *~
@@ -74,7 +69,6 @@ Thumbs.db
 desktop.ini
 
 # Test artifacts
-tests/-
 tests/*.txt
 tests/run_tests.ps1
 tests/nul
@@ -101,4 +95,3 @@ tracked_files_tmp.txt
 .clangd
 tests/data/report.pdf
 status.txt
-cleanup_repo.ps1

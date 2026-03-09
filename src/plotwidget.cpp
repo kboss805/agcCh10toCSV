@@ -5,8 +5,6 @@
 
 #include "plotwidget.h"
 
-#include <algorithm>
-
 #include <QFileDialog>
 #include <QFrame>
 #include <QGridLayout>
@@ -428,7 +426,7 @@ void PlotWidget::handlePlotXRangeChanged(double lower, double upper)
     if (upper > x_max)
     {
         upper = x_max;
-        lower = std::max(0.0, x_max - width);
+        lower = qMax(0.0, x_max - width);
     }
 
     m_view_model->setXViewRange(lower, upper);

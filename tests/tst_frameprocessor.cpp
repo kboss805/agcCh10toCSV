@@ -5,17 +5,15 @@
 
 #include "tst_frameprocessor.h"
 
-#include <array>
-#include <cstring>
-#include <fstream>
-#include <sstream>
-
+#include <QByteArray>
 #include <QCoreApplication>
 #include <QDir>
+#include <QFile>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTemporaryFile>
 #include <QtTest>
+#include <QVector>
 
 #include "chapter10reader.h"
 #include "constants.h"
@@ -80,36 +78,38 @@ void TestFrameProcessor::requestAbortSetsFlag()
 void TestFrameProcessor::hasSyncPatternFindsMatch()
 {
     // Build a 16-bit pattern: 0xFF00 in a 2-byte buffer
-    std::array<uint8_t, 2> data = {0xFF, 0x00};
+    const char raw[] = {'\xFF', '\x00'};
+    QByteArray data(raw, 2);
     uint64_t sync_pat = 0xFF00;
     uint64_t sync_mask = 0xFFFF;
     uint32_t sync_pat_len = 16;
 
-    bool found = FrameProcessor::hasSyncPattern(data.data(), 16, sync_pat, sync_mask, sync_pat_len);
+    bool found = FrameProcessor::hasSyncPattern(reinterpret_cast<const uint8_t*>(data.constData()), 16, sync_pat, sync_mask, sync_pat_len);
     QVERIFY2(found, "Should find 0xFF00 pattern in [0xFF, 0x00] buffer");
 }
 
 void TestFrameProcessor::hasSyncPatternNoMatch()
 {
     // Buffer is 0xFF00 but pattern is 0x00FF — should not match
-    std::array<uint8_t, 2> data = {0xFF, 0x00};
+    const char raw[] = {'\xFF', '\x00'};
+    QByteArray data(raw, 2);
     uint64_t sync_pat = 0x00FF;
     uint64_t sync_mask = 0xFFFF;
     uint32_t sync_pat_len = 16;
 
-    bool found = FrameProcessor::hasSyncPattern(data.data(), 16, sync_pat, sync_mask, sync_pat_len);
+    bool found = FrameProcessor::hasSyncPattern(reinterpret_cast<const uint8_t*>(data.constData()), 16, sync_pat, sync_mask, sync_pat_len);
     QVERIFY2(!found, "Should NOT find 0x00FF pattern in [0xFF, 0x00] buffer");
 }
 
 void TestFrameProcessor::hasSyncPatternShortBuffer()
 {
     // Buffer has fewer bits than the pattern length — should not match
-    std::array<uint8_t, 1> data = {0xFF};
+    QByteArray data(1, '\xFF');
     uint64_t sync_pat = 0xFF00;
     uint64_t sync_mask = 0xFFFF;
     uint32_t sync_pat_len = 16;
 
-    bool found = FrameProcessor::hasSyncPattern(data.data(), 8, sync_pat, sync_mask, sync_pat_len);
+    bool found = FrameProcessor::hasSyncPattern(reinterpret_cast<const uint8_t*>(data.constData()), 8, sync_pat, sync_mask, sync_pat_len);
     QVERIFY2(!found, "Should not find 16-bit pattern in 8-bit buffer");
 }
 
@@ -118,11 +118,11 @@ void TestFrameProcessor::derandomizeShortBufferIdentity()
     // With lfsr starting at 0, the RNRZ-L taps (bits 13,14) won't produce
     // non-zero output until at least 14 bits have been shifted in.
     // So derandomizing < 14 bits with lfsr=0 should leave data unchanged.
-    std::array<uint8_t, 1> data = {0xAB};
-    std::array<uint8_t, 1> original = data;
+    QByteArray data(1, '\xAB');
+    QByteArray original = data;
     uint16_t lfsr = 0;
 
-    FrameProcessor::derandomizeBitstream(data.data(), 8, lfsr);
+    FrameProcessor::derandomizeBitstream(reinterpret_cast<uint8_t*>(data.data()), 8, lfsr);
     QCOMPARE(data[0], original[0]);
 }
 
@@ -130,24 +130,14 @@ void TestFrameProcessor::derandomizeLongerBufferChanges()
 {
     // With a buffer larger than 14 bits, the LFSR taps will produce non-zero
     // output and the descrambled data should differ from the original.
-    constexpr int kBufSize = 4; // 32 bits
-    std::array<uint8_t, kBufSize> data = {0xFF, 0xFF, 0xFF, 0xFF};
-    std::array<uint8_t, kBufSize> original = data;
+    QByteArray data(4, '\xFF');
+    QByteArray original = data;
     uint16_t lfsr = 0;
 
-    FrameProcessor::derandomizeBitstream(data.data(), 32, lfsr);
+    FrameProcessor::derandomizeBitstream(reinterpret_cast<uint8_t*>(data.data()), 32, lfsr);
 
     // After 14+ bits with all-1s input, some bits should differ
-    bool any_different = false;
-    for (int i = 0; i < kBufSize; i++)
-    {
-        if (data[i] != original[i])
-        {
-            any_different = true;
-            break;
-        }
-    }
-    QVERIFY2(any_different, "32 bits of all-1s should change after derandomization");
+    QVERIFY2(data != original, "32 bits of all-1s should change after derandomization");
 }
 
 void TestFrameProcessor::writeTimeSampleFormat()
@@ -166,11 +156,11 @@ void TestFrameProcessor::writeTimeSampleFormat()
     param.is_enabled = true;
     param.sample_sum = 42.0;
 
-    std::vector<ParameterInfo*> enabled_params;
+    QVector<ParameterInfo*> enabled_params;
     enabled_params.push_back(&param);
 
-    std::ofstream output(out_path.toStdString());
-    QVERIFY(output.is_open());
+    QFile output(out_path);
+    QVERIFY(output.open(QIODevice::WriteOnly));
 
     // writeTimeSample uses gmtime(): current_time_sample is a Unix epoch timestamp.
     // DOY 45 = Feb 14 (0-based tm_yday=44, +1 in output).
@@ -209,11 +199,11 @@ void TestFrameProcessor::writeTimeSampleAveraging()
     param.is_enabled = true;
     param.sample_sum = 100.0;  // Sum of 10 samples
 
-    std::vector<ParameterInfo*> enabled_params;
+    QVector<ParameterInfo*> enabled_params;
     enabled_params.push_back(&param);
 
-    std::ofstream output(out_path.toStdString());
-    QVERIFY(output.is_open());
+    QFile output(out_path);
+    QVERIFY(output.open(QIODevice::WriteOnly));
 
     double current_time_sample = (44 * 86400.0) + (10 * 3600.0) + (30 * 60.0) + 15.0;
     int n_samples = 10;  // Average should be 100.0 / 10 = 10.0

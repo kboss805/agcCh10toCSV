@@ -5,8 +5,7 @@
 
 #include "plotviewmodel.h"
 
-#include <algorithm>
-#include <cmath>
+#include <QtMath>
 
 #include <QFile>
 #include <QMap>
@@ -73,7 +72,7 @@ bool PlotViewModel::loadCsvFile(const QString& filepath)
     constexpr int kMinRowsEstimate = 100;
     qint64 remaining_bytes = file.size() - stream.pos();
     int estimated_rows = static_cast<int>(remaining_bytes / (param_count * 8 + kBytesPerRowEstimate));
-    estimated_rows = std::max(estimated_rows, kMinRowsEstimate);
+    estimated_rows = qMax(estimated_rows, kMinRowsEstimate);
     for (int i = 0; i < param_count; i++)
     {
         series[i].xValues.reserve(estimated_rows);
@@ -165,8 +164,8 @@ void PlotViewModel::parseCsvDataRows(QTextStream& stream, int param_count, QVect
             {
                 series[i].xValues.append(elapsed);
                 series[i].yValues.append(value);
-                series[i].yMinCached = std::min(series[i].yMinCached, value);
-                series[i].yMaxCached = std::max(series[i].yMaxCached, value);
+                series[i].yMinCached = qMin(series[i].yMinCached, value);
+                series[i].yMaxCached = qMax(series[i].yMaxCached, value);
             }
         }
     }
@@ -334,7 +333,7 @@ void PlotViewModel::assignColors()
     for (auto& s : m_series)
     {
         int color_idx = (s.receiverIndex - 1) % PlotConstants::kNumReceiverColors;
-        color_idx = std::max(0, color_idx);
+        color_idx = qMax(0, color_idx);
 
         QColor base = PlotConstants::kReceiverColors[color_idx];
 
@@ -348,11 +347,11 @@ void PlotViewModel::assignColors()
             // Reduce saturation by 25% per subsequent channel, minimum 40
             constexpr int kMinSaturation = 40;
             constexpr int kSaturationStep = 60;
-            sat = std::max(kMinSaturation, sat - (s.channelIndex * kSaturationStep));
+            sat = qMax(kMinSaturation, sat - (s.channelIndex * kSaturationStep));
             // Increase value slightly for lighter shade
             constexpr int kMaxValue = 255;
             constexpr int kValueStep = 20;
-            val = std::min(kMaxValue, val + (s.channelIndex * kValueStep));
+            val = qMin(kMaxValue, val + (s.channelIndex * kValueStep));
             base.setHsv(h, sat, val);
         }
 
@@ -374,8 +373,8 @@ void PlotViewModel::computeYRange()
         }
 
         has_visible = true;
-        y_min = std::min(y_min, s.yMinCached);
-        y_max = std::max(y_max, s.yMaxCached);
+        y_min = qMin(y_min, s.yMinCached);
+        y_max = qMax(y_max, s.yMaxCached);
     }
 
     if (!has_visible)
@@ -387,8 +386,8 @@ void PlotViewModel::computeYRange()
 
     // Round to nearest 5 dB, clip min at 0
     constexpr double kRoundingStep = 5.0;
-    m_data_y_min = std::max(0.0, std::floor(y_min / kRoundingStep) * kRoundingStep);
-    m_data_y_max = std::ceil(y_max / kRoundingStep) * kRoundingStep;
+    m_data_y_min = qMax(0.0, qFloor(y_min / kRoundingStep) * kRoundingStep);
+    m_data_y_max = qCeil(y_max / kRoundingStep) * kRoundingStep;
     if (m_data_y_max <= m_data_y_min)
     {
         m_data_y_max = m_data_y_min + kRoundingStep;
@@ -423,7 +422,7 @@ QString PlotViewModel::formatTime(double elapsed) const
     double total = m_base_time_offset + elapsed;
 
     int day = m_base_day + static_cast<int>(total / UIConstants::kSecondsPerDay);
-    total = std::fmod(total, static_cast<double>(UIConstants::kSecondsPerDay));
+    total = fmod(total, static_cast<double>(UIConstants::kSecondsPerDay));
     if (total < 0.0)
     {
         total += UIConstants::kSecondsPerDay;

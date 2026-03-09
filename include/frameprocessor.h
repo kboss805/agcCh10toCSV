@@ -7,11 +7,12 @@
 #define FRAMEPROCESSOR_H
 
 #include <atomic>
-#include <fstream>
-#include <vector>
 
+#include <QByteArray>
+#include <QFile>
 #include <QObject>
 #include <QString>
+#include <QVector>
 
 #include "irig106ch10.h"
 #include "i106_time.h"
@@ -153,7 +154,7 @@ private:
      * @brief Deallocates the per-channel info table and associated attributes.
      * @param[in,out] channel_info Vector of SuChanInfo pointers to free.
      */
-    static void freeChanInfoTable(std::vector<SuChanInfo*>& channel_info);
+    static void freeChanInfoTable(QVector<SuChanInfo*>& channel_info);
 
     /**
      * @brief Builds per-channel attribute structures from TMATS metadata.
@@ -163,7 +164,7 @@ private:
      */
     static Irig106::EnI106Status assembleAttributesFromTMATS(
         Irig106::SuTmatsInfo* tmats_info,
-        std::vector<SuChanInfo*>& channel_info);
+        QVector<SuChanInfo*>& channel_info);
     /// @}
 
     /// @name PCM bit-level helpers
@@ -197,17 +198,17 @@ private:
      * @param[in]     n_samples           Number of raw samples to average.
      * @param[in]     enabled_params      Parameter definitions for column output.
      */
-    static void writeTimeSample(std::ofstream& output,
+    static void writeTimeSample(QFile& output,
                                 double current_time_sample,
                                 int n_samples,
-                                const std::vector<ParameterInfo*>& enabled_params);
+                                const QVector<ParameterInfo*>& enabled_params);
 
     Irig106::EnI106Status m_status;                             ///< Last irig106 API return status.
     int m_file_handle;                                          ///< irig106 file handle.
     Irig106::SuI106Ch10Header m_header;                         ///< Reusable packet header buffer.
-    std::vector<unsigned char> m_buffer;                        ///< Packet data read buffer.
+    QByteArray m_buffer;                                        ///< Packet data read buffer.
     Irig106::SuTmatsInfo m_tmats_info;                          ///< Parsed TMATS metadata.
-    std::vector<SuChanInfo*> m_channel_info;                    ///< Per-channel attribute table.
+    QVector<SuChanInfo*> m_channel_info;                        ///< Per-channel attribute table.
     Irig106::SuIrig106Time m_irig_time;                         ///< Reusable IRIG time struct.
     int64_t m_total_file_size;                                  ///< Input file size in bytes (for progress).
     std::atomic<bool> m_abort_requested;                         ///< Thread-safe abort flag.

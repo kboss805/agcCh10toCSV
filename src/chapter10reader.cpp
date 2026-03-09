@@ -145,7 +145,7 @@ bool Chapter10Reader::loadChannels(const QString& filename)
         }
 
         // Make sure our buffer is big enough
-        if (m_buffer.size() < uGetDataLen(&m_header))
+        if (m_buffer.size() < static_cast<qsizetype>(uGetDataLen(&m_header)))
         {
             try {
                 m_buffer.resize(uGetDataLen(&m_header));
@@ -157,7 +157,7 @@ bool Chapter10Reader::loadChannels(const QString& filename)
         }
 
         // Read the data buffer
-        m_status = enI106Ch10ReadData(m_file_handle, m_buffer.size(), m_buffer.data());
+        m_status = enI106Ch10ReadData(m_file_handle, static_cast<unsigned long>(m_buffer.size()), m_buffer.data());
 
         // Check for data read errors
         if (m_status != I106_OK)

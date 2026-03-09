@@ -6,13 +6,13 @@
 #include "frameprocessor.h"
 
 #include <ctime>
-#include <fstream>
-#include <string>
-#include <vector>
 
+#include <QByteArray>
 #include <QDebug>
 #include <QElapsedTimer>
+#include <QFile>
 #include <QFileInfo>
+#include <QVector>
 
 #include "constants.h"
 #include "framesetup.h"
@@ -35,7 +35,7 @@ namespace {
 //                          IRIG106 HELPER METHODS                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-void FrameProcessor::freeChanInfoTable(std::vector<SuChanInfo*>& channel_info)
+void FrameProcessor::freeChanInfoTable(QVector<SuChanInfo*>& channel_info)
 {
     for(auto* info : channel_info)
     {
@@ -61,7 +61,7 @@ void FrameProcessor::freeChanInfoTable(std::vector<SuChanInfo*>& channel_info)
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 EnI106Status FrameProcessor::assembleAttributesFromTMATS(SuTmatsInfo* tmats_info,
-                                                         std::vector<SuChanInfo*>& channel_info)
+                                                         QVector<SuChanInfo*>& channel_info)
 {
     SuRRecord* psuRRecord = nullptr;
     SuRDataSource* psuRDataSrc = nullptr;
@@ -256,7 +256,7 @@ bool FrameProcessor::preScan(const QString& filename,
         return false;
     }
 
-    if (m_buffer.size() < m_header.ulPacketLen)
+    if (m_buffer.size() < static_cast<qsizetype>(m_header.ulPacketLen))
     {
         try {
             m_buffer.resize(m_header.ulPacketLen);
@@ -267,7 +267,7 @@ bool FrameProcessor::preScan(const QString& filename,
         }
     }
 
-    m_status = enI106Ch10ReadData(m_file_handle, m_buffer.size(), m_buffer.data());
+    m_status = enI106Ch10ReadData(m_file_handle, static_cast<unsigned long>(m_buffer.size()), m_buffer.data());
     if (m_status != I106_OK)
     {
         emit logMessage("Pre-scan: skipped — could not read TMATS data.");
@@ -345,7 +345,7 @@ bool FrameProcessor::preScan(const QString& filename,
             continue;
         }
 
-        if (m_buffer.size() < m_header.ulPacketLen)
+        if (m_buffer.size() < static_cast<qsizetype>(m_header.ulPacketLen))
         {
             try {
                 m_buffer.resize(m_header.ulPacketLen);
@@ -354,7 +354,7 @@ bool FrameProcessor::preScan(const QString& filename,
             }
         }
 
-        m_status = enI106Ch10ReadData(m_file_handle, m_buffer.size(), m_buffer.data());
+        m_status = enI106Ch10ReadData(m_file_handle, static_cast<unsigned long>(m_buffer.size()), m_buffer.data());
         if (m_status != I106_OK)
         {
             break;
@@ -367,7 +367,7 @@ bool FrameProcessor::preScan(const QString& filename,
         }
 
         // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-        uint8_t* raw_data = m_buffer.data() + data_offset;
+        auto* raw_data = reinterpret_cast<uint8_t*>(m_buffer.data() + data_offset);
         uint32_t raw_len  = m_header.ulDataLen - data_offset;
 
         if (pcm_attrs->bDontSwapRawData == 0)
@@ -385,11 +385,11 @@ bool FrameProcessor::preScan(const QString& filename,
 
         // Test RNRZ-L: copy, derandomize, then check for sync
         // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-        std::vector<uint8_t> derand_copy(raw_data, raw_data + raw_len);
+        QByteArray derand_copy(reinterpret_cast<const char*>(raw_data), static_cast<qsizetype>(raw_len));
         uint16_t test_lfsr = 0;
-        derandomizeBitstream(derand_copy.data(), packet_bits, test_lfsr);
+        derandomizeBitstream(reinterpret_cast<uint8_t*>(derand_copy.data()), packet_bits, test_lfsr);
 
-        if (hasSyncPattern(derand_copy.data(), packet_bits, sync_pat, sync_mask, sync_len))
+        if (hasSyncPattern(reinterpret_cast<const uint8_t*>(derand_copy.constData()), packet_bits, sync_pat, sync_mask, sync_len))
         {
             rnrzl_sync_count++;
         }
@@ -527,12 +527,10 @@ bool FrameProcessor::process(const QString& filename,
         return false;
     }
 
-    // Open output file with larger stream buffer for performance
+    // Open output file
     emit logMessage("Creating output CSV file...");
-    std::vector<char> stream_buffer(PCMConstants::kDefaultBufferSize);
-    std::ofstream output(outfile.toStdString(), std::ios::binary);
-    output.rdbuf()->pubsetbuf(stream_buffer.data(), static_cast<std::streamsize>(stream_buffer.size()));
-    if (!output.is_open())
+    QFile output(outfile);
+    if (!output.open(QIODevice::WriteOnly))
     {
         emit errorOccurred("Failed to open output file: " + outfile);
         closeFile();
@@ -543,14 +541,14 @@ bool FrameProcessor::process(const QString& filename,
     // Cleanup helper for error paths
     auto fail = [&](const QString& msg) -> bool {
         emit errorOccurred(msg);
-        if (output.is_open()) { output.close(); }
+        if (output.isOpen()) { output.close(); }
         closeFile();
         emit processingFinished(false);
         return false;
     };
 
     // Pre-cache enabled parameters to avoid repeated iteration in hot loops
-    std::vector<ParameterInfo*> enabled_params;
+    QVector<ParameterInfo*> enabled_params;
     enabled_params.reserve(frame_setup->length());
     for (int i = 0; i < frame_setup->length(); i++)
     {
@@ -562,12 +560,13 @@ bool FrameProcessor::process(const QString& filename,
     }
 
     // Write CSV header
-    output << "Day,Time";
+    QString header_line = QStringLiteral("Day,Time");
     for (const auto* param : enabled_params)
     {
-        output << "," << param->name.toUtf8().constData();
+        header_line += ',' + param->name;
     }
-    output << "\n";
+    header_line += '\n';
+    output.write(header_line.toUtf8());
 
     // Read and process the first packet (must be TMATS)
     emit logMessage("Reading TMATS metadata...");
@@ -580,7 +579,7 @@ bool FrameProcessor::process(const QString& filename,
 
     if (m_header.ubyDataType == I106CH10_DTYPE_TMATS)
     {
-        if (m_buffer.size() < m_header.ulPacketLen)
+        if (m_buffer.size() < static_cast<qsizetype>(m_header.ulPacketLen))
         {
             try {
                 m_buffer.resize(m_header.ulPacketLen);
@@ -589,7 +588,7 @@ bool FrameProcessor::process(const QString& filename,
             }
         }
 
-        m_status = enI106Ch10ReadData(m_file_handle, m_buffer.size(), m_buffer.data());
+        m_status = enI106Ch10ReadData(m_file_handle, static_cast<unsigned long>(m_buffer.size()), m_buffer.data());
         if (m_status != I106_OK)
         {
             return fail("Failed to read data from first header.");
@@ -667,7 +666,7 @@ bool FrameProcessor::process(const QString& filename,
     uint64_t total_bytes_processed = 0;
     uint64_t rows_written = 0;
 
-    std::vector<uint64_t> frame_words(words_in_frame, 0);
+    QVector<uint64_t> frame_words(words_in_frame, 0);
 
     // CSV output state
     double sample_period = 1.0 / static_cast<double>(sample_rate);
@@ -743,7 +742,7 @@ bool FrameProcessor::process(const QString& filename,
         // Process IRIG time packets to maintain time sync
         if (m_header.ubyDataType == I106CH10_DTYPE_IRIG_TIME && m_header.uChID == time_channel_id)
         {
-            if (m_buffer.size() < m_header.ulPacketLen)
+            if (m_buffer.size() < static_cast<qsizetype>(m_header.ulPacketLen))
             {
                 try {
                     m_buffer.resize(m_header.ulPacketLen);
@@ -753,7 +752,7 @@ bool FrameProcessor::process(const QString& filename,
                 }
             }
 
-            m_status = enI106Ch10ReadData(m_file_handle, m_buffer.size(), m_buffer.data());
+            m_status = enI106Ch10ReadData(m_file_handle, static_cast<unsigned long>(m_buffer.size()), m_buffer.data());
             if (m_status != I106_OK)
             {
                 emit errorOccurred("File read error; aborting parsing.");
@@ -792,7 +791,7 @@ bool FrameProcessor::process(const QString& filename,
         // Process PCM data from the selected channel
         if (m_header.ubyDataType == I106CH10_DTYPE_PCM_FMT_1 && m_header.uChID == pcm_channel_id)
         {
-            if (m_buffer.size() < m_header.ulPacketLen)
+            if (m_buffer.size() < static_cast<qsizetype>(m_header.ulPacketLen))
             {
                 try {
                     m_buffer.resize(m_header.ulPacketLen);
@@ -802,7 +801,7 @@ bool FrameProcessor::process(const QString& filename,
                 }
             }
 
-            m_status = enI106Ch10ReadData(m_file_handle, m_buffer.size(), m_buffer.data());
+            m_status = enI106Ch10ReadData(m_file_handle, static_cast<unsigned long>(m_buffer.size()), m_buffer.data());
             if (m_status != I106_OK)
             {
                 emit errorOccurred("File read error; aborting parsing.");
@@ -817,7 +816,7 @@ bool FrameProcessor::process(const QString& filename,
             }
 
             // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-            uint8_t* raw_data = m_buffer.data() + data_offset;
+            auto* raw_data = reinterpret_cast<uint8_t*>(m_buffer.data() + data_offset);
             uint32_t raw_len = m_header.ulDataLen - data_offset;
             uint64_t packet_bits = static_cast<uint64_t>(raw_len) * 8;
 
@@ -1025,10 +1024,10 @@ bool FrameProcessor::process(const QString& filename,
     return true;
 }
 
-void FrameProcessor::writeTimeSample(std::ofstream& output,
+void FrameProcessor::writeTimeSample(QFile& output,
                                          double current_time_sample,
                                          int n_samples,
-                                         const std::vector<ParameterInfo*>& enabled_params)
+                                         const QVector<ParameterInfo*>& enabled_params)
 {
     // add 0.5 ms to time sample so that it rounds up. nicer this way, accounts for floating point imprecision
     double rounded_time = current_time_sample + PCMConstants::kTimeRoundingOffset;
@@ -1041,20 +1040,19 @@ void FrameProcessor::writeTimeSample(std::ofstream& output,
     struct tm* t = gmtime(&epoch);
 
     // Day-of-year as integer, time as HH:MM:SS.mmm (Excel-compatible)
-    constexpr int kTimeBufSize = 30;
-    std::array<char, kTimeBufSize> time_buf{};
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg)
-    snprintf(time_buf.data(), time_buf.size(), "%d,%02d:%02d:%02d.%03u",
-             t->tm_yday + 1,
-             t->tm_hour, t->tm_min, t->tm_sec, millis);
-    std::string row(time_buf.data());
+    constexpr int kBase10 = 10;
+    QString row = QString("%1,%2:%3:%4.%5")
+        .arg(t->tm_yday + 1)
+        .arg(t->tm_hour, 2, kBase10, QChar('0'))
+        .arg(t->tm_min, 2, kBase10, QChar('0'))
+        .arg(t->tm_sec, 2, kBase10, QChar('0'))
+        .arg(millis, 3, kBase10, QChar('0'));
     for (auto* param : enabled_params)
     {
-        row += ',';
-        row += std::to_string(param->sample_sum / n_samples);
+        row += ',' + QString::number(param->sample_sum / n_samples);
         param->sample_sum = 0;
     }
     row += '\n';
-    output.write(row.data(), static_cast<std::streamsize>(row.size()));
+    output.write(row.toUtf8());
 }
 // End of file!

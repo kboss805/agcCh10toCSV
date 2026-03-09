@@ -99,7 +99,7 @@ RESOURCES += \
     resources/stop.svg \
     resources/magnifying-glass.svg
 
-RC_FILE = agcCh10toCSV_resource.rc
+RC_FILE = resources/agcCh10toCSV_resource.rc
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
