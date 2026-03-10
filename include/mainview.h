@@ -106,7 +106,6 @@ private:
     void logWarning(const QString& message);             ///< Appends a dark-yellow warning entry to the log window.
     void logSuccess(const QString& message);             ///< Appends a green success entry to the log window.
     void updateStatusBar();                              ///< Refreshes the status bar from the ViewModel.
-    void updateSettingsSummary();                         ///< Refreshes the settings summary label.
     void updateRecentFilesMenu();                        ///< Rebuilds the Recent Files submenu.
     void updateFileList();                                ///< Refreshes the file list tree from ViewModel state.
     void populateBatchFileList();                         ///< Populates the file list tree in batch mode.
@@ -136,11 +135,11 @@ private:
     QTreeWidget* m_file_list;                 ///< File list tree with per-file channel combo boxes.
 
     ReceiverGridWidget* m_receiver_grid;     ///< Receiver/channel selection grid.
+    QTreeWidget* m_receivers_tree = nullptr;  ///< Collapsible "Receivers" section header tree.
     TimeExtractionWidget* m_time_widget;     ///< Time extraction and sample rate controls.
 
     QTextBrowser* m_log_preview;             ///< Compact log preview in the controls panel.
     QProgressBar* m_progress_bar;            ///< Processing progress bar.
-    QTreeWidget* m_settings_tree;            ///< Collapsible settings summary tree.
     QMenu* m_recent_menu;                    ///< File > Recent Files submenu.
 
     QString m_last_ch10_dir;                 ///< Last directory used in Ch10 file dialogs.

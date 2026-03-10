@@ -3,7 +3,8 @@
     "options": {
         "env": {
             "QTDIR": "C:\\Qt\\6.10.2\\mingw_64",
-            "MINGW_DIR": "C:\\Qt\\Tools\\mingw1310_64"
+            "MINGW_DIR": "C:\\Qt\\Tools\\mingw1310_64",
+            "PATH": "C:\\Qt\\6.10.2\\mingw_64\\bin;C:\\Qt\\Tools\\mingw1310_64\\bin;${env:PATH}"
         }
     },
     "tasks": [
@@ -17,10 +18,7 @@
                 "New-Item -ItemType Directory -Force -Path build; Set-Location build; & \"$env:QTDIR/bin/qmake.exe\" ../agcCh10toCSV.pro -spec win32-g++ CONFIG+=debug CONFIG+=qml_debug"
             ],
             "options": {
-                "cwd": "${workspaceFolder}",
-                "env": {
-                    "PATH": "${env:QTDIR}\\bin;${env:MINGW_DIR}\\bin;${env:PATH}"
-                }
+                "cwd": "${workspaceFolder}"
             },
             "problemMatcher": []
         },
@@ -34,10 +32,7 @@
                 "New-Item -ItemType Directory -Force -Path \"${workspaceFolder}/build\"; Set-Location \"${workspaceFolder}/build\"; if (!(Test-Path Makefile)) { & \"$env:QTDIR/bin/qmake.exe\" ../agcCh10toCSV.pro -spec win32-g++ CONFIG+=debug CONFIG+=qml_debug }; & \"$env:MINGW_DIR/bin/mingw32-make.exe\" -f Makefile.Debug"
             ],
             "options": {
-                "cwd": "${workspaceFolder}",
-                "env": {
-                    "PATH": "${env:QTDIR}\\bin;${env:MINGW_DIR}\\bin;${env:PATH}"
-                }
+                "cwd": "${workspaceFolder}"
             },
             "group": {
                 "kind": "build",
@@ -55,10 +50,7 @@
                 "New-Item -ItemType Directory -Force -Path \"${workspaceFolder}/build\"; Set-Location \"${workspaceFolder}/build\"; if (!(Test-Path Makefile)) { & \"$env:QTDIR/bin/qmake.exe\" ../agcCh10toCSV.pro -spec win32-g++ CONFIG+=debug CONFIG+=qml_debug }; & \"$env:MINGW_DIR/bin/mingw32-make.exe\" -f Makefile.Release"
             ],
             "options": {
-                "cwd": "${workspaceFolder}",
-                "env": {
-                    "PATH": "${env:QTDIR}\\bin;${env:MINGW_DIR}\\bin;${env:PATH}"
-                }
+                "cwd": "${workspaceFolder}"
             },
             "group": "build",
             "problemMatcher": []
@@ -73,10 +65,7 @@
                 "New-Item -ItemType Directory -Force -Path \"${workspaceFolder}/build\"; Set-Location \"${workspaceFolder}/build\"; & \"$env:MINGW_DIR/bin/mingw32-make.exe\" clean"
             ],
             "options": {
-                "cwd": "${workspaceFolder}",
-                "env": {
-                    "PATH": "${env:QTDIR}\\bin;${env:MINGW_DIR}\\bin;${env:PATH}"
-                }
+                "cwd": "${workspaceFolder}"
             },
             "problemMatcher": []
         },
@@ -90,10 +79,7 @@
                 "New-Item -ItemType Directory -Force -Path \"${workspaceFolder}/build\"; Set-Location \"${workspaceFolder}/build\"; if (!(Test-Path Makefile)) { & \"$env:QTDIR/bin/qmake.exe\" ../agcCh10toCSV.pro -spec win32-g++ CONFIG+=debug CONFIG+=qml_debug }; Get-ChildItem ../src,../include -Recurse -Include *.cpp,*.h | ForEach-Object { $_.LastWriteTime = Get-Date }; & \"$env:MINGW_DIR/bin/mingw32-make.exe\" -f Makefile.Debug"
             ],
             "options": {
-                "cwd": "${workspaceFolder}",
-                "env": {
-                    "PATH": "${env:QTDIR}\\bin;${env:MINGW_DIR}\\bin;${env:PATH}"
-                }
+                "cwd": "${workspaceFolder}"
             },
             "group": "build",
             "problemMatcher": []

@@ -91,31 +91,6 @@ void MainView::setUpMainLayout()
     m_progress_bar->setMaximum(UIConstants::kProgressBarMax);
     m_progress_bar->setValue(0);
 
-    m_settings_tree = new QTreeWidget;
-    m_settings_tree->setHeaderHidden(true);
-    m_settings_tree->setColumnCount(2);
-    m_settings_tree->setRootIsDecorated(true);
-    m_settings_tree->setIndentation(UIConstants::kTreeIndentation);
-    m_settings_tree->setSelectionMode(QAbstractItemView::NoSelection);
-    m_settings_tree->setFocusPolicy(Qt::NoFocus);
-    m_settings_tree->setAnimated(true);
-    m_settings_tree->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    m_settings_tree->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-
-    // Dynamic height: collapsed = 1 row, expanded = root + children
-    int row_h = m_settings_tree->fontMetrics().height() + 8;
-    int frame_h = m_settings_tree->frameWidth() * 2;
-    int collapsed_h = row_h + frame_h;
-    m_settings_tree->setFixedHeight(collapsed_h);
-
-    connect(m_settings_tree, &QTreeWidget::itemExpanded, this, [this, row_h, frame_h](QTreeWidgetItem* item) {
-        int total_rows = 1 + item->childCount();
-        m_settings_tree->setFixedHeight((total_rows * row_h) + frame_h);
-    });
-    connect(m_settings_tree, &QTreeWidget::itemCollapsed, this, [this, collapsed_h]() {
-        m_settings_tree->setFixedHeight(collapsed_h);
-    });
-
     setUpFileList();
 
     m_log_preview = new QTextBrowser;
@@ -123,11 +98,45 @@ void MainView::setUpMainLayout()
     m_log_preview->setOpenLinks(false);
     m_log_preview->setMinimumHeight(UIConstants::kLogPreviewHeight);
 
-    m_controls_layout->addWidget(m_settings_tree);
+    // Collapsible "Receivers" section — same pattern as m_settings_tree
+    m_receivers_tree = new QTreeWidget;
+    m_receivers_tree->setHeaderHidden(true);
+    m_receivers_tree->setColumnCount(1);
+    m_receivers_tree->setRootIsDecorated(true);
+    m_receivers_tree->setIndentation(UIConstants::kTreeIndentation);
+    m_receivers_tree->setSelectionMode(QAbstractItemView::NoSelection);
+    m_receivers_tree->setFocusPolicy(Qt::NoFocus);
+    m_receivers_tree->setAnimated(true);
+    m_receivers_tree->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_receivers_tree->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+    int rec_row_h = m_receivers_tree->fontMetrics().height() + 8;
+    int rec_frame_h = m_receivers_tree->frameWidth() * 2;
+    m_receivers_tree->setFixedHeight(rec_row_h + rec_frame_h);
+
+    QTreeWidgetItem* receivers_root = new QTreeWidgetItem(m_receivers_tree);
+    receivers_root->setText(0, "Receivers");
+    receivers_root->setChildIndicatorPolicy(QTreeWidgetItem::ShowIndicator);
+
+    // 4px gap between header and grid, hidden together when collapsed
+    QWidget* receiver_content = new QWidget;
+    QVBoxLayout* receiver_content_layout = new QVBoxLayout(receiver_content);
+    receiver_content_layout->setContentsMargins(0, 4, 0, 0);
+    receiver_content_layout->setSpacing(0);
+    receiver_content_layout->addWidget(m_receiver_grid);
+    receiver_content->hide();
+
+    connect(m_receivers_tree, &QTreeWidget::itemExpanded, this, [receiver_content](QTreeWidgetItem*) {
+        receiver_content->show();
+    });
+    connect(m_receivers_tree, &QTreeWidget::itemCollapsed, this, [receiver_content](QTreeWidgetItem*) {
+        receiver_content->hide();
+    });
+
+    m_controls_layout->addWidget(m_receivers_tree);
+    m_controls_layout->addWidget(receiver_content);
     m_controls_layout->addSpacing(8);
     m_controls_layout->addWidget(m_file_list);
-    m_controls_layout->addSpacing(8);
-    m_controls_layout->addWidget(m_receiver_grid);
     m_controls_layout->addSpacing(8);
     m_controls_layout->addWidget(m_time_widget);
     m_controls_layout->addSpacing(8);
@@ -202,7 +211,6 @@ void MainView::setUpMainLayout()
     m_progress_bar->setValue(0);
 
     statusBar()->showMessage("No file loaded");
-    updateSettingsSummary();
 
     showMaximized();
 }
@@ -301,7 +309,6 @@ void MainView::setUpMenuBar()
     });
 }
 
-
 void MainView::setUpFileList()
 {
     m_file_list = new QTreeWidget;
@@ -394,8 +401,6 @@ void MainView::setUpConnections()
     connect(m_view_model, &MainViewModel::channelListsChanged, this, &MainView::onChannelListsChanged);
     connect(m_view_model, &MainViewModel::fileLoadedChanged, this, &MainView::onFileLoadedChanged);
     connect(m_view_model, &MainViewModel::fileLoadedChanged, this, &MainView::updateStatusBar);
-    connect(m_view_model, &MainViewModel::settingsChanged, this, &MainView::updateSettingsSummary);
-    connect(m_view_model, &MainViewModel::receiverLayoutChanged, this, &MainView::updateSettingsSummary);
     connect(m_view_model, &MainViewModel::recentFilesChanged, this, &MainView::updateRecentFilesMenu);
     connect(m_view_model, &MainViewModel::fileTimesChanged, this, &MainView::onFileTimesChanged);
     connect(m_view_model, &MainViewModel::progressPercentChanged, this, &MainView::onProgressChanged);
@@ -974,40 +979,6 @@ void MainView::updateRecentFilesMenu()
     });
 }
 
-void MainView::updateSettingsSummary()
-{
-    bool was_expanded = false;
-    if (m_settings_tree->topLevelItemCount() > 0)
-    {
-        was_expanded = m_settings_tree->topLevelItem(0)->isExpanded();
-    }
-
-    m_settings_tree->clear();
-
-    QTreeWidgetItem* root = new QTreeWidgetItem;
-    root->setText(0, "Settings");
-    root->setFlags(Qt::ItemIsEnabled);
-
-    auto addRow = [&](const QString& label, const QString& value) {
-        QTreeWidgetItem* item = new QTreeWidgetItem;
-        item->setText(0, label);
-        item->setText(1, value);
-        item->setFlags(Qt::ItemIsEnabled);
-        root->addChild(item);
-    };
-
-    addRow("Sync", m_view_model->frameSync());
-    addRow("Polarity", QString(UIConstants::kPolarityLabels[m_view_model->polarityIndex()]));
-    addRow("Slope", QString(UIConstants::kSlopeLabels[m_view_model->slopeIndex()]));
-    addRow("Scale", m_view_model->scale() + " dB/V");
-    addRow("Receivers", QString::number(m_view_model->receiverCount()) +
-           " x " + QString::number(m_view_model->channelsPerReceiver()) + " ch");
-
-    m_settings_tree->addTopLevelItem(root);
-    root->setExpanded(was_expanded);
-
-    m_settings_tree->resizeColumnToContents(0);
-}
 
 void MainView::updateFileList()
 {
