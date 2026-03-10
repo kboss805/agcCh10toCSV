@@ -59,6 +59,8 @@ deploy/*
 *.ilk
 *.log
 build/
+Makefile
+Makefile.*
 
 # Temporary files
 *~
