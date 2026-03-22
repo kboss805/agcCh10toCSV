@@ -59,40 +59,28 @@ This application reads IRIG 106 Chapter 10 (.ch10) files, extracts telemetry dat
 2. Configure the project with your Qt kit
 3. Build and run (Ctrl+R)
 
-58: ### Using Command Line (Windows with MinGW)
-59: ```bash
-60: # We use a shadow build directory to keep the source tree clean
-61: mkdir build
-62: cd build
-63: 
-64: # Configure the project
-65: qmake ../agcCh10toCSV.pro -spec win32-g++
-66: 
-67: # Build debug version
-68: mingw32-make -f Makefile.Debug
-69: 
-70: # Build release version
-71: mingw32-make -f Makefile.Release
-72: 
-73: # Run the application
-74: debug\agcCH10toCSV.exe
-75: cd ..
-76: 
-77: # Alternatively, use the provided build script
-78: scripts\build.bat
-79: ```
+### Using Command Line (Windows with MinGW)
+```bash
+# We use a shadow build directory to keep the source tree clean
+mkdir build
+cd build
 
+# Configure the project
+qmake ../agcCh10toCSV.pro -spec win32-g++
 
-### Using VS Code
-The project includes VS Code configuration files:
-- `.vscode/tasks.json` - Build tasks
-- `.vscode/launch.json` - Debug configurations
-- `.vscode/c_cpp_properties.json` - C++ IntelliSense settings
+# Build debug version
+mingw32-make -f Makefile.Debug
 
-To build and debug:
-1. Open the project folder in VS Code
-2. Press `Ctrl+Shift+B` to build
-3. Press `F5` to debug
+# Build release version
+mingw32-make -f Makefile.Release
+
+# Run the application
+debug\agcCH10toCSV.exe
+cd ..
+
+# Alternatively, use the provided build script
+scripts\build.bat
+```
 
 ## Usage
 
@@ -180,7 +168,6 @@ agcCH10toCSV/
 ├── scripts/                    # Build and utility scripts
 │   ├── build.bat              # Command-line shadow build generator
 │   └── env.bat                # Developer environment PATH setup helper
-├── .vscode/                    # VS Code configuration
 ├── agcCh10toCSV.pro            # Qt project file
 ├── agcCH10toCSV.md             # AI assistant guide
 └── README.md                   # This file
