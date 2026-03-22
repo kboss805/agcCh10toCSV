@@ -6,6 +6,7 @@
 #include "frameprocessor.h"
 
 #include <ctime>
+#include <utility>
 
 #include <QByteArray>
 #include <QDebug>
@@ -326,10 +327,14 @@ bool FrameProcessor::preScan(const QString& filename,
     uint64_t sync_mask = pcm_attrs->ullMinorFrameSyncMask;
     uint32_t sync_len  = pcm_attrs->ulMinorFrameSyncPatLen;
 
-    // Scan PCM packets
+    // -----------------------------------------------------------------------
+    // Pass 1: NRZ-L scan — check raw (non-randomized) data for frame sync.
+    //         Cache the byte-swapped packet bytes for possible pass 2.
+    // -----------------------------------------------------------------------
     int pcm_packets_scanned = 0;
     int nrzl_sync_count  = 0;
     int rnrzl_sync_count = 0;
+    QVector<QByteArray> cached_packets;
 
     while (pcm_packets_scanned < max_packets)
     {
@@ -377,27 +382,42 @@ bool FrameProcessor::preScan(const QString& filename,
 
         uint64_t packet_bits = static_cast<uint64_t>(raw_len) * 8;
 
-        // Test NRZ-L: sync pattern in raw data
+        // Test NRZ-L: sync pattern in raw (non-randomized) data.
         if (hasSyncPattern(raw_data, packet_bits, sync_pat, sync_mask, sync_len))
         {
             nrzl_sync_count++;
         }
 
-        // Test RNRZ-L: copy, derandomize, then check for sync
+        // Cache byte-swapped packet for RNRZ-L pass if needed.
         // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-        QByteArray derand_copy(reinterpret_cast<const char*>(raw_data), static_cast<qsizetype>(raw_len));
-        uint16_t test_lfsr = 0;
-        derandomizeBitstream(reinterpret_cast<uint8_t*>(derand_copy.data()), packet_bits, test_lfsr);
-
-        if (hasSyncPattern(reinterpret_cast<const uint8_t*>(derand_copy.constData()), packet_bits, sync_pat, sync_mask, sync_len))
-        {
-            rnrzl_sync_count++;
-        }
+        cached_packets.append(
+            QByteArray(reinterpret_cast<const char*>(raw_data), static_cast<qsizetype>(raw_len)));
 
         pcm_packets_scanned++;
     }
 
     closeFile();
+
+    // -----------------------------------------------------------------------
+    // Pass 2: RNRZ-L scan — only run if NRZ-L found no sync at all.
+    //         Derandomize each cached packet and search for frame sync.
+    // -----------------------------------------------------------------------
+    if (nrzl_sync_count == 0 && !cached_packets.isEmpty())
+    {
+        for (const QByteArray& pkt : std::as_const(cached_packets))
+        {
+            QByteArray derand = pkt;
+            uint16_t test_lfsr = 0;
+            const uint64_t pkt_bits = static_cast<uint64_t>(pkt.size()) * 8;
+            derandomizeBitstream(reinterpret_cast<uint8_t*>(derand.data()), pkt_bits, test_lfsr);
+
+            if (hasSyncPattern(reinterpret_cast<const uint8_t*>(derand.constData()),
+                               pkt_bits, sync_pat, sync_mask, sync_len))
+            {
+                rnrzl_sync_count++;
+            }
+        }
+    }
 
     // Report findings
     if (pcm_packets_scanned == 0)
@@ -414,23 +434,19 @@ bool FrameProcessor::preScan(const QString& filename,
     emit logMessage("  RNRZ-L sync found in " + QString::number(rnrzl_sync_count) +
                     " of " + QString::number(pcm_packets_scanned) + " packets.");
 
+    // NRZ-L is checked first; RNRZ-L pass only ran if NRZ-L found nothing,
+    // so there is no ambiguous "both found" case.
     is_randomized = false;
     bool sync_found = false;
-    if (nrzl_sync_count > 0 && rnrzl_sync_count == 0)
+    if (nrzl_sync_count > 0)
     {
         emit logMessage("Pre-scan result: data appears to be NRZ-L (not randomized).");
         sync_found = true;
     }
-    else if (rnrzl_sync_count > 0 && nrzl_sync_count == 0)
+    else if (rnrzl_sync_count > 0)
     {
         emit logMessage("Pre-scan result: data appears to be RNRZ-L (randomized).");
         is_randomized = true;
-        sync_found = true;
-    }
-    else if (nrzl_sync_count > 0 && rnrzl_sync_count > 0)
-    {
-        emit logMessage("Pre-scan result: sync found in both raw and derandomized data — "
-                        "likely NRZ-L.");
         sync_found = true;
     }
     else

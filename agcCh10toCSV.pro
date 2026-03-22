@@ -97,7 +97,8 @@ RESOURCES += \
     resources/folder-open.svg \
     resources/play.svg \
     resources/stop.svg \
-    resources/magnifying-glass.svg
+    resources/magnifying-glass.svg \
+    resources/gear.svg
 
 RC_FILE = resources/agcCh10toCSV_resource.rc
 

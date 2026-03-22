@@ -8,7 +8,6 @@
 
 #include <QComboBox>
 #include <QCoreApplication>
-#include <QDialog>
 #include <QDockWidget>
 #include <QDragEnterEvent>
 #include <QFileDialog>
@@ -87,12 +86,13 @@ private slots:
 protected:
     void dragEnterEvent(QDragEnterEvent* event) override;
     void dropEvent(QDropEvent* event) override;
+    bool eventFilter(QObject* obj, QEvent* event) override;
 
 private:
     /// @name Widget setup helpers
     /// @{
     void setUpMenuBar();                     ///< Creates the menu bar.
-    void setUpMainLayout();                  ///< Creates the top-level layout and log dialog.
+    void setUpMainLayout();                  ///< Creates the top-level layout.
     void setUpFileList();                    ///< Creates the collapsible file list tree widget.
     void setUpConnections();                 ///< Connects all ViewModel signals to View slots.
     /// @}
@@ -119,23 +119,18 @@ private:
 
     QVBoxLayout* m_controls_layout;          ///< Left-side vertical controls layout.
     QDockWidget* m_controls_dock;            ///< Fixed left dock for controls panel.
-    QDialog* m_log_dialog;                   ///< Standalone log dialog window.
-    QTextBrowser* m_log_window;              ///< Log output pane.
     PlotWidget* m_plot_widget;               ///< Plot view widget (central widget).
     PlotViewModel* m_plot_view_model;        ///< Plot ViewModel owning series data.
     QAction* m_theme_action;                 ///< File > Toggle theme action.
-    QAction* m_show_log_action;              ///< View > Show Log action.
 
     QToolBar* m_toolbar;                     ///< Main toolbar.
     QAction* m_toolbar_open_action;          ///< Toolbar open action.
     QAction* m_process_action;               ///< Toolbar process/play action.
     QAction* m_cancel_action;                ///< Toolbar cancel/stop action (visible during processing).
-    QAction* m_toggle_log_action;            ///< Toolbar toggle log dialog visibility.
 
     QTreeWidget* m_file_list;                 ///< File list tree with per-file channel combo boxes.
 
     ReceiverGridWidget* m_receiver_grid;     ///< Receiver/channel selection grid.
-    QTreeWidget* m_receivers_tree = nullptr;  ///< Collapsible "Receivers" section header tree.
     TimeExtractionWidget* m_time_widget;     ///< Time extraction and sample rate controls.
 
     QTextBrowser* m_log_preview;             ///< Compact log preview in the controls panel.

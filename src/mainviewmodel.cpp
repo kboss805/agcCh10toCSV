@@ -43,13 +43,19 @@ MainViewModel::MainViewModel(QObject* parent)
       m_batch_error_count(0)
 {
     QString app_dir = QCoreApplication::applicationDirPath();
+    QString one_up = QDir::cleanPath(app_dir + "/..");
+    QString two_up = QDir::cleanPath(app_dir + "/../..");
     if (QDir(app_dir + "/" + UIConstants::kSettingsDirName).exists())
     {
-        m_app_root = app_dir;
+        m_app_root = app_dir;                       // portable: exe/ has settings/
+    }
+    else if (QDir(one_up + "/" + UIConstants::kSettingsDirName).exists())
+    {
+        m_app_root = one_up;                        // installed: bin/../ has settings/
     }
     else
     {
-        m_app_root = QDir::cleanPath(app_dir + "/..");
+        m_app_root = two_up;                        // dev: build/release/../../ is project root
     }
     m_reader = new Chapter10Reader();
     m_frame_setup = new FrameSetup(this);
@@ -200,6 +206,7 @@ void MainViewModel::setPcmChannelIndex(int index)
     {
         return;
     }
+    const int old_index = m_pcm_channel_index;
     m_pcm_channel_index = index;
     if (!m_batch_mode)
     {
@@ -207,7 +214,10 @@ void MainViewModel::setPcmChannelIndex(int index)
     }
     emit pcmChannelIndexChanged();
 
-    if (m_file_loaded && !m_batch_mode)
+    // Re-run pre-scan only when the user explicitly changes the channel, not
+    // when the channel is being initialised from 0 on file load (openFile()
+    // already runs runPreScan() at the end of its own sequence).
+    if (m_file_loaded && !m_batch_mode && old_index != 0)
     {
         runPreScan(m_reader->getCurrentPCMChannelID());
     }
@@ -398,6 +408,14 @@ void MainViewModel::applySettingsData(const SettingsData& data)
     emit extractAllTimeChanged();
     emit sampleRateIndexChanged();
     emit settingsChanged();
+
+    emit logMessageReceived("Settings applied:");
+    emit logMessageReceived("  FrameSync=" + m_settings_frame_sync +
+                            ", Polarity=" + QString(UIConstants::kPolarityLabels[m_settings_polarity_idx]) +
+                            ", Slope=" + QString(UIConstants::kSlopeLabels[m_settings_slope_idx]) +
+                            ", Scale=" + m_settings_scale + " dB/V");
+    emit logMessageReceived("  Receivers=" + QString::number(m_settings_receiver_count) +
+                            ", Channels=" + QString::number(m_settings_channels_per_rcvr));
 }
 
 void MainViewModel::loadFrameSetupFrom(const QString& filename)
@@ -436,8 +454,14 @@ void MainViewModel::saveFrameSetupTo(QSettings& settings)
 
 void MainViewModel::runPreScan(int pcm_channel_id)
 {
-    if (pcm_channel_id < 0 || m_settings_frame_sync.isEmpty() || m_frame_setup->length() == 0)
+    if (pcm_channel_id < 0)
     {
+        emit logMessageReceived("Pre-scan: skipped — no PCM channel selected.");
+        return;
+    }
+    if (m_settings_frame_sync.isEmpty() || m_frame_setup->length() == 0)
+    {
+        emit logMessageReceived("Pre-scan: skipped — frame settings not loaded.");
         return;
     }
 
@@ -1083,6 +1107,8 @@ void MainViewModel::openFile(const QString& filename)
     emit channelListsChanged();
     emit fileTimesChanged();
     emit fileLoadedChanged();
+
+    runPreScan(m_reader->getCurrentPCMChannelID());
 }
 
 void MainViewModel::startProcessing(const QString& output_file,

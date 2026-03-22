@@ -432,3 +432,74 @@ void TestMainViewModelState::loadFrameSetupSmallConfigAcceptsParams()
     QCOMPARE(vm.frameSetup()->getParameter(0)->word, 0);
     QCOMPARE(vm.frameSetup()->getParameter(1)->word, 1);
 }
+
+// v3.2 — time validation helpers
+
+void TestMainViewModelState::validateTimeFieldsValidInput()
+{
+    int ddd = 0, hh = 0, mm = 0, ss = 0;
+    bool ok = MainViewModel::validateTimeFields("45", "10", "30", "15",
+                                                ddd, hh, mm, ss);
+    QVERIFY2(ok, "Valid time fields should return true");
+    QCOMPARE(ddd, 45);
+    QCOMPARE(hh, 10);
+    QCOMPARE(mm, 30);
+    QCOMPARE(ss, 15);
+}
+
+void TestMainViewModelState::validateTimeFieldsInvalidDayText()
+{
+    int ddd = 0, hh = 0, mm = 0, ss = 0;
+    bool ok = MainViewModel::validateTimeFields("xyz", "10", "30", "15",
+                                                ddd, hh, mm, ss);
+    QVERIFY2(!ok, "Non-numeric day string should return false");
+}
+
+void TestMainViewModelState::validateTimeFieldsOutOfRangeBounds()
+{
+    int ddd = 0, hh = 0, mm = 0, ss = 0;
+
+    // Day out of range: below minimum (0 < kMinDayOfYear = 1)
+    QVERIFY(!MainViewModel::validateTimeFields("0", "10", "30", "15",
+                                               ddd, hh, mm, ss));
+    // Day out of range: above maximum (> kMaxDayOfYear = 366)
+    QVERIFY(!MainViewModel::validateTimeFields("367", "10", "30", "15",
+                                               ddd, hh, mm, ss));
+    // Hour out of range
+    QVERIFY(!MainViewModel::validateTimeFields("45", "24", "30", "15",
+                                               ddd, hh, mm, ss));
+    // Minute out of range
+    QVERIFY(!MainViewModel::validateTimeFields("45", "10", "60", "15",
+                                               ddd, hh, mm, ss));
+    // Second out of range
+    QVERIFY(!MainViewModel::validateTimeFields("45", "10", "30", "60",
+                                               ddd, hh, mm, ss));
+}
+
+void TestMainViewModelState::validateTimeRangeValidRange()
+{
+    // Start before stop — should return empty string (no error)
+    QString err = MainViewModel::validateTimeRange("45:10:30:00", "45:10:31:00");
+    QVERIFY2(err.isEmpty(), qPrintable("Expected no error, got: " + err));
+}
+
+void TestMainViewModelState::validateTimeRangeStartAfterStop()
+{
+    // Stop is before start — should return a non-empty error message
+    QString err = MainViewModel::validateTimeRange("45:10:31:00", "45:10:30:00");
+    QVERIFY2(!err.isEmpty(), "Stop before start should return an error message");
+}
+
+void TestMainViewModelState::validateTimeRangeEqualStartStop()
+{
+    // Equal start and stop — stop_total == start_total, so stop is NOT after start
+    QString err = MainViewModel::validateTimeRange("45:10:30:00", "45:10:30:00");
+    QVERIFY2(!err.isEmpty(), "Equal start and stop should return an error message");
+}
+
+void TestMainViewModelState::validateTimeRangeBadFormat()
+{
+    // Wrong number of colon-separated fields
+    QString err = MainViewModel::validateTimeRange("10:30:00", "10:31:00");
+    QVERIFY2(!err.isEmpty(), "Non-DDD:HH:MM:SS format should return an error message");
+}

@@ -46,6 +46,15 @@ private slots:
     void addRecentFileCapsAtMax();
     void clearRecentFilesEmptiesList();
     void fileMetadataSummaryNoFile();
+
+    // v3.2 — time validation helpers
+    void validateTimeFieldsValidInput();
+    void validateTimeFieldsInvalidDayText();
+    void validateTimeFieldsOutOfRangeBounds();
+    void validateTimeRangeValidRange();
+    void validateTimeRangeStartAfterStop();
+    void validateTimeRangeEqualStartStop();
+    void validateTimeRangeBadFormat();
 };
 
 #endif // TST_MAINVIEWMODEL_STATE_H

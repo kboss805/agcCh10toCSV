@@ -19,7 +19,7 @@ TimeExtractionWidget::TimeExtractionWidget(QWidget* parent)
 {
     QGridLayout* time_grid = new QGridLayout;
     time_grid->setContentsMargins(0, 0, 0, 0);
-    time_grid->setVerticalSpacing(2);
+    time_grid->setVerticalSpacing(4);
 
     m_sample_rate->addItem(QString::number(UIConstants::kSampleRate1Hz) + " Hz");
     m_sample_rate->addItem(QString::number(UIConstants::kSampleRate10Hz) + " Hz");
@@ -48,10 +48,6 @@ TimeExtractionWidget::TimeExtractionWidget(QWidget* parent)
 
     // Internal wiring: toggling "Extract All" enables/disables the time fields
     connect(m_time_all, &QAbstractButton::toggled, this, [this](bool checked) {
-        if (checked)
-        {
-            fillTimes(0, 0, 0, 0, 0, 0, 0, 0);  // Will be refilled by the parent when file is loaded
-        }
         m_start_time->setEnabled(!checked);
         m_stop_time->setEnabled(!checked);
         emit extractAllTimeChanged(checked);
@@ -59,6 +55,11 @@ TimeExtractionWidget::TimeExtractionWidget(QWidget* parent)
 
     connect(m_sample_rate, &QComboBox::currentIndexChanged,
             this, &TimeExtractionWidget::sampleRateIndexChanged);
+
+    connect(m_start_time, &QLineEdit::editingFinished,
+            this, &TimeExtractionWidget::startTimeEditingFinished);
+    connect(m_stop_time, &QLineEdit::editingFinished,
+            this, &TimeExtractionWidget::stopTimeEditingFinished);
 }
 
 bool TimeExtractionWidget::extractAllTime() const

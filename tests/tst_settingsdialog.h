@@ -30,6 +30,13 @@ private slots:
 
     void loadRequestedSignal();
     void saveAsRequestedSignal();
+
+    // v3.2 — OK button / inline validation
+    void okButtonDisabledByDefault();
+    void okButtonEnabledAfterValidData();
+    void okButtonDisabledForInvalidFrameSync();
+    void okButtonDisabledForInvalidScale();
+    void okButtonDisabledForInvalidReceivers();
 };
 
 #endif // TST_SETTINGSDIALOG_H

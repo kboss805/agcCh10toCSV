@@ -76,6 +76,7 @@ namespace UIConstants {
     inline constexpr int kTreeItemHeightFactor  = 24;  ///< Approximate height per tree item in pixels.
     inline constexpr int kTreeHeightBuffer      = 4;   ///< Extra height buffer for tree widgets.
     inline constexpr int kTreeFixedWidth        = 100; ///< Fixed width for receiver tree widgets.
+    inline constexpr int kFlatButtonMinWidth    = 90;  ///< Minimum width for flat action buttons (accommodates "Collapse All").
     inline constexpr int kLogMinimumWidth       = 400; ///< Minimum width for the log window.
     inline constexpr int kLogPreviewHeight      = 80;  ///< Fixed height for the log preview panel.
     /// @}
@@ -163,6 +164,9 @@ namespace UIConstants {
     inline constexpr int kLogDialogWidth                 = 600;                          ///< Default log dialog width (px).
     inline constexpr int kLogDialogHeight                = 400;                          ///< Default log dialog height (px).
     inline constexpr int kTimeInputMaxWidth               = 100;                          ///< Maximum width for time input fields (px).
+    inline constexpr int kChannelComboFixedWidth           = 400;                          ///< Fixed width for Time/PCM channel combo boxes (px).
+    inline constexpr int kFileNameColumnMinWidth           = 600;                          ///< Minimum width for the file name column in the file list tree (px).
+    inline constexpr int kControlsDockMinWidth            = 600;                          ///< Minimum width for the controls dock panel (file name column + margins).
     inline constexpr int kDecimalBase                    = 10;                           ///< Decimal (base-10) radix for QString::arg formatting.
     inline constexpr int kHexBase                        = 16;                           ///< Hexadecimal (base-16) radix for string parsing.
     inline constexpr int kBytesPerKB                     = 1024;                         ///< Bytes per kilobyte.

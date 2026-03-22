@@ -5,6 +5,7 @@
 
 #include "plotwidget.h"
 
+#include <QApplication>
 #include <QFileDialog>
 #include <QFrame>
 #include <QGridLayout>
@@ -111,25 +112,18 @@ void PlotWidget::initReceiverLegend(int receiver_count, int channels_per_receive
         return;
     }
 
-    // Button row: Expand All, Select All, Select None (all disabled)
-    QHBoxLayout* btn_row = new QHBoxLayout;
-    btn_row->setContentsMargins(0, 0, 0, 0);
-
     QPushButton* toggle_btn = new QPushButton("Expand All");
     toggle_btn->setFlat(true);
+    toggle_btn->setMinimumWidth(UIConstants::kFlatButtonMinWidth);
     toggle_btn->setEnabled(false);
     QPushButton* select_all_btn = new QPushButton("Select All");
     select_all_btn->setFlat(true);
+    select_all_btn->setMinimumWidth(UIConstants::kFlatButtonMinWidth);
     select_all_btn->setEnabled(false);
     QPushButton* select_none_btn = new QPushButton("Select None");
     select_none_btn->setFlat(true);
+    select_none_btn->setMinimumWidth(UIConstants::kFlatButtonMinWidth);
     select_none_btn->setEnabled(false);
-
-    btn_row->addWidget(toggle_btn);
-    btn_row->addWidget(select_all_btn);
-    btn_row->addWidget(select_none_btn);
-    btn_row->addStretch(1);
-    m_legend_layout->addLayout(btn_row);
 
     // Distribute receivers across up to 4 columns
     const int num_columns = UIConstants::kReceiverGridColumns;
@@ -160,6 +154,7 @@ void PlotWidget::initReceiverLegend(int receiver_count, int channels_per_receive
         tree->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
         tree->setFixedHeight((per_column * UIConstants::kTreeItemHeightFactor) +
                              UIConstants::kTreeHeightBuffer);
+        tree->setFrameShape(QFrame::NoFrame);
         tree->setStyleSheet("QTreeWidget { background: transparent; }");
         tree->setAttribute(Qt::WA_TranslucentBackground);
         tree->setEnabled(false);
@@ -189,8 +184,22 @@ void PlotWidget::initReceiverLegend(int receiver_count, int channels_per_receive
         m_legend_trees.append(tree);
     }
 
-    columns_layout->addStretch(1);
-    m_legend_layout->addLayout(columns_layout);
+    // Buttons stacked vertically to the right of the tree columns
+    auto* btn_col = new QVBoxLayout;
+    btn_col->setContentsMargins(0, 0, 0, 0);
+    btn_col->setSpacing(4);
+    btn_col->addWidget(toggle_btn);
+    btn_col->addWidget(select_all_btn);
+    btn_col->addWidget(select_none_btn);
+    btn_col->addStretch(1);
+
+    auto* content_row = new QHBoxLayout;
+    content_row->setContentsMargins(0, 0, 0, 0);
+    content_row->setSpacing(0);
+    content_row->addLayout(columns_layout);
+    content_row->addSpacing(8);
+    content_row->addLayout(btn_col);
+    m_legend_layout->addLayout(content_row);
 
     syncLegendScrollbars();
     connectExpandCollapseToggle(toggle_btn);
@@ -231,8 +240,8 @@ void PlotWidget::rebuildChart()
     // Enable all controls when data is loaded
     bool has_data = m_view_model->hasData();
     m_title_edit->setEnabled(has_data);
-    m_x_start_spin->setEnabled(has_data);
-    m_x_stop_spin->setEnabled(has_data);
+    m_x_start_edit->setEnabled(has_data);
+    m_x_stop_edit->setEnabled(has_data);
     m_y_min_spin->setEnabled(has_data);
     m_y_max_spin->setEnabled(has_data);
     m_reset_btn->setEnabled(has_data);
@@ -243,10 +252,8 @@ void PlotWidget::rebuildChart()
 
     if (has_data)
     {
-        m_x_start_spin->setRange(m_view_model->xMin(), m_view_model->xMax());
-        m_x_stop_spin->setRange(m_view_model->xMin(), m_view_model->xMax());
-        m_x_start_spin->setValue(m_view_model->xViewMin());
-        m_x_stop_spin->setValue(m_view_model->xViewMax());
+        m_x_start_edit->setText(m_view_model->formatTime(m_view_model->xViewMin()));
+        m_x_stop_edit->setText(m_view_model->formatTime(m_view_model->xViewMax()));
 
         m_y_min_spin->setValue(m_view_model->yMin());
         m_y_max_spin->setValue(m_view_model->yMax());
@@ -289,8 +296,8 @@ void PlotWidget::updateAxes()
     m_plot->xAxis->setRange(m_view_model->xViewMin(), m_view_model->xViewMax());
     m_plot->yAxis->setRange(m_view_model->yMin(), m_view_model->yMax());
 
-    m_x_start_spin->setValue(m_view_model->xViewMin());
-    m_x_stop_spin->setValue(m_view_model->xViewMax());
+    m_x_start_edit->setText(m_view_model->formatTime(m_view_model->xViewMin()));
+    m_x_stop_edit->setText(m_view_model->formatTime(m_view_model->xViewMax()));
     m_y_min_spin->setValue(m_view_model->yMin());
     m_y_max_spin->setValue(m_view_model->yMax());
 
@@ -354,8 +361,53 @@ void PlotWidget::onXRangeChanged()
     {
         return;
     }
-    double start = qMax(0.0, m_x_start_spin->value());
-    m_view_model->setXViewRange(start, m_x_stop_spin->value());
+
+    const double data_min = m_view_model->xMin();
+    const double data_max = m_view_model->xMax();
+
+    const QString entered_start = m_x_start_edit->text();
+    const QString entered_stop  = m_x_stop_edit->text();
+
+    double raw_start = parseTimeToElapsed(entered_start);
+    double raw_stop  = parseTimeToElapsed(entered_stop);
+
+    double start = qBound(data_min, raw_start, data_max);
+    double stop  = qBound(data_min, raw_stop,  data_max);
+
+    // Warn if either value was clamped to the file bounds
+    if (!qFuzzyCompare(start, raw_start))
+    {
+        emit logMessage(QString("<span style='color:#DAA520;'>X Start \"%1\" is outside the file time range — clamped to file bounds.</span>")
+                        .arg(entered_start));
+    }
+    if (!qFuzzyCompare(stop, raw_stop))
+    {
+        emit logMessage(QString("<span style='color:#DAA520;'>X Stop \"%1\" is outside the file time range — clamped to file bounds.</span>")
+                        .arg(entered_stop));
+    }
+
+    // Enforce start <= stop; clamp whichever field was just edited
+    if (start > stop)
+    {
+        if (m_x_start_edit == focusWidget() || m_x_start_edit->hasFocus())
+        {
+            emit logMessage("<span style='color:#DAA520;'>X Start time is after X Stop — clamped to stop time.</span>");
+            start = stop;
+        }
+        else
+        {
+            emit logMessage("<span style='color:#DAA520;'>X Stop time is before X Start — clamped to start time.</span>");
+            stop = start;
+        }
+    }
+
+    // Write clamped values back so the user sees what was applied
+    m_updating_from_vm = true;
+    m_x_start_edit->setText(m_view_model->formatTime(start));
+    m_x_stop_edit->setText(m_view_model->formatTime(stop));
+    m_updating_from_vm = false;
+
+    m_view_model->setXViewRange(start, stop);
 }
 
 void PlotWidget::onResetAxes()
@@ -441,6 +493,26 @@ void PlotWidget::handlePlotYRangeChanged(double lower, double upper)
     m_view_model->setYManualRange(lower, upper);
 }
 
+double PlotWidget::parseTimeToElapsed(const QString& text) const
+{
+    if (m_view_model == nullptr)
+    {
+        return 0.0;
+    }
+    const QStringList parts = text.split(':');
+    if (parts.size() != 4)
+    {
+        return 0.0;
+    }
+    int day     = parts[0].toInt();
+    int hours   = parts[1].toInt();
+    int minutes = parts[2].toInt();
+    int secs    = parts[3].toInt();
+    double total_absolute = day * 86400.0 + hours * 3600.0 + minutes * 60.0 + secs;
+    double base_absolute  = m_view_model->baseDay() * 86400.0 + m_view_model->baseTimeOffset();
+    return total_absolute - base_absolute;
+}
+
 void PlotWidget::setUpLayout()
 {
     auto* main_layout = new QVBoxLayout(this);
@@ -468,28 +540,32 @@ void PlotWidget::setUpLayout()
     main_layout->addWidget(m_plot, 1);
     main_layout->addSpacing(8);
 
-    // --- Axis controls grid (X row then Y row, columns aligned) ---
+    // --- Bottom bar: [axis controls] [16px] [legend panel] [stretch] [Export PDF] ---
+    auto* bottom_bar = new QHBoxLayout;
+    bottom_bar->setContentsMargins(0, 0, 0, 0);
+    bottom_bar->setSpacing(0);
+
+    // Axis controls grid (X/Y spinboxes + Reset), top-aligned in the bar
     auto* axis_grid = new QGridLayout;
     axis_grid->setContentsMargins(0, 0, 0, 0);
     axis_grid->setHorizontalSpacing(4);
+    axis_grid->setVerticalSpacing(4);
+    // Col 2 is a dedicated 8px spacer between the first control and second label pair
+    axis_grid->setColumnMinimumWidth(2, 8);
 
     axis_grid->addWidget(new QLabel("X Start:"), 0, 0);
-    m_x_start_spin = new QDoubleSpinBox;
-    m_x_start_spin->setRange(0.0, PlotConstants::kSpinBoxMaxRange);
-    m_x_start_spin->setDecimals(1);
-    m_x_start_spin->setSuffix(" s");
-    m_x_start_spin->setToolTip("X axis start time (seconds)");
-    m_x_start_spin->setEnabled(false);
-    axis_grid->addWidget(m_x_start_spin, 0, 1);
+    m_x_start_edit = new QLineEdit;
+    m_x_start_edit->setPlaceholderText("DDD:HH:MM:SS");
+    m_x_start_edit->setToolTip("X axis start time (DDD:HH:MM:SS)");
+    m_x_start_edit->setEnabled(false);
+    axis_grid->addWidget(m_x_start_edit, 0, 1);
 
-    axis_grid->addWidget(new QLabel("X Stop:"), 0, 2);
-    m_x_stop_spin = new QDoubleSpinBox;
-    m_x_stop_spin->setRange(0.0, PlotConstants::kSpinBoxMaxRange);
-    m_x_stop_spin->setDecimals(1);
-    m_x_stop_spin->setSuffix(" s");
-    m_x_stop_spin->setToolTip("X axis stop time (seconds)");
-    m_x_stop_spin->setEnabled(false);
-    axis_grid->addWidget(m_x_stop_spin, 0, 3);
+    axis_grid->addWidget(new QLabel("X Stop:"), 0, 3);
+    m_x_stop_edit = new QLineEdit;
+    m_x_stop_edit->setPlaceholderText("DDD:HH:MM:SS");
+    m_x_stop_edit->setToolTip("X axis stop time (DDD:HH:MM:SS)");
+    m_x_stop_edit->setEnabled(false);
+    axis_grid->addWidget(m_x_stop_edit, 0, 4);
 
     axis_grid->addWidget(new QLabel("Y Min:"), 1, 0);
     m_y_min_spin = new QDoubleSpinBox;
@@ -499,37 +575,46 @@ void PlotWidget::setUpLayout()
     m_y_min_spin->setEnabled(false);
     axis_grid->addWidget(m_y_min_spin, 1, 1);
 
-    axis_grid->addWidget(new QLabel("Y Max:"), 1, 2);
+    axis_grid->addWidget(new QLabel("Y Max:"), 1, 3);
     m_y_max_spin = new QDoubleSpinBox;
     m_y_max_spin->setRange(0.0, PlotConstants::kYSpinBoxMax);
     m_y_max_spin->setDecimals(1);
     m_y_max_spin->setToolTip("Y axis maximum (dB)");
     m_y_max_spin->setEnabled(false);
-    axis_grid->addWidget(m_y_max_spin, 1, 3);
+    axis_grid->addWidget(m_y_max_spin, 1, 4);
 
     m_reset_btn = new QPushButton("Reset");
+    m_reset_btn->setFlat(true);
+    m_reset_btn->setMinimumWidth(UIConstants::kFlatButtonMinWidth);
     m_reset_btn->setToolTip("Reset axes to auto range");
     m_reset_btn->setEnabled(false);
-    axis_grid->addWidget(m_reset_btn, 1, 4);
+    axis_grid->addWidget(m_reset_btn, 0, 5);
 
-    m_export_pdf_btn = new QPushButton("Export PDF");
-    m_export_pdf_btn->setToolTip("Export plot to PDF");
-    m_export_pdf_btn->setEnabled(false);
-    axis_grid->addWidget(m_export_pdf_btn, 1, 5);
+    QWidget* axis_widget = new QWidget;
+    axis_widget->setLayout(axis_grid);
+    axis_widget->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+    bottom_bar->addWidget(axis_widget, 0, Qt::AlignTop);
 
-    axis_grid->setColumnStretch(6, 1);
+    // Equal stretches on both sides center the legend between axis controls and Export PDF
+    bottom_bar->addStretch(1);
 
-    main_layout->addLayout(axis_grid);
-
-    main_layout->addSpacing(8);
-
-    // --- Legend tree panel ---
+    // Legend tree panel — centered in the bottom bar
     m_legend_panel = new QWidget;
     m_legend_panel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
     m_legend_layout = new QVBoxLayout(m_legend_panel);
     m_legend_layout->setContentsMargins(0, 0, 0, 0);
     m_legend_layout->setSpacing(2);
-    main_layout->addWidget(m_legend_panel);
+    bottom_bar->addWidget(m_legend_panel, 0, Qt::AlignTop);
+
+    bottom_bar->addStretch(1);
+
+    // Export PDF — right-justified, alone on the right edge
+    m_export_pdf_btn = new QPushButton("Export PDF");
+    m_export_pdf_btn->setToolTip("Export plot to PDF");
+    m_export_pdf_btn->setEnabled(false);
+    bottom_bar->addWidget(m_export_pdf_btn, 0, Qt::AlignTop);
+
+    main_layout->addLayout(bottom_bar);
 }
 
 void PlotWidget::setUpConnections()
@@ -546,10 +631,8 @@ void PlotWidget::setUpConnections()
     connect(m_y_max_spin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &PlotWidget::onManualYChanged);
 
-    connect(m_x_start_spin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &PlotWidget::onXRangeChanged);
-    connect(m_x_stop_spin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &PlotWidget::onXRangeChanged);
+    connect(m_x_start_edit, &QLineEdit::editingFinished, this, &PlotWidget::onXRangeChanged);
+    connect(m_x_stop_edit, &QLineEdit::editingFinished, this, &PlotWidget::onXRangeChanged);
 
     connect(m_reset_btn, &QPushButton::clicked, this, &PlotWidget::onResetAxes);
     connect(m_export_pdf_btn, &QPushButton::clicked, this, &PlotWidget::onExportPdf);
@@ -584,22 +667,15 @@ void PlotWidget::rebuildLegend()
 
     int receiver_count = static_cast<int>(receiver_groups.size());
 
-    // Button row: Expand All, Select All, Select None
-    QHBoxLayout* btn_row = new QHBoxLayout;
-    btn_row->setContentsMargins(0, 0, 0, 0);
-
     QPushButton* toggle_btn = new QPushButton("Expand All");
     toggle_btn->setFlat(true);
+    toggle_btn->setMinimumWidth(UIConstants::kFlatButtonMinWidth);
     QPushButton* select_all_btn = new QPushButton("Select All");
     select_all_btn->setFlat(true);
+    select_all_btn->setMinimumWidth(UIConstants::kFlatButtonMinWidth);
     QPushButton* select_none_btn = new QPushButton("Select None");
     select_none_btn->setFlat(true);
-
-    btn_row->addWidget(toggle_btn);
-    btn_row->addWidget(select_all_btn);
-    btn_row->addWidget(select_none_btn);
-    btn_row->addStretch(1);
-    m_legend_layout->addLayout(btn_row);
+    select_none_btn->setMinimumWidth(UIConstants::kFlatButtonMinWidth);
 
     // Distribute receivers across up to 4 columns
     const int num_columns = UIConstants::kReceiverGridColumns;
@@ -633,6 +709,7 @@ void PlotWidget::rebuildLegend()
         tree->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
         tree->setFixedHeight((per_column * UIConstants::kTreeItemHeightFactor) +
                              UIConstants::kTreeHeightBuffer);
+        tree->setFrameShape(QFrame::NoFrame);
         tree->setStyleSheet("QTreeWidget { background: transparent; }");
         tree->setAttribute(Qt::WA_TranslucentBackground);
 
@@ -674,8 +751,22 @@ void PlotWidget::rebuildLegend()
         m_legend_trees.append(tree);
     }
 
-    columns_layout->addStretch(1);
-    m_legend_layout->addLayout(columns_layout);
+    // Buttons stacked vertically to the right of the tree columns
+    auto* btn_col = new QVBoxLayout;
+    btn_col->setContentsMargins(0, 0, 0, 0);
+    btn_col->setSpacing(4);
+    btn_col->addWidget(toggle_btn);
+    btn_col->addWidget(select_all_btn);
+    btn_col->addWidget(select_none_btn);
+    btn_col->addStretch(1);
+
+    auto* content_row = new QHBoxLayout;
+    content_row->setContentsMargins(0, 0, 0, 0);
+    content_row->setSpacing(0);
+    content_row->addLayout(columns_layout);
+    content_row->addSpacing(8);
+    content_row->addLayout(btn_col);
+    m_legend_layout->addLayout(content_row);
 
     syncLegendScrollbars();
     connectExpandCollapseToggle(toggle_btn);

@@ -6,8 +6,10 @@
 #include "settingsdialog.h"
 
 #include <QHBoxLayout>
+#include "constants.h"
 #include <QLabel>
 #include <QPushButton>
+#include <QRegularExpression>
 #include <QVBoxLayout>
 
 SettingsDialog::SettingsDialog(QWidget* parent)
@@ -18,7 +20,11 @@ SettingsDialog::SettingsDialog(QWidget* parent)
       m_slope(new QComboBox),
       m_scale(new QLineEdit),
       m_receiver_count(new QLineEdit),
-      m_channels_per_receiver(new QLineEdit)
+      m_channels_per_receiver(new QLineEdit),
+      m_sync_error_label(new QLabel),
+      m_scale_error_label(new QLabel),
+      m_receivers_error_label(new QLabel),
+      m_ok_button(new QPushButton("OK"))
 {
     setWindowTitle("Settings");
 
@@ -32,7 +38,11 @@ SettingsDialog::SettingsDialog(QWidget* parent)
     sync_row->addWidget(new QLabel("Frame Sync: "));
     sync_row->addWidget(m_frame_sync);
 
+    m_sync_error_label->setStyleSheet("color: red;");
+    m_sync_error_label->setVisible(false);
+
     frame_layout->addLayout(sync_row);
+    frame_layout->addWidget(m_sync_error_label);
     frame_group->setLayout(frame_layout);
 
     // Parameters group
@@ -55,7 +65,11 @@ SettingsDialog::SettingsDialog(QWidget* parent)
     params_row->addWidget(new QLabel("    Scale (dB/V): "));
     params_row->addWidget(m_scale);
 
+    m_scale_error_label->setStyleSheet("color: red;");
+    m_scale_error_label->setVisible(false);
+
     params_layout->addLayout(params_row);
+    params_layout->addWidget(m_scale_error_label);
     params_group->setLayout(params_layout);
 
     // Receivers group
@@ -70,8 +84,12 @@ SettingsDialog::SettingsDialog(QWidget* parent)
     channels_row->addWidget(new QLabel("Channels per Receiver: "));
     channels_row->addWidget(m_channels_per_receiver);
 
+    m_receivers_error_label->setStyleSheet("color: red;");
+    m_receivers_error_label->setVisible(false);
+
     receivers_layout->addLayout(rcvr_count_row);
     receivers_layout->addLayout(channels_row);
+    receivers_layout->addWidget(m_receivers_error_label);
     receivers_group->setLayout(receivers_layout);
 
     // Button row: Load... | Save As... | <stretch> | Cancel | OK
@@ -79,15 +97,18 @@ SettingsDialog::SettingsDialog(QWidget* parent)
     QPushButton* load_button = new QPushButton("Load...");
     QPushButton* save_as_button = new QPushButton("Save As...");
     QPushButton* cancel_button = new QPushButton("Cancel");
-    QPushButton* ok_button = new QPushButton("OK");
-    ok_button->setDefault(true);
+    m_ok_button->setDefault(true);
     button_row->addWidget(load_button);
     button_row->addWidget(save_as_button);
     button_row->addStretch();
     button_row->addWidget(cancel_button);
-    button_row->addWidget(ok_button);
-    connect(ok_button, &QPushButton::clicked, this, &QDialog::accept);
+    button_row->addWidget(m_ok_button);
+    connect(m_ok_button, &QPushButton::clicked, this, &SettingsDialog::validateAndAccept);
     connect(cancel_button, &QPushButton::clicked, this, &QDialog::reject);
+    connect(m_frame_sync, &QLineEdit::textChanged, this, [this]() { validateSync(); });
+    connect(m_scale, &QLineEdit::textChanged, this, [this]() { validateScale(); });
+    connect(m_receiver_count, &QLineEdit::textChanged, this, [this]() { validateReceivers(); });
+    connect(m_channels_per_receiver, &QLineEdit::textChanged, this, [this]() { validateReceivers(); });
     connect(load_button, &QPushButton::clicked, this, [this]() {
         emit loadRequested();
     });
@@ -103,15 +124,110 @@ SettingsDialog::SettingsDialog(QWidget* parent)
     setLayout(main_layout);
 }
 
+void SettingsDialog::updateOkButton()
+{
+    static const QRegularExpression hex_pattern("^[0-9A-Fa-f]+$");
+    const QString sync = m_frame_sync->text().trimmed();
+    const bool sync_valid = !sync.isEmpty() && hex_pattern.match(sync).hasMatch();
+
+    bool scale_ok = false;
+    const double scale_value = m_scale->text().trimmed().toDouble(&scale_ok);
+    const bool scale_valid = scale_ok && scale_value > 0.0;
+
+    bool rcvr_ok = false, ch_ok = false;
+    const int rcvr = m_receiver_count->text().trimmed().toInt(&rcvr_ok);
+    const int ch   = m_channels_per_receiver->text().trimmed().toInt(&ch_ok);
+    const bool receivers_valid = rcvr_ok && ch_ok
+        && rcvr >= UIConstants::kMinReceiverCount && rcvr <= UIConstants::kMaxReceiverCount
+        && ch   >= UIConstants::kMinChannelsPerReceiver && ch <= UIConstants::kMaxChannelsPerReceiver
+        && (rcvr * ch) <= UIConstants::kMaxTotalParameters;
+
+    m_ok_button->setEnabled(sync_valid && scale_valid && receivers_valid);
+}
+
+bool SettingsDialog::validateSync()
+{
+    static const QRegularExpression hex_pattern("^[0-9A-Fa-f]+$");
+    const QString sync = m_frame_sync->text().trimmed();
+    const bool valid = !sync.isEmpty() && hex_pattern.match(sync).hasMatch();
+    m_frame_sync->setStyleSheet(valid ? "" : "border: 1px solid red;");
+    m_sync_error_label->setText("Frame Sync must contain only hexadecimal characters (0–9, A–F).");
+    m_sync_error_label->setVisible(!valid);
+    updateOkButton();
+    return valid;
+}
+
+bool SettingsDialog::validateScale()
+{
+    bool ok = false;
+    const double value = m_scale->text().trimmed().toDouble(&ok);
+    const bool valid = ok && value > 0.0;
+    m_scale->setStyleSheet(valid ? "" : "border: 1px solid red;");
+    m_scale_error_label->setText("Scale must be a positive number greater than zero.");
+    m_scale_error_label->setVisible(!valid);
+    updateOkButton();
+    return valid;
+}
+
+bool SettingsDialog::validateReceivers()
+{
+    bool rcvr_ok = false, ch_ok = false;
+    const int rcvr = m_receiver_count->text().trimmed().toInt(&rcvr_ok);
+    const int ch   = m_channels_per_receiver->text().trimmed().toInt(&ch_ok);
+
+    const bool rcvr_in_range = rcvr_ok
+        && rcvr >= UIConstants::kMinReceiverCount
+        && rcvr <= UIConstants::kMaxReceiverCount;
+    const bool ch_in_range = ch_ok
+        && ch >= UIConstants::kMinChannelsPerReceiver
+        && ch <= UIConstants::kMaxChannelsPerReceiver;
+    const bool total_ok = rcvr_in_range && ch_in_range
+        && (rcvr * ch) <= UIConstants::kMaxTotalParameters;
+
+    const bool valid = rcvr_in_range && ch_in_range && total_ok;
+
+    m_receiver_count->setStyleSheet(rcvr_in_range ? "" : "border: 1px solid red;");
+    m_channels_per_receiver->setStyleSheet(ch_in_range ? "" : "border: 1px solid red;");
+
+    if (!rcvr_in_range) {
+        m_receivers_error_label->setText(
+            QString("Number of Receivers must be between %1 and %2.")
+                .arg(UIConstants::kMinReceiverCount)
+                .arg(UIConstants::kMaxReceiverCount));
+    } else if (!ch_in_range) {
+        m_receivers_error_label->setText(
+            QString("Channels per Receiver must be between %1 and %2.")
+                .arg(UIConstants::kMinChannelsPerReceiver)
+                .arg(UIConstants::kMaxChannelsPerReceiver));
+    } else if (!total_ok) {
+        m_receivers_error_label->setText(
+            QString("Receivers × Channels (%1) exceeds the maximum of %2 words.")
+                .arg(rcvr * ch)
+                .arg(UIConstants::kMaxTotalParameters));
+    }
+    m_receivers_error_label->setVisible(!valid);
+    updateOkButton();
+    return valid;
+}
+
+void SettingsDialog::validateAndAccept()
+{
+    const bool sync_valid      = validateSync();
+    const bool scale_valid     = validateScale();
+    const bool receivers_valid = validateReceivers();
+    if (sync_valid && scale_valid && receivers_valid)
+        accept();
+}
+
 void SettingsDialog::setData(const SettingsData& data)
 {
     m_data = data;
-    m_frame_sync->setText(data.frameSync);
+    m_frame_sync->setText(data.frameSync);  // triggers validateSync() via textChanged
     m_polarity->setCurrentIndex(data.polarityIndex);
     m_slope->setCurrentIndex(data.slopeIndex);
-    m_scale->setText(data.scale);
-    m_receiver_count->setText(QString::number(data.receiverCount));
-    m_channels_per_receiver->setText(QString::number(data.channelsPerReceiver));
+    m_scale->setText(data.scale);           // triggers validateScale() via textChanged
+    m_receiver_count->setText(QString::number(data.receiverCount));         // triggers validateReceivers() via textChanged
+    m_channels_per_receiver->setText(QString::number(data.channelsPerReceiver)); // triggers validateReceivers() via textChanged
 }
 
 SettingsData SettingsDialog::getData() const

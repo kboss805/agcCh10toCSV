@@ -95,6 +95,8 @@ private:
     void handlePlotXRangeChanged(double lower, double upper);
     /// Handles QCustomPlot Y axis range change from mouse interaction.
     void handlePlotYRangeChanged(double lower, double upper);
+    /// Parses "DDD:HH:MM:SS" text to elapsed seconds using the ViewModel base time.
+    double parseTimeToElapsed(const QString& text) const;
     void setUpLayout();
     void setUpConnections();
     void rebuildLegend();
@@ -124,8 +126,8 @@ private:
 
     /// @name Bottom controls
     /// @{
-    QDoubleSpinBox* m_x_start_spin = nullptr;
-    QDoubleSpinBox* m_x_stop_spin = nullptr;
+    QLineEdit* m_x_start_edit = nullptr;
+    QLineEdit* m_x_stop_edit = nullptr;
     QPushButton* m_reset_btn = nullptr;
     QPushButton* m_export_pdf_btn = nullptr;
     /// @}

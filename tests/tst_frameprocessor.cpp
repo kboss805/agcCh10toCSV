@@ -454,3 +454,273 @@ void TestFrameProcessor::processWithTestFile()
     QVERIFY2(header.startsWith("Day,Time"), "CSV header should start with Day,Time");
     QVERIFY2(header.contains("L_RCVR1"), "CSV header should contain parameter names");
 }
+
+void TestFrameProcessor::processWithNrzlFile()
+{
+    // Verifies the non-randomized (NRZ-L) code path through process()
+    // with is_randomized=false, which skips derandomizeBitstream().
+    QString filepath = testDataPath("nrz-l_testfile.ch10");
+    if (!QFileInfo::exists(filepath))
+        QSKIP("NRZ-L test file not available");
+
+    Chapter10Reader reader;
+    QVERIFY(reader.loadChannels(filepath));
+
+    int pcm_id = reader.getFirstPCMChannelID();
+    int time_id = reader.getCurrentTimeChannelID();
+    if (pcm_id < 0 || time_id < 0)
+        QSKIP("Missing channels in NRZ-L test file");
+
+    FrameSetup setup;
+    if (!loadDefaultFrameSetup(setup))
+        QSKIP("Could not load default frame setup");
+
+    for (int i = 0; i < setup.length(); i++)
+    {
+        ParameterInfo* param = setup.getParameter(i);
+        param->is_enabled = true;
+        param->slope = 1.0;
+        param->scale = 0.0;
+        param->sample_sum = 0.0;
+    }
+
+    QTemporaryDir temp_dir;
+    QVERIFY(temp_dir.isValid());
+    QString out_path = temp_dir.path() + "/nrzl_output.csv";
+
+    uint64_t start_secs = reader.dhmsToUInt64(
+        reader.getStartDayOfYear(), reader.getStartHour(),
+        reader.getStartMinute(), reader.getStartSecond());
+    uint64_t stop_secs = reader.dhmsToUInt64(
+        reader.getStopDayOfYear(), reader.getStopHour(),
+        reader.getStopMinute(), reader.getStopSecond());
+
+    uint64_t frame_sync = 0xFE6B2840;
+    int sync_len = 32;
+    int words_in_frame = setup.length() + 1;
+    int bits_in_frame = (setup.length() * PCMConstants::kCommonWordLen) + sync_len;
+
+    FrameProcessor fp;
+    QSignalSpy finished_spy(&fp, &FrameProcessor::processingFinished);
+
+    // is_randomized=false — exercises the NRZ-L code path
+    bool result = fp.process(filepath, &setup, out_path,
+                             time_id, pcm_id, frame_sync, sync_len,
+                             words_in_frame, bits_in_frame,
+                             start_secs, stop_secs, 1, false);
+
+    QVERIFY2(result, "process() should succeed on valid NRZ-L file");
+    QVERIFY(!finished_spy.isEmpty());
+    QCOMPARE(finished_spy.last().at(0).toBool(), true);
+
+    // Verify output file exists and has content
+    QFileInfo out_info(out_path);
+    QVERIFY2(out_info.exists(), "Output CSV should be created");
+    QVERIFY2(out_info.size() > 0, "Output CSV should not be empty");
+
+    // Verify header and at least one data row
+    QFile out_file(out_path);
+    QVERIFY(out_file.open(QIODevice::ReadOnly | QIODevice::Text));
+    QString header   = out_file.readLine().trimmed();
+    QString data_row = out_file.readLine().trimmed();
+    out_file.close();
+
+    QVERIFY2(header.startsWith("Day,Time"), "CSV header should start with Day,Time");
+    QVERIFY2(header.contains("L_RCVR1"),   "CSV header should contain parameter names");
+    QVERIFY2(!data_row.isEmpty(),           "CSV must contain at least one data row");
+}
+
+/// Helper: builds a FrameSetup loaded from default.ini with all params
+/// enabled and using the given slope and offset values.
+static bool setupParams(FrameSetup& setup, double slope, double offset)
+{
+    if (!loadDefaultFrameSetup(setup))
+        return false;
+    for (int i = 0; i < setup.length(); i++)
+    {
+        ParameterInfo* param = setup.getParameter(i);
+        param->is_enabled = true;
+        param->slope = slope;
+        param->scale = offset;
+        param->sample_sum = 0.0;
+    }
+    return true;
+}
+
+/// Helper: runs process() on the RNRZ-L test file and returns the output path,
+/// or empty string on failure or skip.
+static QString runProcess(FrameSetup& setup, const QString& out_path)
+{
+    QString filepath = testDataPath("rnrz-l_testfile.ch10");
+    if (!QFileInfo::exists(filepath))
+        return {};
+
+    Chapter10Reader reader;
+    if (!reader.loadChannels(filepath))
+        return {};
+
+    int pcm_id = reader.getFirstPCMChannelID();
+    int time_id = reader.getCurrentTimeChannelID();
+    if (pcm_id < 0 || time_id < 0)
+        return {};
+
+    uint64_t start_secs = reader.dhmsToUInt64(
+        reader.getStartDayOfYear(), reader.getStartHour(),
+        reader.getStartMinute(), reader.getStartSecond());
+    uint64_t stop_secs = reader.dhmsToUInt64(
+        reader.getStopDayOfYear(), reader.getStopHour(),
+        reader.getStopMinute(), reader.getStopSecond());
+
+    uint64_t frame_sync = 0xFE6B2840;
+    int sync_len = 32;
+    int words_in_frame = setup.length() + 1;
+    int bits_in_frame = (setup.length() * PCMConstants::kCommonWordLen) + sync_len;
+
+    FrameProcessor fp;
+    bool ok = fp.process(filepath, &setup, out_path,
+                         time_id, pcm_id, frame_sync, sync_len,
+                         words_in_frame, bits_in_frame,
+                         start_secs, stop_secs, 1, true);
+    return ok ? out_path : QString();
+}
+
+void TestFrameProcessor::processOutputHasDataRows()
+{
+    QString filepath = testDataPath("rnrz-l_testfile.ch10");
+    if (!QFileInfo::exists(filepath))
+        QSKIP("RNRZ-L test file not available");
+
+    FrameSetup setup;
+    if (!setupParams(setup, 1.0, 0.0))
+        QSKIP("Could not load default frame setup");
+
+    QTemporaryDir temp_dir;
+    QVERIFY(temp_dir.isValid());
+    QString out_path = runProcess(setup, temp_dir.path() + "/data_rows.csv");
+    QVERIFY2(!out_path.isEmpty(), "Processing should succeed");
+
+    QFile out_file(out_path);
+    QVERIFY(out_file.open(QIODevice::ReadOnly | QIODevice::Text));
+    QString header = out_file.readLine().trimmed();
+    QString data_row = out_file.readLine().trimmed();
+    out_file.close();
+
+    // Must have at least one data row
+    QVERIFY2(!data_row.isEmpty(), "CSV must have at least one data row");
+
+    QStringList header_cols = header.split(',');
+    QStringList data_cols = data_row.split(',');
+
+    // Data row column count must match header
+    QVERIFY2(data_cols.size() == header_cols.size(),
+             qPrintable(QString("Header has %1 columns but data row has %2")
+                            .arg(header_cols.size()).arg(data_cols.size())));
+
+    // Column 0: DOY — must be a valid integer
+    bool doy_ok = false;
+    int doy = data_cols[0].toInt(&doy_ok);
+    QVERIFY2(doy_ok, "DOY column must be a valid integer");
+    QVERIFY2(doy >= UIConstants::kMinDayOfYear && doy <= UIConstants::kMaxDayOfYear,
+             "DOY must be within 1–366");
+
+    // Column 1: time — must contain ":" and "."
+    QVERIFY2(data_cols[1].contains(':'), "Time column must contain ':'");
+    QVERIFY2(data_cols[1].contains('.'), "Time column must contain '.'");
+
+    // Remaining columns: AGC values — must be parseable as doubles
+    for (int i = 2; i < data_cols.size(); i++)
+    {
+        bool val_ok = false;
+        data_cols[i].toDouble(&val_ok);
+        QVERIFY2(val_ok, qPrintable("AGC value in column " + QString::number(i) + " is not numeric"));
+    }
+}
+
+void TestFrameProcessor::processSlopeAffectsOutput()
+{
+    // Calibration: scaled_value = (raw + offset) * slope
+    // With offset=0: slope=2.0 should produce exactly 2× the values of slope=1.0
+    QString filepath = testDataPath("rnrz-l_testfile.ch10");
+    if (!QFileInfo::exists(filepath))
+        QSKIP("RNRZ-L test file not available");
+
+    QTemporaryDir temp_dir;
+    QVERIFY(temp_dir.isValid());
+
+    FrameSetup setup1;
+    if (!setupParams(setup1, 1.0, 0.0))
+        QSKIP("Could not load default frame setup");
+    QString path1 = runProcess(setup1, temp_dir.path() + "/slope1.csv");
+    QVERIFY2(!path1.isEmpty(), "slope=1.0 run should succeed");
+
+    FrameSetup setup2;
+    QVERIFY(setupParams(setup2, 2.0, 0.0));
+    QString path2 = runProcess(setup2, temp_dir.path() + "/slope2.csv");
+    QVERIFY2(!path2.isEmpty(), "slope=2.0 run should succeed");
+
+    // Read first data row from each file and compare column 2 (first AGC channel)
+    auto readFirstDataValue = [](const QString& path, int col) -> double {
+        QFile f(path);
+        if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
+            return 0.0;
+        f.readLine();  // skip header
+        QString line = f.readLine().trimmed();
+        QStringList parts = line.split(',');
+        if (col >= parts.size())
+            return 0.0;
+        return parts[col].toDouble();
+    };
+
+    double val1 = readFirstDataValue(path1, 2);
+    double val2 = readFirstDataValue(path2, 2);
+
+    // Avoid divide-by-zero if the raw sample happened to be zero
+    if (qAbs(val1) < 1e-10)
+        QSKIP("First AGC sample is zero — cannot test slope ratio");
+
+    QVERIFY2(qAbs(val2 - 2.0 * val1) < 1e-6,
+             qPrintable(QString("Expected val2 (%1) = 2 * val1 (%2)").arg(val2).arg(val1)));
+}
+
+void TestFrameProcessor::processNegativeSlopeNegatesValues()
+{
+    // Negative slope (negative polarity) should negate all output values.
+    QString filepath = testDataPath("rnrz-l_testfile.ch10");
+    if (!QFileInfo::exists(filepath))
+        QSKIP("RNRZ-L test file not available");
+
+    QTemporaryDir temp_dir;
+    QVERIFY(temp_dir.isValid());
+
+    FrameSetup setup_pos;
+    if (!setupParams(setup_pos, 1.0, 0.0))
+        QSKIP("Could not load default frame setup");
+    QString path_pos = runProcess(setup_pos, temp_dir.path() + "/positive.csv");
+    QVERIFY2(!path_pos.isEmpty(), "positive slope run should succeed");
+
+    FrameSetup setup_neg;
+    QVERIFY(setupParams(setup_neg, -1.0, 0.0));
+    QString path_neg = runProcess(setup_neg, temp_dir.path() + "/negative.csv");
+    QVERIFY2(!path_neg.isEmpty(), "negative slope run should succeed");
+
+    auto readFirstDataValue = [](const QString& path, int col) -> double {
+        QFile f(path);
+        if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
+            return 0.0;
+        f.readLine();  // skip header
+        QString line = f.readLine().trimmed();
+        QStringList parts = line.split(',');
+        if (col >= parts.size())
+            return 0.0;
+        return parts[col].toDouble();
+    };
+
+    double val_pos = readFirstDataValue(path_pos, 2);
+    double val_neg = readFirstDataValue(path_neg, 2);
+
+    if (qAbs(val_pos) < 1e-10)
+        QSKIP("First AGC sample is zero — cannot test polarity sign");
+
+    QVERIFY2(qAbs(val_neg + val_pos) < 1e-6,
+             qPrintable(QString("Expected val_neg (%1) = -val_pos (%2)").arg(val_neg).arg(val_pos)));
+}

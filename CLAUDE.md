@@ -95,7 +95,16 @@ This file provides context and guidelines for AI assistants working on the agcCh
 - [x] Select and Unselect which reciever channel AGC values are visible/exported to PDF
 - [x] Auto set plot colors by default; channels from the same receiver should be a shades of the same color
 
-### US7: Application Installer
+### US7: Error Checking
+**As an** As a telemetry engineer or data analyst 
+**I want to** ensure the values I enter into the application are valid
+**So that** I can avoid errors and ensure the data I export is accurate
+
+**Acceptance Criteria:**
+- ✅ Ensure all input fields are validated
+- ✅ Error messages are displayed to the user when invalid values are entered
+
+### US8: Application Installer
 **As a** developer
 **I want to** create an application installer
 **So that** I can quickly deploy the software/updates to users with all the necessary folders and settings files

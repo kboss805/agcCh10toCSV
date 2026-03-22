@@ -30,6 +30,10 @@ private slots:
     void processInvalidPcmChannel();
     void processInvalidFile();
     void processWithTestFile();
+    void processWithNrzlFile();
+    void processOutputHasDataRows();
+    void processSlopeAffectsOutput();
+    void processNegativeSlopeNegatesValues();
 };
 
 #endif // TST_FRAMEPROCESSOR_H

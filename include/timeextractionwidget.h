@@ -61,6 +61,8 @@ public:
 signals:
     void extractAllTimeChanged(bool checked);    ///< Emitted when the "Extract All Time" checkbox is toggled.
     void sampleRateIndexChanged(int index);      ///< Emitted when the sample rate selection changes.
+    void startTimeEditingFinished();             ///< Emitted when the user finishes editing the start time field.
+    void stopTimeEditingFinished();              ///< Emitted when the user finishes editing the stop time field.
 
 private:
     QCheckBox* m_time_all;                       ///< "Extract all time" toggle checkbox.

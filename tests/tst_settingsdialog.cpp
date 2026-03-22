@@ -4,7 +4,34 @@
 #include <QSignalSpy>
 #include <QtTest>
 
+#include "constants.h"
 #include "settingsdialog.h"
+
+/// Helper: finds the OK button in the dialog.
+static QPushButton* findOkButton(SettingsDialog& dlg)
+{
+    for (QPushButton* btn : dlg.findChildren<QPushButton*>())
+    {
+        if (btn->text() == "OK")
+            return btn;
+    }
+    return nullptr;
+}
+
+/// Helper: populates a SettingsData with fully valid values.
+static SettingsData validData()
+{
+    SettingsData data;
+    data.frameSync = "FE6B2840";
+    data.polarityIndex = 0;
+    data.slopeIndex = UIConstants::kDefaultSlopeIndex;
+    data.scale = "100";
+    data.receiverCount = UIConstants::kDefaultReceiverCount;
+    data.channelsPerReceiver = UIConstants::kDefaultChannelsPerReceiver;
+    data.extractAllTime = true;
+    data.sampleRateIndex = 0;
+    return data;
+}
 
 // --- Default state tests ---
 
@@ -215,4 +242,114 @@ void TestSettingsDialog::saveAsRequestedSignal()
     QVERIFY(save_btn != nullptr);
     save_btn->click();
     QCOMPARE(spy.count(), 1);
+}
+
+// --- OK button / inline validation tests ---
+
+void TestSettingsDialog::okButtonDisabledByDefault()
+{
+    SettingsDialog dlg;
+    QPushButton* ok_btn = findOkButton(dlg);
+    QVERIFY2(ok_btn != nullptr, "OK button not found in SettingsDialog");
+
+    // Trigger validation by setting a field (fires textChanged).
+    // Scale and receiver count are still empty/zero, so OK must remain disabled.
+    dlg.setFrameSync("FE6B2840");
+    QVERIFY2(!ok_btn->isEnabled(), "OK must be disabled when scale and receiver fields are empty");
+}
+
+void TestSettingsDialog::okButtonEnabledAfterValidData()
+{
+    SettingsDialog dlg;
+    QPushButton* ok_btn = findOkButton(dlg);
+    QVERIFY2(ok_btn != nullptr, "OK button not found in SettingsDialog");
+
+    dlg.setData(validData());
+    QVERIFY2(ok_btn->isEnabled(), "OK must be enabled after setData() with all valid values");
+}
+
+void TestSettingsDialog::okButtonDisabledForInvalidFrameSync()
+{
+    SettingsDialog dlg;
+    QPushButton* ok_btn = findOkButton(dlg);
+    QVERIFY2(ok_btn != nullptr, "OK button not found in SettingsDialog");
+
+    // Start from a fully valid state so only frame sync is invalid.
+    dlg.setData(validData());
+    QVERIFY(ok_btn->isEnabled());
+
+    // Non-hex characters
+    dlg.setFrameSync("GGGG1234");
+    QVERIFY2(!ok_btn->isEnabled(), "OK must be disabled for non-hex frame sync");
+
+    // Empty frame sync
+    dlg.setFrameSync("");
+    QVERIFY2(!ok_btn->isEnabled(), "OK must be disabled for empty frame sync");
+
+    // Restore valid hex → OK re-enables
+    dlg.setFrameSync("ABCD1234");
+    QVERIFY2(ok_btn->isEnabled(), "OK must re-enable after a valid hex frame sync is entered");
+}
+
+void TestSettingsDialog::okButtonDisabledForInvalidScale()
+{
+    SettingsDialog dlg;
+    QPushButton* ok_btn = findOkButton(dlg);
+    QVERIFY2(ok_btn != nullptr, "OK button not found in SettingsDialog");
+
+    dlg.setData(validData());
+    QVERIFY(ok_btn->isEnabled());
+
+    // Zero is not a valid scale
+    dlg.setScale("0");
+    QVERIFY2(!ok_btn->isEnabled(), "OK must be disabled for scale = 0");
+
+    // Negative value
+    dlg.setScale("-50");
+    QVERIFY2(!ok_btn->isEnabled(), "OK must be disabled for negative scale");
+
+    // Non-numeric
+    dlg.setScale("abc");
+    QVERIFY2(!ok_btn->isEnabled(), "OK must be disabled for non-numeric scale");
+
+    // Restore valid positive value → OK re-enables
+    dlg.setScale("50");
+    QVERIFY2(ok_btn->isEnabled(), "OK must re-enable after a positive scale is entered");
+}
+
+void TestSettingsDialog::okButtonDisabledForInvalidReceivers()
+{
+    SettingsDialog dlg;
+    QPushButton* ok_btn = findOkButton(dlg);
+    QVERIFY2(ok_btn != nullptr, "OK button not found in SettingsDialog");
+
+    dlg.setData(validData());
+    QVERIFY(ok_btn->isEnabled());
+
+    // Receiver count below minimum (0 < kMinReceiverCount = 1)
+    dlg.setReceiverCount(0);
+    QVERIFY2(!ok_btn->isEnabled(), "OK must be disabled for 0 receivers");
+
+    // Restore
+    dlg.setReceiverCount(UIConstants::kDefaultReceiverCount);
+    QVERIFY(ok_btn->isEnabled());
+
+    // Receiver count above maximum (> kMaxReceiverCount = 16)
+    dlg.setReceiverCount(UIConstants::kMaxReceiverCount + 1);
+    QVERIFY2(!ok_btn->isEnabled(), "OK must be disabled for receiver count > max");
+
+    // Restore
+    dlg.setReceiverCount(UIConstants::kDefaultReceiverCount);
+    QVERIFY(ok_btn->isEnabled());
+
+    // Total parameters exceed kMaxTotalParameters (48):
+    // 16 receivers × 4 channels = 64 > 48
+    dlg.setReceiverCount(UIConstants::kMaxReceiverCount);
+    dlg.setChannelsPerReceiver(4);
+    QVERIFY2(!ok_btn->isEnabled(),
+             "OK must be disabled when receivers x channels exceeds kMaxTotalParameters");
+
+    // Reduce channels to bring total back to 48 (16 × 3 = 48)
+    dlg.setChannelsPerReceiver(UIConstants::kDefaultChannelsPerReceiver);
+    QVERIFY2(ok_btn->isEnabled(), "OK must re-enable when total parameters are within limit");
 }

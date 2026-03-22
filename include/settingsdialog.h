@@ -9,7 +9,9 @@
 #include <QComboBox>
 #include <QDialog>
 #include <QGroupBox>
+#include <QLabel>
 #include <QLineEdit>
+#include <QPushButton>
 
 #include "settingsdata.h"
 
@@ -52,7 +54,14 @@ signals:
     void loadRequested();    ///< Emitted when the user clicks "Load...".
     void saveAsRequested();  ///< Emitted when the user clicks "Save As...".
 
+private slots:
+    void validateAndAccept();  ///< Validates all fields and accepts the dialog if valid.
+    bool validateSync();        ///< Validates frame sync field; applies red border and error label. Returns true if valid.
+    bool validateScale();       ///< Validates scale field; applies red border and error label. Returns true if valid.
+    bool validateReceivers();   ///< Validates receiver count, channels, and total; applies red borders and error label. Returns true if valid.
+
 private:
+    void updateOkButton();     ///< Enables OK only when all fields are valid.
     SettingsData m_data;                 ///< Stored snapshot preserving non-edited fields.
     QLineEdit* m_frame_sync;             ///< Frame sync hex pattern input.
     QComboBox* m_polarity;               ///< Polarity selector (Positive/Negative).
@@ -60,6 +69,10 @@ private:
     QLineEdit* m_scale;                  ///< Scale input (dB/V).
     QLineEdit* m_receiver_count;         ///< Receiver count input.
     QLineEdit* m_channels_per_receiver;  ///< Channels-per-receiver input.
+    QLabel* m_sync_error_label;          ///< Inline error label for invalid frame sync.
+    QLabel* m_scale_error_label;         ///< Inline error label for invalid scale.
+    QLabel* m_receivers_error_label;     ///< Inline error label for invalid receiver/channel configuration.
+    QPushButton* m_ok_button;            ///< OK button; disabled when any field is invalid.
 };
 
 #endif // SETTINGSDIALOG_H

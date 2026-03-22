@@ -35,6 +35,10 @@ This application reads IRIG 106 Chapter 10 (.ch10) files, extracts telemetry dat
 - **Plot PDF Export**: Export current plot to high-quality PDF file via QCustomPlot's built-in `savePdf()` method
 - **X-Axis Time Display**: Actual file time (DDD:HH:MM:SS) on the X axis instead of elapsed seconds
 - **Installer & Portable Distribution**: Inno Setup EXE installer with admin/non-admin support, portable ZIP with local settings, INI upgrade logic, and optional `.ch10` file association
+- **Keyboard Shortcuts**: Ctrl+O (Open file), Ctrl+R (Process)
+- **Collapsible Panels**: Receivers and Time Controls sections collapse/expand to reduce visual clutter
+- **Tooltips**: Descriptive tooltips on all plot controls (spinboxes, buttons, title field)
+- **Busy Cursor**: Hourglass cursor shown during file processing
 
 ## System Requirements
 
@@ -93,7 +97,7 @@ To build and debug:
 ## Usage
 
 1. **Load Input File**
-   - Click the folder icon in the toolbar to browse for a Chapter 10 (.ch10) file
+   - Click the folder icon in the toolbar (or press **Ctrl+O**) to browse for a Chapter 10 (.ch10) file
    - Or drag and drop a .ch10 file onto the application window
 
 2. **Select Channels**
@@ -115,7 +119,7 @@ To build and debug:
    - Select sample rate (1 Hz, 10 Hz, or 100 Hz)
 
 6. **Process**
-   - Click the play icon in the toolbar to begin conversion
+   - Click the play icon in the toolbar (or press **Ctrl+R**) to begin conversion
    - Choose output CSV file location
    - Monitor progress in the progress bar and log window
 
@@ -164,14 +168,18 @@ agcCH10toCSV/
 │   ├── agcCh10toCSV_resource.rc # Windows resource file
 │   ├── win11-dark.qss         # Dark theme stylesheet
 │   ├── win11-light.qss        # Light theme stylesheet
-│   ├── chevron-down-*.svg     # Combo box dropdown arrow icons
+│   ├── chevron-down-*.svg     # Combo box dropdown arrow icons (dark/light/disabled)
+│   ├── chevron-right-*.svg    # Collapsible section arrow icons (dark/light)
 │   ├── checkmark.svg          # Checkbox checkmark icon
 │   ├── folder-open.svg        # Toolbar open icon
 │   ├── play.svg               # Toolbar process icon
+│   ├── stop.svg               # Toolbar cancel/stop icon
+│   ├── magnifying-glass.svg   # Toolbar pre-scan icon
+│   ├── gear.svg               # Toolbar settings icon
 │   └── icon.ico               # Application icon
 ├── scripts/                    # Build and utility scripts
 │   ├── build.bat              # Command-line shadow build generator
-│   └── commit.bat             # Git staging and commit helper
+│   └── env.bat                # Developer environment PATH setup helper
 ├── .vscode/                    # VS Code configuration
 ├── agcCh10toCSV.pro            # Qt project file
 ├── CLAUDE.md                   # AI assistant guide

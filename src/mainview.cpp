@@ -97,51 +97,61 @@ void MainView::setUpMainLayout()
     m_log_preview->setReadOnly(true);
     m_log_preview->setOpenLinks(false);
     m_log_preview->setMinimumHeight(UIConstants::kLogPreviewHeight);
+    // Match log preview background to the surrounding panel (same gray as file section).
+    QPalette log_palette = m_log_preview->palette();
+    log_palette.setColor(QPalette::Base, qApp->palette().color(QPalette::Window));
+    m_log_preview->setPalette(log_palette);
 
-    // Collapsible "Receivers" section — same pattern as m_settings_tree
-    m_receivers_tree = new QTreeWidget;
-    m_receivers_tree->setHeaderHidden(true);
-    m_receivers_tree->setColumnCount(1);
-    m_receivers_tree->setRootIsDecorated(true);
-    m_receivers_tree->setIndentation(UIConstants::kTreeIndentation);
-    m_receivers_tree->setSelectionMode(QAbstractItemView::NoSelection);
-    m_receivers_tree->setFocusPolicy(Qt::NoFocus);
-    m_receivers_tree->setAnimated(true);
-    m_receivers_tree->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    m_receivers_tree->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-
-    int rec_row_h = m_receivers_tree->fontMetrics().height() + 8;
-    int rec_frame_h = m_receivers_tree->frameWidth() * 2;
-    m_receivers_tree->setFixedHeight(rec_row_h + rec_frame_h);
-
-    QTreeWidgetItem* receivers_root = new QTreeWidgetItem(m_receivers_tree);
-    receivers_root->setText(0, "Receivers");
-    receivers_root->setChildIndicatorPolicy(QTreeWidgetItem::ShowIndicator);
-
-    // 4px gap between header and grid, hidden together when collapsed
-    QWidget* receiver_content = new QWidget;
-    QVBoxLayout* receiver_content_layout = new QVBoxLayout(receiver_content);
-    receiver_content_layout->setContentsMargins(0, 4, 0, 0);
-    receiver_content_layout->setSpacing(0);
-    receiver_content_layout->addWidget(m_receiver_grid);
-    receiver_content->hide();
-
-    connect(m_receivers_tree, &QTreeWidget::itemExpanded, this, [receiver_content](QTreeWidgetItem*) {
-        receiver_content->show();
-    });
-    connect(m_receivers_tree, &QTreeWidget::itemCollapsed, this, [receiver_content](QTreeWidgetItem*) {
-        receiver_content->hide();
-    });
-
-    m_controls_layout->addWidget(m_receivers_tree);
-    m_controls_layout->addWidget(receiver_content);
-    m_controls_layout->addSpacing(8);
+    // File section at the top of the controls panel
+    m_controls_layout->addWidget(new QLabel("File"));
     m_controls_layout->addWidget(m_file_list);
+    m_controls_layout->addSpacing(4);
+
+    // Receivers toggle button + content
+    QPushButton* recv_toggle = new QPushButton("\u25b6  Receivers");
+    recv_toggle->setFlat(true);
+    recv_toggle->setCheckable(true);
+    recv_toggle->setChecked(false);
+    recv_toggle->setFocusPolicy(Qt::NoFocus);
+    recv_toggle->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    recv_toggle->setStyleSheet("text-align: left; padding: 2px 4px;");
+    m_controls_layout->addWidget(recv_toggle);
+    m_controls_layout->addSpacing(4);
+
+    m_receiver_grid->hide();
+    m_controls_layout->addWidget(m_receiver_grid);
+
+    connect(recv_toggle, &QPushButton::toggled, this, [recv_toggle, this](bool checked) {
+        recv_toggle->setText(checked ? "\u25bc  Receivers" : "\u25b6  Receivers");
+        m_receiver_grid->setVisible(checked);
+    });
+
     m_controls_layout->addSpacing(8);
+
+    // Time Controls toggle button + content
+    QPushButton* time_toggle = new QPushButton("\u25b6  Time Controls");
+    time_toggle->setFlat(true);
+    time_toggle->setCheckable(true);
+    time_toggle->setChecked(false);
+    time_toggle->setFocusPolicy(Qt::NoFocus);
+    time_toggle->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    time_toggle->setStyleSheet("text-align: left; padding: 2px 4px;");
+    m_controls_layout->addWidget(time_toggle);
+    m_controls_layout->addSpacing(4);
+
+    m_time_widget->hide();
     m_controls_layout->addWidget(m_time_widget);
+
+    connect(time_toggle, &QPushButton::toggled, this, [time_toggle, this](bool checked) {
+        time_toggle->setText(checked ? "\u25bc  Time Controls" : "\u25b6  Time Controls");
+        m_time_widget->setVisible(checked);
+    });
+
     m_controls_layout->addSpacing(8);
+
+    // Log preview at the bottom of the controls panel, above the progress bar
     m_controls_layout->addWidget(m_log_preview, 1);
-    m_controls_layout->addSpacing(8);
+    m_controls_layout->addSpacing(4);
     m_controls_layout->addWidget(m_progress_bar);
 
     // PlotWidget as central widget — fills all space right of the controls dock
@@ -173,18 +183,6 @@ void MainView::setUpMainLayout()
 
     setCentralWidget(central_wrapper);
 
-    // Log as standalone dialog window
-    m_log_dialog = new QDialog(this);
-    m_log_dialog->setWindowTitle("Log");
-    m_log_dialog->resize(UIConstants::kLogDialogWidth, UIConstants::kLogDialogHeight);
-    m_log_window = new QTextBrowser;
-    m_log_window->setReadOnly(true);
-    m_log_window->setOpenLinks(false);
-    m_log_window->setMinimumWidth(UIConstants::kLogMinimumWidth);
-    QVBoxLayout* log_layout = new QVBoxLayout(m_log_dialog);
-    log_layout->setContentsMargins(0, 0, 0, 0);
-    log_layout->addWidget(m_log_window);
-
     // Controls in a fixed left dock widget
     QWidget* controls_widget = new QWidget;
     controls_widget->setLayout(m_controls_layout);
@@ -194,7 +192,13 @@ void MainView::setUpMainLayout()
     m_controls_dock->setTitleBarWidget(new QWidget);
     m_controls_dock->setWidget(controls_widget);
     m_controls_dock->setFeatures(QDockWidget::NoDockWidgetFeatures);
+    m_controls_dock->setMinimumWidth(UIConstants::kControlsDockMinWidth);
     addDockWidget(Qt::LeftDockWidgetArea, m_controls_dock);
+
+    // Intercept drag events from every widget in the window by filtering at
+    // the application level — simpler and more complete than listing individual
+    // child viewports.
+    qApp->installEventFilter(this);
 
     // additional settings
     setWindowTitle("Chapter 10 to CSV AGC Converter");
@@ -220,9 +224,13 @@ void MainView::setUpMenuBar()
     QMenuBar* menu_bar = menuBar();
     QMenu* file_menu = menu_bar->addMenu("&File");
 
-    QAction* settings_action = file_menu->addAction("Settings...");
+    QAction* open_action = file_menu->addAction("Open...");
+    open_action->setShortcut(QKeySequence::Open);
     m_recent_menu = file_menu->addMenu("Recent Files");
     updateRecentFilesMenu();
+    file_menu->addSeparator();
+
+    QAction* settings_action = file_menu->addAction("Settings...");
     file_menu->addSeparator();
 
     QSettings app_settings;
@@ -233,15 +241,10 @@ void MainView::setUpMenuBar()
 
     QAction* exit_action = file_menu->addAction("Exit");
 
+    connect(open_action, &QAction::triggered, this, &MainView::inputFileButtonPressed);
     connect(settings_action, &QAction::triggered, this, &MainView::onSettings);
     connect(m_theme_action, &QAction::triggered, this, &MainView::onToggleTheme);
     connect(exit_action, &QAction::triggered, this, &QMainWindow::close);
-
-    QMenu* view_menu = menu_bar->addMenu("&View");
-    m_show_log_action = view_menu->addAction("Show Log");
-    connect(m_show_log_action, &QAction::triggered, this, [this]() {
-        m_toggle_log_action->setChecked(true);
-    });
 
     QMenu* help_menu = menu_bar->addMenu("&Help");
     QAction* about_action = help_menu->addAction("About...");
@@ -269,9 +272,14 @@ void MainView::setUpMenuBar()
     m_toolbar_open_action = m_toolbar->addAction(
         QIcon(":/resources/folder-open.svg"), "Open Ch10 File");
     m_toolbar_open_action->setToolTip("Open Ch10 File (Ctrl+O)");
-    m_toolbar_open_action->setShortcut(QKeySequence::Open);
     connect(m_toolbar_open_action, &QAction::triggered,
             this, &MainView::inputFileButtonPressed);
+
+    QAction* toolbar_settings_action = m_toolbar->addAction(
+        QIcon(":/resources/gear.svg"), "Settings");
+    toolbar_settings_action->setToolTip("Settings");
+    connect(toolbar_settings_action, &QAction::triggered,
+            this, &MainView::onSettings);
 
     m_toolbar->addSeparator();
 
@@ -294,19 +302,6 @@ void MainView::setUpMenuBar()
     toolbar_spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     m_toolbar->addWidget(toolbar_spacer);
 
-    m_toggle_log_action = m_toolbar->addAction(
-        QIcon(":/resources/magnifying-glass.svg"), "Toggle Log");
-    m_toggle_log_action->setToolTip("Show/Hide Log Window");
-    m_toggle_log_action->setCheckable(true);
-    m_toggle_log_action->setChecked(false);
-    connect(m_toggle_log_action, &QAction::toggled, this, [this](bool checked) {
-        if (checked) {
-            m_log_dialog->show();
-            m_log_dialog->raise();
-        } else {
-            m_log_dialog->hide();
-        }
-    });
 }
 
 void MainView::setUpFileList()
@@ -317,17 +312,15 @@ void MainView::setUpFileList()
     m_file_list->setRootIsDecorated(true);
     m_file_list->setAnimated(true);
     m_file_list->setIndentation(UIConstants::kTreeIndentation);
-    m_file_list->setFixedHeight(UIConstants::kBatchFileListHeight);
+    m_file_list->setMinimumHeight(UIConstants::kBatchFileListHeight);
+    m_file_list->setMinimumWidth(UIConstants::kControlsDockMinWidth);
     m_file_list->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_file_list->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_file_list->setSelectionMode(QAbstractItemView::NoSelection);
 
-    QTreeWidgetItem* item = new QTreeWidgetItem;
-    item->setText(0, "No file loaded");
-    item->setFlags(Qt::ItemIsEnabled);
-    m_file_list->addTopLevelItem(item);
-    m_file_list->header()->setStretchLastSection(false);
-    m_file_list->header()->setSectionResizeMode(0, QHeaderView::Stretch);
+    // Build the initial state (no file loaded) using the same populate path so
+    // the Time and PCM combo rows are always present from startup.
+    updateFileList();
 }
 
 void MainView::onShowPlot(const QString& csv_filepath)
@@ -344,8 +337,105 @@ void MainView::setUpConnections()
     // TimeExtractionWidget -> ViewModel
     connect(m_time_widget, &TimeExtractionWidget::extractAllTimeChanged,
             m_view_model, &MainViewModel::setExtractAllTime);
+    // When "Extract All Time" is re-checked, restore the full file time range in the fields
+    connect(m_time_widget, &TimeExtractionWidget::extractAllTimeChanged,
+            this, [this](bool checked) {
+                if (checked)
+                {
+                    m_time_widget->fillTimes(
+                        m_view_model->startDayOfYear(), m_view_model->startHour(),
+                        m_view_model->startMinute(),    m_view_model->startSecond(),
+                        m_view_model->stopDayOfYear(),  m_view_model->stopHour(),
+                        m_view_model->stopMinute(),     m_view_model->stopSecond());
+                }
+            });
     connect(m_time_widget, &TimeExtractionWidget::sampleRateIndexChanged,
             m_view_model, &MainViewModel::setSampleRateIndex);
+
+    // Clamp start/stop time fields to the file's actual time range on editingFinished
+    auto clampTimeFn = [this](bool is_start) {
+        // Parse a DDD:HH:MM:SS string to total seconds; returns -1 on parse error
+        auto toSeconds = [](const QString& text) -> long long {
+            const QStringList p = text.split(':');
+            if (p.size() != 4) { return -1LL; }
+            bool ok1, ok2, ok3, ok4;
+            int d = p[0].toInt(&ok1), h = p[1].toInt(&ok2),
+                m = p[2].toInt(&ok3), s = p[3].toInt(&ok4);
+            if (!ok1 || !ok2 || !ok3 || !ok4) { return -1LL; }
+            return d * 86400LL + h * 3600LL + m * 60LL + s;
+        };
+
+        auto fromSeconds = [](long long total, int& d, int& h, int& m, int& s) {
+            d = static_cast<int>(total / 86400);
+            int rem = static_cast<int>(total % 86400);
+            h = rem / 3600; rem %= 3600;
+            m = rem / 60;   s = rem % 60;
+        };
+
+        // File bounds (absolute seconds)
+        long long file_min = m_view_model->startDayOfYear() * 86400LL
+                           + m_view_model->startHour()   * 3600LL
+                           + m_view_model->startMinute() * 60LL
+                           + m_view_model->startSecond();
+        long long file_max = m_view_model->stopDayOfYear() * 86400LL
+                           + m_view_model->stopHour()   * 3600LL
+                           + m_view_model->stopMinute() * 60LL
+                           + m_view_model->stopSecond();
+
+        const QString entered_start = m_time_widget->startTimeText();
+        const QString entered_stop  = m_time_widget->stopTimeText();
+        long long start_sec = toSeconds(entered_start);
+        long long stop_sec  = toSeconds(entered_stop);
+
+        // On parse failure restore the corresponding file bound and warn
+        if (start_sec < 0)
+        {
+            logWarning(QString("Invalid start time \"%1\" — reset to file start.").arg(entered_start));
+            start_sec = file_min;
+        }
+        if (stop_sec < 0)
+        {
+            logWarning(QString("Invalid stop time \"%1\" — reset to file stop.").arg(entered_stop));
+            stop_sec = file_max;
+        }
+
+        // Clamp to file range and warn if out of bounds
+        if (start_sec < file_min || start_sec > file_max)
+        {
+            logWarning(QString("Start time \"%1\" is outside the file time range — clamped to file bounds.").arg(entered_start));
+            start_sec = qBound(file_min, start_sec, file_max);
+        }
+        if (stop_sec < file_min || stop_sec > file_max)
+        {
+            logWarning(QString("Stop time \"%1\" is outside the file time range — clamped to file bounds.").arg(entered_stop));
+            stop_sec = qBound(file_min, stop_sec, file_max);
+        }
+
+        // Enforce ordering: if the field being edited conflicts, clamp it to the other
+        if (start_sec > stop_sec)
+        {
+            if (is_start)
+            {
+                logWarning("Start time is after stop time — clamped to stop time.");
+                start_sec = stop_sec;
+            }
+            else
+            {
+                logWarning("Stop time is before start time — clamped to start time.");
+                stop_sec = start_sec;
+            }
+        }
+
+        int sd, sh, sm, ss, ed, eh, em, es;
+        fromSeconds(start_sec, sd, sh, sm, ss);
+        fromSeconds(stop_sec,  ed, eh, em, es);
+        m_time_widget->fillTimes(sd, sh, sm, ss, ed, eh, em, es);
+    };
+
+    connect(m_time_widget, &TimeExtractionWidget::startTimeEditingFinished,
+            this, [clampTimeFn]() { clampTimeFn(true); });
+    connect(m_time_widget, &TimeExtractionWidget::stopTimeEditingFinished,
+            this, [clampTimeFn]() { clampTimeFn(false); });
 
     // ReceiverGridWidget -> ViewModel
     connect(m_receiver_grid, &ReceiverGridWidget::receiverChecked,
@@ -437,17 +527,10 @@ void MainView::setUpConnections()
     // PlotWidget -> Log window
     connect(m_plot_widget, &PlotWidget::logMessage, this, &MainView::onLogMessage);
 
-    connect(m_log_window, &QTextBrowser::anchorClicked, this, [](const QUrl& url) {
-        QDesktopServices::openUrl(url);
-    });
     connect(m_log_preview, &QTextBrowser::anchorClicked, this, [](const QUrl& url) {
         QDesktopServices::openUrl(url);
     });
 
-    // Uncheck toolbar toggle when user closes the log dialog via its own X button
-    connect(m_log_dialog, &QDialog::finished, this, [this]() {
-        m_toggle_log_action->setChecked(false);
-    });
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -552,8 +635,6 @@ void MainView::onProcessingFinished(bool success, const QString& output_file)
             QString timestamp = QTime::currentTime().toString("HH:mm:ss");
             QString html = "<span style='color: green;'>" + timestamp +
                            "  Batch complete. [<a href='" + folder_url + "'>Open Output Folder</a>]</span>";
-            m_log_window->append(html);
-            m_log_window->verticalScrollBar()->setValue(m_log_window->verticalScrollBar()->maximum());
             m_log_preview->append(html);
             m_log_preview->verticalScrollBar()->setValue(m_log_preview->verticalScrollBar()->maximum());
 
@@ -614,8 +695,6 @@ void MainView::onProcessingFinished(bool success, const QString& output_file)
             QString html = "<span style='color: green;'>" + timestamp +
                            "  Output: <a href='" + file_url + "'>" + output_file.toHtmlEscaped() + "</a>"
                            " [<a href='" + folder_url + "'>Open Folder</a>]</span>";
-            m_log_window->append(html);
-            m_log_window->verticalScrollBar()->setValue(m_log_window->verticalScrollBar()->maximum());
             m_log_preview->append(html);
             m_log_preview->verticalScrollBar()->setValue(m_log_preview->verticalScrollBar()->maximum());
 
@@ -644,11 +723,9 @@ void MainView::onLogMessage(const QString& message)
         // auto-detect bare file paths (e.g. C:/...) as clickable anchors.
         QString html = "<span>" + QTime::currentTime().toString("HH:mm:ss") + "&nbsp;&nbsp;" +
                        message.toHtmlEscaped() + "</span>";
-        m_log_window->append(html);
         m_log_preview->append(html);
         m_log_preview->verticalScrollBar()->setValue(m_log_preview->verticalScrollBar()->maximum());
     }
-    m_log_window->verticalScrollBar()->setValue(m_log_window->verticalScrollBar()->maximum());
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -846,6 +923,30 @@ void MainView::progressProcessButtonPressed()
 //                            DRAG AND DROP                                   //
 ////////////////////////////////////////////////////////////////////////////////
 
+bool MainView::eventFilter(QObject* obj, QEvent* event)
+{
+    // Only intercept drag events aimed at widgets that belong to this window.
+    auto* widget = qobject_cast<QWidget*>(obj);
+    if (!widget || widget->window() != this)
+        return QMainWindow::eventFilter(obj, event);
+
+    switch (event->type())
+    {
+    case QEvent::DragEnter:
+        dragEnterEvent(static_cast<QDragEnterEvent*>(event));
+        return true;
+    case QEvent::DragMove:
+        static_cast<QDragMoveEvent*>(event)->acceptProposedAction();
+        return true;
+    case QEvent::Drop:
+        dropEvent(static_cast<QDropEvent*>(event));
+        return true;
+    default:
+        break;
+    }
+    return QMainWindow::eventFilter(obj, event);
+}
+
 void MainView::dragEnterEvent(QDragEnterEvent* event)
 {
     if (event->mimeData()->hasUrls())
@@ -918,7 +1019,6 @@ void MainView::logError(const QString& message)
     QString timestamp = QTime::currentTime().toString("HH:mm:ss");
     QString html = "<span style='color: red;'>" + timestamp + "  " +
                    message.toHtmlEscaped() + "</span>";
-    m_log_window->append(html);
     m_log_preview->append(html);
     m_log_preview->verticalScrollBar()->setValue(m_log_preview->verticalScrollBar()->maximum());
 }
@@ -928,7 +1028,6 @@ void MainView::logWarning(const QString& message)
     QString timestamp = QTime::currentTime().toString("HH:mm:ss");
     QString html = "<span style='color: #DAA520;'>" + timestamp + "  " +
                    message.toHtmlEscaped() + "</span>";
-    m_log_window->append(html);
     m_log_preview->append(html);
     m_log_preview->verticalScrollBar()->setValue(m_log_preview->verticalScrollBar()->maximum());
 }
@@ -938,7 +1037,6 @@ void MainView::logSuccess(const QString& message)
     QString timestamp = QTime::currentTime().toString("HH:mm:ss");
     QString html = "<span style='color: green;'>" + timestamp + "  " +
                    message.toHtmlEscaped() + "</span>";
-    m_log_window->append(html);
     m_log_preview->append(html);
     m_log_preview->verticalScrollBar()->setValue(m_log_preview->verticalScrollBar()->maximum());
 }
@@ -1036,7 +1134,6 @@ void MainView::applyBatchFileStatus(QTreeWidgetItem* item, const BatchFileInfo& 
 void MainView::populateBatchFileList()
 {
     m_file_list->setHeaderHidden(true);
-    m_file_list->setFixedHeight(UIConstants::kBatchFileListHeight);
 
     const QVector<BatchFileInfo>& files = m_view_model->batchFiles();
 
@@ -1092,6 +1189,7 @@ void MainView::populateBatchFileList()
         time_layout->setContentsMargins(0, 0, 4, 0);
         time_layout->addWidget(new QLabel("Time:"));
         QComboBox* time_combo = new QComboBox;
+        time_combo->setFixedWidth(UIConstants::kChannelComboFixedWidth);
         time_combo->addItems(info.timeChannelStrings);
         if (info.resolvedTimeIndex >= 0 && info.resolvedTimeIndex < info.timeChannelStrings.size())
         {
@@ -1104,7 +1202,7 @@ void MainView::populateBatchFileList()
         }
         connect(time_combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
                 this, [this, i](int idx) { m_view_model->setBatchFileTimeChannel(i, idx); });
-        time_layout->addWidget(time_combo, 1);
+        time_layout->addWidget(time_combo);
         m_file_list->setItemWidget(time_item, 0, time_container);
 
         // PCM channel combo — own row, column 0
@@ -1114,6 +1212,7 @@ void MainView::populateBatchFileList()
         pcm_layout->setContentsMargins(0, 0, 4, 0);
         pcm_layout->addWidget(new QLabel("PCM:"));
         QComboBox* pcm_combo = new QComboBox;
+        pcm_combo->setFixedWidth(UIConstants::kChannelComboFixedWidth);
         pcm_combo->addItems(info.pcmChannelStrings);
         if (info.resolvedPcmIndex >= 0 && info.resolvedPcmIndex < info.pcmChannelStrings.size())
         {
@@ -1126,13 +1225,16 @@ void MainView::populateBatchFileList()
         }
         connect(pcm_combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
                 this, [this, i](int idx) { m_view_model->setBatchFilePcmChannel(i, idx); });
-        pcm_layout->addWidget(pcm_combo, 1);
+
+        pcm_layout->addWidget(pcm_combo);
         m_file_list->setItemWidget(pcm_item, 0, pcm_container);
     }
 
     m_file_list->header()->setStretchLastSection(true);
-    m_file_list->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+    m_file_list->header()->setSectionResizeMode(0, QHeaderView::Interactive);
     m_file_list->resizeColumnToContents(0);
+    if (m_file_list->columnWidth(0) < UIConstants::kFileNameColumnMinWidth)
+        m_file_list->setColumnWidth(0, UIConstants::kFileNameColumnMinWidth);
     m_file_list->resizeColumnToContents(1);
     m_file_list->resizeColumnToContents(2);
 }
@@ -1176,6 +1278,7 @@ void MainView::populateSingleFileList()
     time_layout->setContentsMargins(0, 0, 4, 0);
     time_layout->addWidget(new QLabel("Time:"));
     QComboBox* time_combo = new QComboBox;
+    time_combo->setFixedWidth(UIConstants::kChannelComboFixedWidth);
     time_combo->addItems(time_channels);
     time_combo->setEnabled(loaded && !time_channels.isEmpty());
     if (loaded && !time_channels.isEmpty())
@@ -1188,7 +1291,7 @@ void MainView::populateSingleFileList()
     }
     connect(time_combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, [this](int idx) { m_view_model->setTimeChannelIndex(idx + 1); });
-    time_layout->addWidget(time_combo, 1);
+    time_layout->addWidget(time_combo);
     m_file_list->setItemWidget(time_item, 0, time_container);
 
     // PCM channel combo
@@ -1198,6 +1301,7 @@ void MainView::populateSingleFileList()
     pcm_layout->setContentsMargins(0, 0, 4, 0);
     pcm_layout->addWidget(new QLabel("PCM:"));
     QComboBox* pcm_combo = new QComboBox;
+    pcm_combo->setFixedWidth(UIConstants::kChannelComboFixedWidth);
     pcm_combo->addItems(pcm_channels);
     pcm_combo->setEnabled(loaded && !pcm_channels.isEmpty());
     if (loaded && !pcm_channels.isEmpty())
@@ -1209,7 +1313,8 @@ void MainView::populateSingleFileList()
     }
     connect(pcm_combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, [this](int idx) { m_view_model->setPcmChannelIndex(idx + 1); });
-    pcm_layout->addWidget(pcm_combo, 1);
+
+    pcm_layout->addWidget(pcm_combo);
     m_file_list->setItemWidget(pcm_item, 0, pcm_container);
 
     file_item->setExpanded(loaded);

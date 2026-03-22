@@ -7,6 +7,9 @@
 
 #include <QString>
 
+#include <QApplication>
+#include <QFrame>
+
 #include "constants.h"
 
 ReceiverGridWidget::ReceiverGridWidget(QWidget* parent)
@@ -63,6 +66,7 @@ QTreeWidget* ReceiverGridWidget::createColumnTree(
     tree->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     // Fixed height fits all collapsed receivers; scrollbar appears when expanded
     tree->setFixedHeight((per_column * UIConstants::kTreeItemHeightFactor) + UIConstants::kTreeHeightBuffer);
+    tree->setFrameShape(QFrame::NoFrame);
     tree->setStyleSheet("QTreeWidget { background: transparent; }");
     tree->setAttribute(Qt::WA_TranslucentBackground);
 
@@ -122,22 +126,15 @@ void ReceiverGridWidget::rebuild(int receiver_count, int channels_per_receiver,
         return;
     }
 
-    // Button row: Expand All, Select All, Select None
-    QHBoxLayout* btn_row = new QHBoxLayout;
-    btn_row->setContentsMargins(0, 0, 0, 0);
-
     QPushButton* toggle_btn = new QPushButton("Expand All");
     toggle_btn->setFlat(true);
+    toggle_btn->setMinimumWidth(UIConstants::kFlatButtonMinWidth);
     QPushButton* select_all_btn = new QPushButton("Select All");
     select_all_btn->setFlat(true);
+    select_all_btn->setMinimumWidth(UIConstants::kFlatButtonMinWidth);
     QPushButton* select_none_btn = new QPushButton("Select None");
     select_none_btn->setFlat(true);
-
-    btn_row->addWidget(toggle_btn);
-    btn_row->addWidget(select_all_btn);
-    btn_row->addWidget(select_none_btn);
-    btn_row->addStretch(1);
-    m_layout->addLayout(btn_row);
+    select_none_btn->setMinimumWidth(UIConstants::kFlatButtonMinWidth);
 
     // Four columns of receiver trees
     const int num_columns = UIConstants::kReceiverGridColumns;
@@ -164,8 +161,23 @@ void ReceiverGridWidget::rebuild(int receiver_count, int channels_per_receiver,
         m_trees.append(tree);
     }
 
-    columns_layout->addStretch(1);
-    m_layout->addLayout(columns_layout);
+    // Buttons stacked vertically to the right of the tree columns
+    auto* btn_col = new QVBoxLayout;
+    btn_col->setContentsMargins(0, 0, 0, 0);
+    btn_col->setSpacing(4);
+    btn_col->addWidget(toggle_btn);
+    btn_col->addWidget(select_all_btn);
+    btn_col->addWidget(select_none_btn);
+    btn_col->addStretch(1);
+
+    auto* content_row = new QHBoxLayout;
+    content_row->setContentsMargins(0, 0, 0, 0);
+    content_row->setSpacing(0);
+    content_row->addLayout(columns_layout);
+    content_row->addSpacing(8);
+    content_row->addLayout(btn_col);
+    content_row->addStretch(1);
+    m_layout->addLayout(content_row);
 
     syncScrollBars();
 
@@ -240,10 +252,7 @@ void ReceiverGridWidget::setReceiverChecked(int receiver_index, int channel_inde
 
 void ReceiverGridWidget::setAllEnabled(bool enabled)
 {
-    for (QTreeWidget* tree : m_trees)
-    {
-        tree->setEnabled(enabled);
-    }
+    setEnabled(enabled);
 }
 
 void ReceiverGridWidget::setAllChecked(bool checked)
