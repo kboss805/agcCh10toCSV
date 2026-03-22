@@ -182,7 +182,7 @@ agcCH10toCSV/
 │   └── env.bat                # Developer environment PATH setup helper
 ├── .vscode/                    # VS Code configuration
 ├── agcCh10toCSV.pro            # Qt project file
-├── CLAUDE.md                   # AI assistant guide
+├── agcCH10toCSV.md             # AI assistant guide
 └── README.md                   # This file
 ```
 

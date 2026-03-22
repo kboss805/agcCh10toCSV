@@ -1,4 +1,4 @@
-# CLAUDE.md - AI Assistant Guide
+# agcCH10toCSV.md - AI Assistant Guide
 
 This file provides context and guidelines for AI assistants working on the agcCh10toCSV (Chapter 10 to CSV AGC Converter) project.
 
