@@ -148,6 +148,9 @@ private:
     void closeFile() const;
     /// @}
 
+    /// Grows m_buffer to at least @p required bytes. Returns false on allocation failure.
+    bool ensureBufferCapacity(qsizetype required);
+
     /// @name irig106 C helper wrappers
     /// @{
     /**

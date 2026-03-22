@@ -111,6 +111,8 @@ public slots:
 private:
     /// Builds combo box display strings from a list of channel metadata.
     static QStringList buildChannelComboBoxList(const QList<ChannelData*>& channels);
+    /// Returns the list index of @p channel_id, or -1 if not found.
+    static int findChannelIndex(const QList<ChannelData*>& channels, int channel_id);
     void processPacketTime(Irig106::SuI106Ch10Header& header, bool& found_start_time);
     bool processTmatsPacket(Irig106::SuI106Ch10Header& header);
     void finalizeTimeCalc();

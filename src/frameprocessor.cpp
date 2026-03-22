@@ -9,7 +9,6 @@
 #include <utility>
 
 #include <QByteArray>
-#include <QDebug>
 #include <QElapsedTimer>
 #include <QFile>
 #include <QFileInfo>
@@ -257,15 +256,11 @@ bool FrameProcessor::preScan(const QString& filename,
         return false;
     }
 
-    if (m_buffer.size() < static_cast<qsizetype>(m_header.ulPacketLen))
+    if (!ensureBufferCapacity(static_cast<qsizetype>(m_header.ulPacketLen)))
     {
-        try {
-            m_buffer.resize(m_header.ulPacketLen);
-        } catch (const std::bad_alloc&) {
-            emit logMessage("Pre-scan: skipped — memory allocation failed.");
-            closeFile();
-            return false;
-        }
+        emit logMessage("Pre-scan: skipped — memory allocation failed.");
+        closeFile();
+        return false;
     }
 
     m_status = enI106Ch10ReadData(m_file_handle, static_cast<unsigned long>(m_buffer.size()), m_buffer.data());
@@ -350,13 +345,9 @@ bool FrameProcessor::preScan(const QString& filename,
             continue;
         }
 
-        if (m_buffer.size() < static_cast<qsizetype>(m_header.ulPacketLen))
+        if (!ensureBufferCapacity(static_cast<qsizetype>(m_header.ulPacketLen)))
         {
-            try {
-                m_buffer.resize(m_header.ulPacketLen);
-            } catch (const std::bad_alloc&) {
-                break;
-            }
+            break;
         }
 
         m_status = enI106Ch10ReadData(m_file_handle, static_cast<unsigned long>(m_buffer.size()), m_buffer.data());
@@ -461,6 +452,18 @@ bool FrameProcessor::preScan(const QString& filename,
 ////////////////////////////////////////////////////////////////////////////////
 //                            FILE I/O                                        //
 ////////////////////////////////////////////////////////////////////////////////
+
+bool FrameProcessor::ensureBufferCapacity(qsizetype required)
+{
+    if (m_buffer.size() >= required)
+        return true;
+    try {
+        m_buffer.resize(required);
+        return true;
+    } catch (const std::bad_alloc&) {
+        return false;
+    }
+}
 
 bool FrameProcessor::openFile(const QString& filename)
 {
@@ -595,13 +598,9 @@ bool FrameProcessor::process(const QString& filename,
 
     if (m_header.ubyDataType == I106CH10_DTYPE_TMATS)
     {
-        if (m_buffer.size() < static_cast<qsizetype>(m_header.ulPacketLen))
+        if (!ensureBufferCapacity(static_cast<qsizetype>(m_header.ulPacketLen)))
         {
-            try {
-                m_buffer.resize(m_header.ulPacketLen);
-            } catch (const std::bad_alloc&) {
-                return fail("Memory allocation failed.");
-            }
+            return fail("Memory allocation failed.");
         }
 
         m_status = enI106Ch10ReadData(m_file_handle, static_cast<unsigned long>(m_buffer.size()), m_buffer.data());
@@ -758,14 +757,10 @@ bool FrameProcessor::process(const QString& filename,
         // Process IRIG time packets to maintain time sync
         if (m_header.ubyDataType == I106CH10_DTYPE_IRIG_TIME && m_header.uChID == time_channel_id)
         {
-            if (m_buffer.size() < static_cast<qsizetype>(m_header.ulPacketLen))
+            if (!ensureBufferCapacity(static_cast<qsizetype>(m_header.ulPacketLen)))
             {
-                try {
-                    m_buffer.resize(m_header.ulPacketLen);
-                } catch (const std::bad_alloc&) {
-                    emit errorOccurred("Memory allocation failed.");
-                    break;
-                }
+                emit errorOccurred("Memory allocation failed.");
+                break;
             }
 
             m_status = enI106Ch10ReadData(m_file_handle, static_cast<unsigned long>(m_buffer.size()), m_buffer.data());
@@ -807,14 +802,10 @@ bool FrameProcessor::process(const QString& filename,
         // Process PCM data from the selected channel
         if (m_header.ubyDataType == I106CH10_DTYPE_PCM_FMT_1 && m_header.uChID == pcm_channel_id)
         {
-            if (m_buffer.size() < static_cast<qsizetype>(m_header.ulPacketLen))
+            if (!ensureBufferCapacity(static_cast<qsizetype>(m_header.ulPacketLen)))
             {
-                try {
-                    m_buffer.resize(m_header.ulPacketLen);
-                } catch (const std::bad_alloc&) {
-                    emit errorOccurred("Memory allocation failed.");
-                    break;
-                }
+                emit errorOccurred("Memory allocation failed.");
+                break;
             }
 
             m_status = enI106Ch10ReadData(m_file_handle, static_cast<unsigned long>(m_buffer.size()), m_buffer.data());

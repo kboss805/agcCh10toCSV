@@ -6,7 +6,6 @@
 #include "mainview.h"
 
 #include <QApplication>
-#include <QDebug>
 #include <QDesktopServices>
 #include <QFrame>
 #include <QMessageBox>

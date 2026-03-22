@@ -12,6 +12,10 @@
 #include <QRegularExpression>
 #include <QVBoxLayout>
 
+namespace {
+    const QRegularExpression kHexPattern(PCMConstants::kFrameSyncHexPattern);
+}
+
 SettingsDialog::SettingsDialog(QWidget* parent)
     : QDialog(parent),
       m_data{},
@@ -126,9 +130,8 @@ SettingsDialog::SettingsDialog(QWidget* parent)
 
 void SettingsDialog::updateOkButton()
 {
-    static const QRegularExpression hex_pattern("^[0-9A-Fa-f]+$");
     const QString sync = m_frame_sync->text().trimmed();
-    const bool sync_valid = !sync.isEmpty() && hex_pattern.match(sync).hasMatch();
+    const bool sync_valid = !sync.isEmpty() && kHexPattern.match(sync).hasMatch();
 
     bool scale_ok = false;
     const double scale_value = m_scale->text().trimmed().toDouble(&scale_ok);
@@ -147,9 +150,8 @@ void SettingsDialog::updateOkButton()
 
 bool SettingsDialog::validateSync()
 {
-    static const QRegularExpression hex_pattern("^[0-9A-Fa-f]+$");
     const QString sync = m_frame_sync->text().trimmed();
-    const bool valid = !sync.isEmpty() && hex_pattern.match(sync).hasMatch();
+    const bool valid = !sync.isEmpty() && kHexPattern.match(sync).hasMatch();
     m_frame_sync->setStyleSheet(valid ? "" : "border: 1px solid red;");
     m_sync_error_label->setText("Frame Sync must contain only hexadecimal characters (0–9, A–F).");
     m_sync_error_label->setVisible(!valid);

@@ -63,9 +63,6 @@ bool Chapter10Reader::tryLoadingFile(const QString& filename)
 void Chapter10Reader::closeFile() const
 {
     enI106Ch10Close(m_file_handle);
-    // Vector manages its own memory, but we can clear it if desired,
-    // though keeping the buffer allocated for reuse is often better.
-    // m_buffer.clear();
 }
 
 void Chapter10Reader::clearSettings()
@@ -439,28 +436,24 @@ uint64_t Chapter10Reader::dhmsToUInt64(int day, int hour, int minute, int second
             static_cast<uint64_t>(second);
 }
 
-int Chapter10Reader::getTimeChannelIndex(int channel_id) const
+int Chapter10Reader::findChannelIndex(const QList<ChannelData*>& channels, int channel_id)
 {
-    for (qsizetype i = 0; i < m_time_channels.size(); i++)
+    for (qsizetype i = 0; i < channels.size(); i++)
     {
-        if (m_time_channels[i]->channelID() == channel_id)
-        {
+        if (channels[i]->channelID() == channel_id)
             return static_cast<int>(i);
-        }
     }
     return -1;
 }
 
+int Chapter10Reader::getTimeChannelIndex(int channel_id) const
+{
+    return findChannelIndex(m_time_channels, channel_id);
+}
+
 int Chapter10Reader::getPCMChannelIndex(int channel_id) const
 {
-    for (qsizetype i = 0; i < m_pcm_channels.size(); i++)
-    {
-        if (m_pcm_channels[i]->channelID() == channel_id)
-        {
-            return static_cast<int>(i);
-        }
-    }
-    return -1;
+    return findChannelIndex(m_pcm_channels, channel_id);
 }
 
 int Chapter10Reader::getCurrentTimeChannelID() const

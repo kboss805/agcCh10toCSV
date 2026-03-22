@@ -7,7 +7,6 @@
 
 #include <QCoreApplication>
 #include <QDateTime>
-#include <QDebug>
 #include <QDir>
 #include <QFileInfo>
 #include <QMap>

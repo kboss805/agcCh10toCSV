@@ -51,6 +51,9 @@ namespace PCMConstants {
     inline constexpr const char* kChannelTypeTime = "TIMEIN"; ///< TMATS type for time channels.
     inline constexpr const char* kChannelTypePcm  = "PCMIN";  ///< TMATS type for PCM channels.
     /// @}
+
+    /// Regex pattern for validating hexadecimal input strings (e.g., frame sync).
+    inline constexpr const char* kFrameSyncHexPattern = "^[0-9A-Fa-f]+$";
 }
 
 /// @brief Constants for UI configuration, validation limits, and output formatting.

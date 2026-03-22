@@ -21,7 +21,7 @@ SettingsManager::SettingsManager(MainViewModel* view_model) :
 
 void SettingsManager::loadFile(const QString& filename)
 {
-    static const QRegularExpression hex_pattern("^[0-9A-Fa-f]+$");
+    static const QRegularExpression hex_pattern(PCMConstants::kFrameSyncHexPattern);
 
     emit logMessage("Loading settings: " + QFileInfo(filename).fileName());
 
