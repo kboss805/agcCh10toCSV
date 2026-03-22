@@ -8,37 +8,49 @@ This application reads IRIG 106 Chapter 10 (.ch10) files, extracts telemetry dat
 
 ## Features
 
+### File Input
 - **Chapter 10 File Support**: Read and parse IRIG 106 Chapter 10 telemetry files
 - **Channel Selection**: Choose specific time and PCM channels for data extraction
-- **Time Range Filtering**: Specify start and stop times (Day of Year, Hour, Minute, Second)
-- **Frame Configuration**: Configure frame synchronization, randomization, and setup parameters
-- **AGC Processing**: Extract and process Automatic Gain Control data with V-to-dB conversion
-- **Receiver Selection**: Enable/disable specific receivers and channels per receiver
-- **Settings Management**: Save and load processing configurations from INI files
-- **CSV Export**: Output processed data in CSV format with auto-generated timestamped filenames
-- **Dark & Light Themes**: Windows 11 / WinUI 3 styled dark and light themes with runtime toggle
 - **Drag-and-Drop**: Drop .ch10 files directly onto the application window
-- **Per-File-Type Directory Persistence**: Independently remembers the last used directory for Ch10, CSV, and INI file dialogs between sessions
-- **Inline Log Window**: Persistent, scrollable log with timestamped entries; color-coded messages (green for success, yellow for warnings, red for errors); replaces modal dialog boxes for errors and warnings
-- **Startup & File Logging**: Logs default.ini settings at startup, channel/time/frame info when opening Ch10 files, and INI validation details when loading settings
-- **INI Validation**: Warns when parameter section count in INI files does not match receiver/channel configuration
-- **Automatic Pre-Scan**: Detects PCM encoding and verifies frame sync on file open and PCM channel change
-- **Sample Rate Options**: 1 Hz, 10 Hz, or 100 Hz output sample rates
-- **Status Bar**: Displays file metadata summary (filename, size, channel counts, time range)
-- **Settings Summary Panel**: Read-only display of current frame sync, polarity, slope, scale, and receiver configuration
-- **Select All/None**: Quick receiver selection shortcuts in the receiver grid
-- **Pre-Process Summary**: Logs input file, channels, time range, sample rate, receiver count, and output path before processing
 - **Recent Files Menu**: File > Recent Files with up to 5 entries, persisted across sessions
-- **Clickable Log Links**: Output file path and "Open Folder" links in the log window after processing completes
 - **Batch Processing**: Multi-file selection and sequential queue-based batch processing with per-file channel selection, encoding detection, and color-coded status tracking
+
+### Data Processing & Export
+- **Time Range Filtering**: Specify start and stop times (Day of Year, Hour, Minute, Second)
+- **Sample Rate Options**: 1 Hz, 10 Hz, or 100 Hz output sample rates
+- **Frame Configuration**: Configure frame synchronization, randomization, and setup parameters
+- **Automatic Pre-Scan**: Detects PCM encoding and verifies frame sync on file open and PCM channel change
+- **AGC Processing**: Extract and process Automatic Gain Control data with V-to-dB conversion
+- **Receiver Selection**: Enable/disable specific receivers and channels per receiver; Select All/None shortcuts
+- **CSV Export**: Output processed data in CSV format with auto-generated timestamped filenames
+
+### Settings & Configuration
+- **Settings Management**: Save and load processing configurations from INI files
+- **INI Validation**: Warns when parameter section count in INI files does not match receiver/channel configuration
+- **Settings Summary Panel**: Read-only display of current frame sync, polarity, slope, scale, and receiver configuration
+- **Per-File-Type Directory Persistence**: Independently remembers the last used directory for Ch10, CSV, and INI file dialogs between sessions
+
+### Plot & Visualization
 - **AGC Signal Plot Window**: Interactive QCustomPlot chart with mouse wheel zoom, click-drag pan, auto-scale axes, per-receiver-channel visibility toggles, and auto-assigned color palette
-- **Plot PDF Export**: Export current plot to high-quality PDF file via QCustomPlot's built-in `savePdf()` method
 - **X-Axis Time Display**: Actual file time (DDD:HH:MM:SS) on the X axis instead of elapsed seconds
-- **Installer & Portable Distribution**: Inno Setup EXE installer with admin/non-admin support, portable ZIP with local settings, INI upgrade logic, and optional `.ch10` file association
+- **Plot PDF Export**: Export current plot to high-quality PDF file via QCustomPlot's built-in `savePdf()` method
+
+### Logging & Feedback
+- **Inline Log Window**: Persistent, scrollable log with color-coded messages (green for success, yellow for warnings, red for errors)
+- **Status Bar**: Displays file metadata summary (filename, size, channel counts, time range)
+- **Pre-Process Summary**: Logs input file, channels, time range, sample rate, receiver count, and output path before processing
+- **Startup & File Logging**: Logs default.ini settings at startup, channel/time/frame info when opening Ch10 files, and INI validation details when loading settings
+- **Clickable Log Links**: Output file path and "Open Folder" links in the log window after processing completes
+
+### Application & UI
+- **Dark & Light Themes**: Windows 11 / WinUI 3 styled dark and light themes with runtime toggle
 - **Keyboard Shortcuts**: Ctrl+O (Open file), Ctrl+R (Process)
 - **Collapsible Panels**: Receivers and Time Controls sections collapse/expand to reduce visual clutter
 - **Tooltips**: Descriptive tooltips on all plot controls (spinboxes, buttons, title field)
 - **Busy Cursor**: Hourglass cursor shown during file processing
+
+### Deployment
+- **Installer & Portable Distribution**: Inno Setup EXE installer with admin/non-admin support, portable ZIP with local settings, INI upgrade logic, and optional `.ch10` file association
 
 ## System Requirements
 
