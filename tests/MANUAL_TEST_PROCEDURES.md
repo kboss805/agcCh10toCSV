@@ -3,10 +3,10 @@
 These procedures cover functional areas that cannot be fully exercised by automated unit tests: GUI interactions, visual rendering, file system side effects, installer behavior, and end-to-end data validation.
 
 **Test data files** (in `tests/data/`):
-- `STEPCAL 1 (NRZ-L).ch10` — 8 receivers, NRZ-L encoding, last PCM channel contains AGC data
+- `nrz-l_testfile.ch10` — 16 receivers, NRZ-L encoding, last PCM channel contains AGC data (primary NRZ-L test file)
+- `STEPCAL 1 (NRZ-L).ch10` — 16 receivers, NRZ-L encoding (same content as nrz-l_testfile.ch10; retained for reference)
 - `STEPCAL 2 (NRZ-L).ch10` — 8 receivers, NRZ-L encoding
 - `STEP CALS (RNRZ-L, NRZ-L).ch10` — multi-channel file with both encoding types
-- `nrz-l_testfile.ch10` — 16 receivers, NRZ-L encoding (unit test end-to-end NRZ-L processing)
 - `rnrz-l_testfile.ch10` — 16 receivers, RNRZ-L encoding
 
 **Build under test**: `build/release/agcCh10toCSV.exe`
@@ -38,7 +38,7 @@ These procedures cover functional areas that cannot be fully exercised by automa
 | Step | Action | Expected Result |
 |------|--------|-----------------|
 | 1 | Press Ctrl+O or click File > Open | File open dialog appears |
-| 2 | Navigate to `tests/data/` and select `STEPCAL 1 (NRZ-L).ch10` | Dialog closes; file loads |
+| 2 | Navigate to `tests/data/` and select `nrz-l_testfile.ch10` | Dialog closes; file loads |
 | 3 | Observe status bar | Shows filename, file size, channel counts, and time range |
 | 4 | Observe log window | Lists PCM and time channels, time range, current frame settings |
 | 5 | Observe PCM and Time channel dropdowns in the file list | Populated with available channels from the file |
@@ -72,7 +72,7 @@ These procedures cover functional areas that cannot be fully exercised by automa
 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
-| 1 | Open `STEPCAL 1 (NRZ-L).ch10` | File loads |
+| 1 | Open `nrz-l_testfile.ch10` | File loads |
 | 2 | Select the last PCM channel in the file list dropdown | Channel selected |
 | 3 | Ensure "Extract All Time" is checked | Full time range will be processed |
 | 4 | Click Process (or Ctrl+R) | Output file dialog appears |
@@ -219,7 +219,7 @@ These procedures cover functional areas that cannot be fully exercised by automa
 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
-| 1 | Open `STEPCAL 1 (NRZ-L).ch10`; set Scale to 100 dB/V; process to `output_100.csv` | CSV created |
+| 1 | Open `nrz-l_testfile.ch10`; set Scale to 100 dB/V; process to `output_100.csv` | CSV created |
 | 2 | Open Settings; change Scale to 50 dB/V; click OK; process the same file to `output_50.csv` | CSV created |
 | 3 | Open both CSVs; compare a row with the same timestamp | All AGC values in `output_50.csv` are exactly half those in `output_100.csv` |
 | 4 | Open Settings; set Polarity to Positive; click OK; process the same file to `output_positive.csv` | CSV created |
@@ -435,14 +435,30 @@ These procedures cover functional areas that cannot be fully exercised by automa
 
 ## MT-15: Data Accuracy Spot-Check
 
-**Purpose**: Verify that exported AGC values are within the expected calibrated range.
+**Purpose**: Verify that exported AGC values are within the expected calibrated range for both NRZ-L and RNRZ-L encoded files.
+
+### MT-15a: NRZ-L Data Accuracy
 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
-| 1 | Process `STEPCAL 1 (NRZ-L).ch10` with default settings (Polarity: Negative, Slope: 0-10V, Scale: 100 dB/V) | CSV created |
+| 1 | Process `nrz-l_testfile.ch10` with default settings (Polarity: Negative, Slope: 0-5V, Scale: 20 dB/V) | CSV created |
 | 2 | Open the CSV in Excel | Column headers present; values in dB range |
 | 3 | Plot L_RCVR1 vs. Time in Excel | Step-cal pattern visible: signal steps through discrete levels |
 | 4 | Verify values fall within the expected dB range for the configured slope/scale | No extreme outliers; no NaN or blank cells |
 | 5 | Repeat with `STEPCAL 2 (NRZ-L).ch10` | Similar step-cal pattern; different step levels |
 
 **Pass criteria**: Calibrated values are numerically correct and step-cal pattern is visible.
+
+### MT-15b: RNRZ-L Data Accuracy (De-randomization)
+
+**Purpose**: Verify that the RNRZ-L bitstream de-randomizer produces valid, calibrated output.
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 1 | Open `rnrz-l_testfile.ch10` | File loads; pre-scan log reports encoding as RNRZ-L (randomized) |
+| 2 | Select the PCM channel; process with default settings to `rnrz_output.csv` | CSV created without errors |
+| 3 | Open `rnrz_output.csv` in Excel | Column headers present; data rows present; no NaN or blank cells |
+| 4 | Plot L_RCVR1 vs. Time | Step-cal pattern visible, same structure as NRZ-L output — confirms de-randomization is working |
+| 5 | Compare row count with `nrz-l_testfile.ch10` output over the same time window | Row counts should be comparable; RNRZ-L values match NRZ-L values for the same recording |
+
+**Pass criteria**: RNRZ-L output shows the same step-cal pattern as NRZ-L; de-randomization produces valid calibrated values with no garbled rows.

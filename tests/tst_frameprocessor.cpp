@@ -252,13 +252,13 @@ void TestFrameProcessor::preScanInvalidFile()
 
 void TestFrameProcessor::preScanWithNrzlFile()
 {
-    // STEPCAL 1 uses the same 16-receiver frame structure as the RNRZ-L test file
-    // (48 data words, words_in_frame=49, bits_in_frame=800), but NRZ-L encoded.
+    // nrz-l_testfile.ch10 has the same 16-receiver frame structure as the RNRZ-L test file
+    // (48 data words, words_in_frame=49, bits_in_frame=800), NRZ-L encoded.
     // The AGC data is on the LAST PCM channel in the file.
-    QString filepath = testDataPath("STEPCAL 1 (NRZ-L).ch10");
+    QString filepath = testDataPath("nrz-l_testfile.ch10");
     if (!QFileInfo::exists(filepath))
     {
-        QSKIP("STEPCAL 1 NRZ-L test file not available");
+        QSKIP("NRZ-L test file not available");
     }
 
     Chapter10Reader reader;
@@ -268,7 +268,7 @@ void TestFrameProcessor::preScanWithNrzlFile()
     QStringList pcm_list = reader.getPCMChannelComboBoxList();
     if (pcm_list.isEmpty())
     {
-        QSKIP("No PCM channels in STEPCAL 1 test file");
+        QSKIP("No PCM channels in NRZ-L test file");
     }
     reader.pcmChannelChanged(pcm_list.size()); // 1-based index (offset by "Select..." header)
     int pcm_id = reader.getCurrentPCMChannelID();
@@ -457,14 +457,11 @@ void TestFrameProcessor::processWithNrzlFile()
     // Verifies the non-randomized (NRZ-L, is_randomized=false) code path through process(),
     // which skips derandomizeBitstream() entirely.
     //
-    // Uses "STEPCAL 1 (NRZ-L).ch10": same 16-receiver frame structure as the RNRZ-L test
-    // file (48 data words, words_in_frame=49, bits_in_frame=800), but NRZ-L encoded.
-    //
-    // Note: nrz-l_testfile.ch10 has no TMATS records so Chapter10Reader cannot discover
-    // its channels; STEPCAL 1 is used instead as the NRZ-L representative file.
-    const QString filepath = testDataPath("STEPCAL 1 (NRZ-L).ch10");
+    // Uses "nrz-l_testfile.ch10": same 16-receiver frame structure as the RNRZ-L test
+    // file (48 data words, words_in_frame=49, bits_in_frame=800), NRZ-L encoded.
+    const QString filepath = testDataPath("nrz-l_testfile.ch10");
     if (!QFileInfo::exists(filepath))
-        QSKIP("STEPCAL 1 NRZ-L test file not available");
+        QSKIP("NRZ-L test file not available");
 
     Chapter10Reader reader;
     QVERIFY(reader.loadChannels(filepath));
@@ -472,7 +469,7 @@ void TestFrameProcessor::processWithNrzlFile()
     // AGC data is on the last PCM channel in this file
     QStringList pcm_list = reader.getPCMChannelComboBoxList();
     if (pcm_list.isEmpty())
-        QSKIP("No PCM channels in STEPCAL 1 test file");
+        QSKIP("No PCM channels in NRZ-L test file");
     reader.pcmChannelChanged(pcm_list.size());  // 1-based, offset past "Select..." header
     int pcm_id = reader.getCurrentPCMChannelID();
     int time_id = reader.getCurrentTimeChannelID();
@@ -504,7 +501,7 @@ void TestFrameProcessor::processWithNrzlFile()
         reader.getStopMinute(), reader.getStopSecond());
 
     // 16 receivers × 3 channels = 48 data words; +1 for sync word.
-    // The STEPCAL 1 file uses the same 16-receiver frame structure as the RNRZ-L test
+    // nrz-l_testfile.ch10 uses the same 16-receiver frame structure as the RNRZ-L test
     // file — it is NRZ-L encoded (not randomized), not a physically different frame size.
     const int sync_len       = 32;
     const int words_in_frame = setup.length() + 1;   // 49

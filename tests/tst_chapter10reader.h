@@ -20,6 +20,10 @@ private slots:
     void loadChannelsReturnsFalseForInvalidFile();
     void getFirstPcmChannelIdReturnsValidId();
     void timeAccessorsReturnNonZeroAfterLoad();
+    void getTimeChannelIndexReturnsValidIndex();
+    void getTimeChannelIndexReturnsMinusOneForUnknown();
+    void getPcmChannelIndexReturnsValidIndex();
+    void getPcmChannelIndexReturnsMinusOneForUnknown();
 };
 
 #endif // TST_CHAPTER10READER_H

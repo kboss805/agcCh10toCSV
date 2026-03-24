@@ -90,10 +90,10 @@ namespace UIConstants {
     inline constexpr int kSecondsPerHour   = 3600;  ///< Seconds in an hour.
     inline constexpr int kSecondsPerMinute = 60;    ///< Seconds in a minute.
     /// @}
-    inline constexpr int kDefaultSlopeIndex           = 2;     ///< Default voltage slope combo index.
+    inline constexpr int kDefaultSlopeIndex           = 3;     ///< Default voltage slope combo index.
     inline constexpr int kMaxSlopeIndex               = 3;     ///< Maximum valid voltage slope combo index.
     inline constexpr int kMaxSampleRateIndex           = 2;     ///< Maximum valid sample rate combo index.
-    inline constexpr const char* kDefaultScale        = "100"; ///< Default calibration scale in dB per volt.
+    inline constexpr const char* kDefaultScale        = "20";  ///< Default calibration scale in dB per volt.
     inline constexpr int kDefaultReceiverCount        = 16;    ///< Default number of receivers.
     inline constexpr int kMinReceiverCount            = 1;     ///< Minimum valid number of receivers.
     inline constexpr int kMaxReceiverCount            = 16;    ///< Maximum valid number of receivers.

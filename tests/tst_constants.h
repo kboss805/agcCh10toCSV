@@ -51,6 +51,9 @@ private slots:
 
     // v3.0 additions
     void plotConstants();
+
+    // v3.2 additions
+    void pcmFrameSyncHexPattern();
 };
 
 #endif // TST_CONSTANTS_H

@@ -47,12 +47,12 @@ void TestConstants::uiDefaultChannelsPerReceiver()
 
 void TestConstants::uiDefaultSlopeIndex()
 {
-    QCOMPARE(UIConstants::kDefaultSlopeIndex, 2);
+    QCOMPARE(UIConstants::kDefaultSlopeIndex, 3);
 }
 
 void TestConstants::uiDefaultScale()
 {
-    QCOMPARE(QString(UIConstants::kDefaultScale), QString("100"));
+    QCOMPARE(QString(UIConstants::kDefaultScale), QString("20"));
 }
 
 void TestConstants::uiTimeValidationLimits()
@@ -239,4 +239,11 @@ void TestConstants::plotConstants()
     QCOMPARE(PlotConstants::kTitleFontSize, 10);
     QCOMPARE(PlotConstants::kSpinBoxMaxRange, 1e9);
     QCOMPARE(PlotConstants::kYSpinBoxMax, 999.0);
+}
+
+// v3.2 additions
+
+void TestConstants::pcmFrameSyncHexPattern()
+{
+    QCOMPARE(QString(PCMConstants::kFrameSyncHexPattern), QString("^[0-9A-Fa-f]+$"));
 }

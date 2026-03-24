@@ -20,14 +20,14 @@ static QString testDataPath(const QString& filename)
 void TestChapter10Reader::loadChannelsReturnsTrueForValidFile()
 {
     Chapter10Reader reader;
-    bool result = reader.loadChannels(testDataPath("STEPCAL 1 (NRZ-L).ch10"));
+    bool result = reader.loadChannels(testDataPath("nrz-l_testfile.ch10"));
     QVERIFY2(result, "loadChannels should return true for a valid .ch10 file");
 }
 
 void TestChapter10Reader::loadChannelsPopulatesTimeChannels()
 {
     Chapter10Reader reader;
-    reader.loadChannels(testDataPath("STEPCAL 1 (NRZ-L).ch10"));
+    reader.loadChannels(testDataPath("nrz-l_testfile.ch10"));
 
     QStringList time_list = reader.getTimeChannelComboBoxList();
     QVERIFY2(!time_list.isEmpty(), "Time channel list should not be empty after loading a valid file");
@@ -36,7 +36,7 @@ void TestChapter10Reader::loadChannelsPopulatesTimeChannels()
 void TestChapter10Reader::loadChannelsPopulatesPcmChannels()
 {
     Chapter10Reader reader;
-    reader.loadChannels(testDataPath("STEPCAL 1 (NRZ-L).ch10"));
+    reader.loadChannels(testDataPath("nrz-l_testfile.ch10"));
 
     QStringList pcm_list = reader.getPCMChannelComboBoxList();
     QVERIFY2(!pcm_list.isEmpty(), "PCM channel list should not be empty after loading a valid file");
@@ -45,7 +45,7 @@ void TestChapter10Reader::loadChannelsPopulatesPcmChannels()
 void TestChapter10Reader::comboBoxListsContainChannelIdAndName()
 {
     Chapter10Reader reader;
-    reader.loadChannels(testDataPath("STEPCAL 1 (NRZ-L).ch10"));
+    reader.loadChannels(testDataPath("nrz-l_testfile.ch10"));
 
     QStringList time_list = reader.getTimeChannelComboBoxList();
     QVERIFY(!time_list.isEmpty());
@@ -70,7 +70,7 @@ void TestChapter10Reader::comboBoxListsContainChannelIdAndName()
 void TestChapter10Reader::currentTimeChannelSetAfterLoad()
 {
     Chapter10Reader reader;
-    reader.loadChannels(testDataPath("STEPCAL 1 (NRZ-L).ch10"));
+    reader.loadChannels(testDataPath("nrz-l_testfile.ch10"));
 
     // After loading, a default time channel should be selected (not -1)
     QVERIFY2(reader.getCurrentTimeChannelID() != -1,
@@ -80,7 +80,7 @@ void TestChapter10Reader::currentTimeChannelSetAfterLoad()
 void TestChapter10Reader::currentPcmChannelSetAfterLoad()
 {
     Chapter10Reader reader;
-    reader.loadChannels(testDataPath("STEPCAL 1 (NRZ-L).ch10"));
+    reader.loadChannels(testDataPath("nrz-l_testfile.ch10"));
 
     // After loading, a default PCM channel should be selected (not -1)
     QVERIFY2(reader.getCurrentPCMChannelID() != -1,
@@ -90,7 +90,7 @@ void TestChapter10Reader::currentPcmChannelSetAfterLoad()
 void TestChapter10Reader::clearSettingsResetsChannels()
 {
     Chapter10Reader reader;
-    reader.loadChannels(testDataPath("STEPCAL 1 (NRZ-L).ch10"));
+    reader.loadChannels(testDataPath("nrz-l_testfile.ch10"));
 
     // Verify channels were loaded
     QVERIFY(!reader.getTimeChannelComboBoxList().isEmpty());
@@ -109,7 +109,7 @@ void TestChapter10Reader::clearSettingsResetsChannels()
 void TestChapter10Reader::timeChannelChangedUpdatesSelection()
 {
     Chapter10Reader reader;
-    reader.loadChannels(testDataPath("STEPCAL 1 (NRZ-L).ch10"));
+    reader.loadChannels(testDataPath("nrz-l_testfile.ch10"));
 
     QStringList time_list = reader.getTimeChannelComboBoxList();
     if (time_list.size() < 1)
@@ -124,7 +124,7 @@ void TestChapter10Reader::timeChannelChangedUpdatesSelection()
 void TestChapter10Reader::pcmChannelChangedUpdatesSelection()
 {
     Chapter10Reader reader;
-    reader.loadChannels(testDataPath("STEPCAL 1 (NRZ-L).ch10"));
+    reader.loadChannels(testDataPath("nrz-l_testfile.ch10"));
 
     QStringList pcm_list = reader.getPCMChannelComboBoxList();
     if (pcm_list.size() < 1)
@@ -146,7 +146,7 @@ void TestChapter10Reader::loadChannelsReturnsFalseForInvalidFile()
 void TestChapter10Reader::getFirstPcmChannelIdReturnsValidId()
 {
     Chapter10Reader reader;
-    reader.loadChannels(testDataPath("STEPCAL 1 (NRZ-L).ch10"));
+    reader.loadChannels(testDataPath("nrz-l_testfile.ch10"));
 
     int first_pcm = reader.getFirstPCMChannelID();
     QVERIFY2(first_pcm != -1, "getFirstPCMChannelID should return a valid ID after loading");
@@ -156,9 +156,51 @@ void TestChapter10Reader::getFirstPcmChannelIdReturnsValidId()
 void TestChapter10Reader::timeAccessorsReturnNonZeroAfterLoad()
 {
     Chapter10Reader reader;
-    reader.loadChannels(testDataPath("STEPCAL 1 (NRZ-L).ch10"));
+    reader.loadChannels(testDataPath("nrz-l_testfile.ch10"));
 
     // At least DOY should be non-zero for a valid file
     QVERIFY2(reader.getStartDayOfYear() > 0, "Start DOY should be positive after loading");
     QVERIFY2(reader.getStopDayOfYear() > 0, "Stop DOY should be positive after loading");
+}
+
+void TestChapter10Reader::getTimeChannelIndexReturnsValidIndex()
+{
+    Chapter10Reader reader;
+    reader.loadChannels(testDataPath("nrz-l_testfile.ch10"));
+
+    int time_id = reader.getCurrentTimeChannelID();
+    QVERIFY2(time_id != -1, "Precondition: a time channel must be selected after loading");
+
+    int idx = reader.getTimeChannelIndex(time_id);
+    QVERIFY2(idx >= 0, "getTimeChannelIndex should return a non-negative index for a loaded time channel");
+}
+
+void TestChapter10Reader::getTimeChannelIndexReturnsMinusOneForUnknown()
+{
+    Chapter10Reader reader;
+    reader.loadChannels(testDataPath("nrz-l_testfile.ch10"));
+
+    QCOMPARE(reader.getTimeChannelIndex(-1),   -1);
+    QCOMPARE(reader.getTimeChannelIndex(9999), -1);
+}
+
+void TestChapter10Reader::getPcmChannelIndexReturnsValidIndex()
+{
+    Chapter10Reader reader;
+    reader.loadChannels(testDataPath("nrz-l_testfile.ch10"));
+
+    int pcm_id = reader.getCurrentPCMChannelID();
+    QVERIFY2(pcm_id != -1, "Precondition: a PCM channel must be selected after loading");
+
+    int idx = reader.getPCMChannelIndex(pcm_id);
+    QVERIFY2(idx >= 0, "getPCMChannelIndex should return a non-negative index for a loaded PCM channel");
+}
+
+void TestChapter10Reader::getPcmChannelIndexReturnsMinusOneForUnknown()
+{
+    Chapter10Reader reader;
+    reader.loadChannels(testDataPath("nrz-l_testfile.ch10"));
+
+    QCOMPARE(reader.getPCMChannelIndex(-1),   -1);
+    QCOMPARE(reader.getPCMChannelIndex(9999), -1);
 }
