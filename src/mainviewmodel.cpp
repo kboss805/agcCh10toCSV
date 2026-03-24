@@ -451,24 +451,24 @@ void MainViewModel::saveFrameSetupTo(QSettings& settings)
 //                               HELPERS                                      //
 ////////////////////////////////////////////////////////////////////////////////
 
-void MainViewModel::runPreScan(int pcm_channel_id)
+bool MainViewModel::runPreScan(int pcm_channel_id)
 {
     if (pcm_channel_id < 0)
     {
         emit logMessageReceived("Pre-scan: skipped — no PCM channel selected.");
-        return;
+        return false;
     }
     if (m_settings_frame_sync.isEmpty() || m_frame_setup->length() == 0)
     {
         emit logMessageReceived("Pre-scan: skipped — frame settings not loaded.");
-        return;
+        return false;
     }
 
     bool sync_ok = false;
     uint64_t scan_sync = m_settings_frame_sync.toULongLong(&sync_ok, UIConstants::kHexBase);
     if (!sync_ok)
     {
-        return;
+        return false;
     }
 
     int scan_sync_len = static_cast<int>(m_settings_frame_sync.length()) * 4;
@@ -480,8 +480,8 @@ void MainViewModel::runPreScan(int pcm_channel_id)
     connect(&scanner, &FrameProcessor::logMessage,
             this, &MainViewModel::logMessageReceived);
 
-    scanner.preScan(m_input_filename, pcm_channel_id, scan_sync,
-                    scan_sync_len, scan_words, scan_bits, m_is_randomized);
+    return scanner.preScan(m_input_filename, pcm_channel_id, scan_sync,
+                           scan_sync_len, scan_words, scan_bits, m_is_randomized);
 }
 
 QMap<QString, int> MainViewModel::buildParameterMap() const
@@ -913,6 +913,16 @@ void MainViewModel::processNextBatchFile()
             continue;
         }
 
+        if (!info.preScanOk)
+        {
+            info.processed = true;
+            info.processedOk = false;
+            m_batch_error_count++;
+            emit logMessageReceived("  ERROR: Pre-scan failed (no frame sync) for " + info.filename + " — file skipped.");
+            m_batch_current_index++;
+            continue;
+        }
+
         emit batchFileProcessing(m_batch_current_index, static_cast<int>(m_batch_files.size()));
         emit logMessageReceived("--- Processing file " +
             QString::number(m_batch_current_index + 1) + " of " +
@@ -1173,6 +1183,12 @@ void MainViewModel::startProcessing(const QString& output_file,
     emit logMessageReceived("  Receivers: " + QString::number(enabled) + " / " +
         QString::number(m_settings_receiver_count * m_settings_channels_per_rcvr) + " enabled");
     emit logMessageReceived("  Output: " + params.outfile);
+
+    if (!runPreScan(params.pcm_channel_id))
+    {
+        emit errorOccurred("Pre-scan failed: no frame sync found. Processing aborted.");
+        return;
+    }
 
     m_processing = true;
     m_progress_percent = 0;

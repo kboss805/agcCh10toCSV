@@ -306,7 +306,8 @@ private:
                                    int sample_rate_index);
 
     /// Runs a pre-scan on the given PCM channel to detect encoding and verify sync.
-    void runPreScan(int pcm_channel_id);
+    /// @return true if at least one sync pattern was found.
+    bool runPreScan(int pcm_channel_id);
 
     /// Validates all batch files against current channel/settings selection.
     void validateBatchFiles();

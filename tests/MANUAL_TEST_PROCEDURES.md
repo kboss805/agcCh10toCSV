@@ -100,7 +100,39 @@ These procedures cover functional areas that cannot be fully exercised by automa
 
 ---
 
-## MT-04: Time Window and Sample Rate
+## MT-04: Data Accuracy Spot-Check
+
+**Purpose**: Verify that exported AGC values are within the expected calibrated range for both NRZ-L and RNRZ-L encoded files.
+
+### MT-04a: NRZ-L Data Accuracy
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 1 | Process `nrz-l_testfile.ch10` with default settings (Polarity: Negative, Slope: 0-5V, Scale: 20 dB/V) | CSV created |
+| 2 | Open the CSV in Excel | Column headers present; values in dB range |
+| 3 | Plot L_RCVR1 vs. Time in Excel | Step-cal pattern visible: signal steps through discrete levels |
+| 4 | Verify values fall within the expected dB range for the configured slope/scale | No extreme outliers; no NaN or blank cells |
+| 5 | Repeat with `STEPCAL 2 (NRZ-L).ch10` | Similar step-cal pattern; different step levels |
+
+**Pass criteria**: Calibrated values are numerically correct and step-cal pattern is visible.
+
+### MT-04b: RNRZ-L Data Accuracy (De-randomization)
+
+**Purpose**: Verify that the RNRZ-L bitstream de-randomizer produces valid, calibrated output.
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 1 | Open `rnrz-l_testfile.ch10` | File loads; pre-scan log reports encoding as RNRZ-L (randomized) |
+| 2 | Select the PCM channel; process with default settings to `rnrz_output.csv` | CSV created without errors |
+| 3 | Open `rnrz_output.csv` in Excel | Column headers present; data rows present; no NaN or blank cells |
+| 4 | Plot L_RCVR1 vs. Time | Step-cal pattern visible, same structure as NRZ-L output — confirms de-randomization is working |
+| 5 | Compare row count with `nrz-l_testfile.ch10` output over the same time window | Row counts should be comparable; RNRZ-L values match NRZ-L values for the same recording |
+
+**Pass criteria**: RNRZ-L output shows the same step-cal pattern as NRZ-L; de-randomization produces valid calibrated values with no garbled rows.
+
+---
+
+## MT-05: Time Window and Sample Rate
 
 **Purpose**: Verify time-range filtering and sample rate averaging.
 
@@ -120,7 +152,7 @@ These procedures cover functional areas that cannot be fully exercised by automa
 
 ---
 
-## MT-05: Receiver / Channel Selection
+## MT-06: Receiver / Channel Selection
 
 **Purpose**: Verify receiver and channel enable/disable affects CSV output.
 
@@ -142,11 +174,11 @@ These procedures cover functional areas that cannot be fully exercised by automa
 
 ---
 
-## MT-06: Settings Dialog
+## MT-07: Settings Dialog
 
 **Purpose**: Verify all settings fields can be changed, validation is enforced, and a save/load round-trip preserves values.
 
-### MT-06a: Dialog Open and Frame Sync Validation
+### MT-07a: Dialog Open and Frame Sync Validation
 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
@@ -161,7 +193,7 @@ These procedures cover functional areas that cannot be fully exercised by automa
 
 ---
 
-### MT-06b: Parameter Fields (Polarity, Slope, Scale)
+### MT-07b: Parameter Fields (Polarity, Slope, Scale)
 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
@@ -180,7 +212,7 @@ These procedures cover functional areas that cannot be fully exercised by automa
 
 ---
 
-### MT-06c: Receiver Configuration
+### MT-07c: Receiver Configuration
 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
@@ -199,7 +231,7 @@ These procedures cover functional areas that cannot be fully exercised by automa
 
 ---
 
-### MT-06d: Save and Load Round-Trip
+### MT-07d: Save and Load Round-Trip
 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
@@ -213,7 +245,7 @@ These procedures cover functional areas that cannot be fully exercised by automa
 
 ---
 
-### MT-06e: Settings Applied to Processing
+### MT-07e: Settings Applied to Processing
 
 **Purpose**: Verify that changed settings are actually used when processing a Ch10 file, not just reflected in the UI.
 
@@ -225,14 +257,14 @@ These procedures cover functional areas that cannot be fully exercised by automa
 | 4 | Open Settings; set Polarity to Positive; click OK; process the same file to `output_positive.csv` | CSV created |
 | 5 | Open Settings; set Polarity to Negative; click OK; process to `output_negative.csv` | CSV created |
 | 6 | Compare `output_positive.csv` and `output_negative.csv` at the same timestamp | AGC values have opposite sign (positive polarity produces positive dB values; negative produces negative) |
-| 7 | Open Settings; change Frame Sync to an incorrect but valid hex value (e.g., "FFFFFFFF"); click OK; process the file | Pre-scan fails to find sync or reports no valid frames; no output CSV or an empty CSV; log shows error or warning |
+| 7 | Open Settings; change Frame Sync to an incorrect but valid hex value (e.g., "FFFFFFFF"); click OK; attempt to process the file | Pre-scan runs, finds no sync; log shows "Pre-scan failed: no frame sync found. Processing aborted."; **no output file is created** |
 | 8 | Restore the correct Frame Sync from default.ini; process again | Processing succeeds; output matches `output_100.csv` from step 1 |
 
-**Pass criteria**: Scale change produces proportionally scaled output values; polarity change negates output values; incorrect frame sync prevents valid data extraction.
+**Pass criteria**: Scale change produces proportionally scaled output values; polarity change negates output values; incorrect frame sync aborts processing before any file is written.
 
 ---
 
-## MT-07: Theme Toggle (Dark / Light)
+## MT-08: Theme Toggle (Dark / Light)
 
 **Purpose**: Verify the dark/light theme switch applies consistently.
 
@@ -248,11 +280,11 @@ These procedures cover functional areas that cannot be fully exercised by automa
 
 ---
 
-## MT-08: Plot Window (US6)
+## MT-09: Plot Window (US6)
 
 **Purpose**: Verify the AGC signal plot after processing.
 
-### MT-08a: Basic Plot Display
+### MT-09a: Basic Plot Display
 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
@@ -261,7 +293,7 @@ These procedures cover functional areas that cannot be fully exercised by automa
 | 3 | Observe Y axis | Auto-scaled to min/max of data with small margin |
 | 4 | Observe legend | One checkbox per receiver-channel; each colored differently; receivers share a color hue |
 
-### MT-08b: Interactive Controls
+### MT-09b: Interactive Controls
 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
@@ -275,7 +307,7 @@ These procedures cover functional areas that cannot be fully exercised by automa
 | 8 | Uncheck a series in the legend | That series disappears from the chart |
 | 9 | Recheck it | Series reappears |
 
-### MT-08c: PDF Export
+### MT-09c: PDF Export
 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
@@ -284,7 +316,7 @@ These procedures cover functional areas that cannot be fully exercised by automa
 | 3 | Open the PDF | Plot renders correctly at high quality; title, axes, and legend visible |
 | 4 | Set a custom title and Y range, then export again | PDF reflects the custom title and axis range |
 
-### MT-08d: Show/Hide Log and Plot
+### MT-09d: Show/Hide Log and Plot
 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
@@ -296,9 +328,11 @@ These procedures cover functional areas that cannot be fully exercised by automa
 
 ---
 
-## MT-09: Batch Processing
+## MT-10: Batch Processing
 
 **Purpose**: Verify sequential batch file processing.
+
+### MT-10a: Basic Batch Run
 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
@@ -311,14 +345,14 @@ These procedures cover functional areas that cannot be fully exercised by automa
 | 7 | After completion | Log shows summary: success/skip/error counts |
 | 8 | Verify output directory | One CSV per file, named `AGC_<inputname>.csv` |
 
-### MT-09b: Cancel Batch
+### MT-10b: Cancel Batch
 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
 | 1 | Start batch processing | Cancel button becomes visible in toolbar |
 | 2 | Click Cancel | Processing stops after current file finishes; log shows cancellation summary |
 
-### MT-09c: Batch with Invalid File
+### MT-10c: Batch with Invalid File
 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
@@ -329,7 +363,7 @@ These procedures cover functional areas that cannot be fully exercised by automa
 
 ---
 
-## MT-10: Keyboard Shortcuts
+## MT-11: Keyboard Shortcuts
 
 **Purpose**: Verify all documented keyboard shortcuts function.
 
@@ -342,7 +376,7 @@ These procedures cover functional areas that cannot be fully exercised by automa
 
 ---
 
-## MT-11: Log Window Behavior
+## MT-12: Log Window Behavior
 
 **Purpose**: Verify log window formatting, persistence, and auto-scroll.
 
@@ -360,11 +394,11 @@ These procedures cover functional areas that cannot be fully exercised by automa
 
 ---
 
-## MT-12: INI File Handling
+## MT-13: INI File Handling
 
 **Purpose**: Verify INI load/save and the installer upgrade logic.
 
-### MT-12a: Save and Reload
+### MT-13a: Save and Reload
 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
@@ -373,7 +407,7 @@ These procedures cover functional areas that cannot be fully exercised by automa
 | 3 | Load `test_settings.ini` | Settings revert to saved values; log confirms load |
 | 4 | Verify log messages | Lists all loaded values (Sync, Polarity, Slope, Scale, receiver counts) |
 
-### MT-12b: Parameter Count Mismatch Warning
+### MT-13b: Parameter Count Mismatch Warning
 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
@@ -384,11 +418,11 @@ These procedures cover functional areas that cannot be fully exercised by automa
 
 ---
 
-## MT-13: Installer (US7)
+## MT-14: Installer (US7)
 
 **Purpose**: Verify the installer and portable distribution.
 
-### MT-13a: EXE Installer (Admin)
+### MT-14a: EXE Installer (Admin)
 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
@@ -398,14 +432,14 @@ These procedures cover functional areas that cannot be fully exercised by automa
 | 4 | Double-click a `.ch10` file in Explorer | Application opens and loads the file (file association works) |
 | 5 | Run installer again (upgrade) | Existing `default.ini` not overwritten; new fields added as `new_default.ini` (if schema changed) |
 
-### MT-13b: Non-Admin Install
+### MT-14b: Non-Admin Install
 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
 | 1 | Run installer without admin rights | Installer offers user-directory install option |
 | 2 | Complete install to user directory | Application runs; settings stored in user-writable path |
 
-### MT-13c: Portable ZIP
+### MT-14c: Portable ZIP
 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
@@ -417,7 +451,7 @@ These procedures cover functional areas that cannot be fully exercised by automa
 
 ---
 
-## MT-14: Directory Persistence
+## MT-15: Directory Persistence
 
 **Purpose**: Verify that each file dialog type remembers its last-used directory independently.
 
@@ -432,33 +466,3 @@ These procedures cover functional areas that cannot be fully exercised by automa
 **Pass criteria**: All three directory types saved and restored independently.
 
 ---
-
-## MT-15: Data Accuracy Spot-Check
-
-**Purpose**: Verify that exported AGC values are within the expected calibrated range for both NRZ-L and RNRZ-L encoded files.
-
-### MT-15a: NRZ-L Data Accuracy
-
-| Step | Action | Expected Result |
-|------|--------|-----------------|
-| 1 | Process `nrz-l_testfile.ch10` with default settings (Polarity: Negative, Slope: 0-5V, Scale: 20 dB/V) | CSV created |
-| 2 | Open the CSV in Excel | Column headers present; values in dB range |
-| 3 | Plot L_RCVR1 vs. Time in Excel | Step-cal pattern visible: signal steps through discrete levels |
-| 4 | Verify values fall within the expected dB range for the configured slope/scale | No extreme outliers; no NaN or blank cells |
-| 5 | Repeat with `STEPCAL 2 (NRZ-L).ch10` | Similar step-cal pattern; different step levels |
-
-**Pass criteria**: Calibrated values are numerically correct and step-cal pattern is visible.
-
-### MT-15b: RNRZ-L Data Accuracy (De-randomization)
-
-**Purpose**: Verify that the RNRZ-L bitstream de-randomizer produces valid, calibrated output.
-
-| Step | Action | Expected Result |
-|------|--------|-----------------|
-| 1 | Open `rnrz-l_testfile.ch10` | File loads; pre-scan log reports encoding as RNRZ-L (randomized) |
-| 2 | Select the PCM channel; process with default settings to `rnrz_output.csv` | CSV created without errors |
-| 3 | Open `rnrz_output.csv` in Excel | Column headers present; data rows present; no NaN or blank cells |
-| 4 | Plot L_RCVR1 vs. Time | Step-cal pattern visible, same structure as NRZ-L output — confirms de-randomization is working |
-| 5 | Compare row count with `nrz-l_testfile.ch10` output over the same time window | Row counts should be comparable; RNRZ-L values match NRZ-L values for the same recording |
-
-**Pass criteria**: RNRZ-L output shows the same step-cal pattern as NRZ-L; de-randomization produces valid calibrated values with no garbled rows.

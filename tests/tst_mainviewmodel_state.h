@@ -55,6 +55,9 @@ private slots:
     void validateTimeRangeStartAfterStop();
     void validateTimeRangeEqualStartStop();
     void validateTimeRangeBadFormat();
+
+    // pre-scan gate
+    void startProcessingAbortedIfPreScanFails();
 };
 
 #endif // TST_MAINVIEWMODEL_STATE_H

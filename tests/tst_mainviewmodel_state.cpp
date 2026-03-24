@@ -1,5 +1,6 @@
 #include "tst_mainviewmodel_state.h"
 
+#include <QDir>
 #include <QSettings>
 #include <QSignalSpy>
 #include <QTemporaryFile>
@@ -9,6 +10,13 @@
 #include "framesetup.h"
 #include "mainviewmodel.h"
 #include "settingsdata.h"
+
+static QString mvmTestDataPath(const QString& filename)
+{
+    QDir dir(QCoreApplication::applicationDirPath());
+    dir.cdUp();
+    return dir.filePath("data/" + filename);
+}
 
 void TestMainViewModelState::constructorDefaults()
 {
@@ -502,4 +510,34 @@ void TestMainViewModelState::validateTimeRangeBadFormat()
     // Wrong number of colon-separated fields
     QString err = MainViewModel::validateTimeRange("10:30:00", "10:31:00");
     QVERIFY2(!err.isEmpty(), "Non-DDD:HH:MM:SS format should return an error message");
+}
+
+void TestMainViewModelState::startProcessingAbortedIfPreScanFails()
+{
+    // Verify that startProcessing emits errorOccurred and does NOT set processing=true
+    // when the frame sync pattern does not match anything in the file.
+    const QString filepath = mvmTestDataPath("nrz-l_testfile.ch10");
+    if (!QFileInfo::exists(filepath))
+        QSKIP("nrz-l_testfile.ch10 not available");
+
+    MainViewModel vm;
+    vm.openFile(filepath);
+    if (!vm.fileLoaded())
+        QSKIP("Could not load nrz-l_testfile.ch10");
+
+    // Set a frame sync pattern that will never be found in the file
+    vm.setFrameSync("DEADBEEF");
+
+    QSignalSpy error_spy(&vm, &MainViewModel::errorOccurred);
+
+    vm.startProcessing("output_should_not_exist.csv",
+                       QString::number(vm.startDayOfYear()),  QString::number(vm.startHour()),
+                       QString::number(vm.startMinute()),     QString::number(vm.startSecond()),
+                       QString::number(vm.stopDayOfYear()),   QString::number(vm.stopHour()),
+                       QString::number(vm.stopMinute()),      QString::number(vm.stopSecond()),
+                       0);
+
+    QVERIFY2(!error_spy.isEmpty(), "errorOccurred should be emitted when pre-scan finds no sync");
+    QVERIFY2(!vm.processing(), "processing() should remain false when pre-scan fails");
+    QVERIFY2(!QFileInfo::exists("output_should_not_exist.csv"), "No output file should be created");
 }
