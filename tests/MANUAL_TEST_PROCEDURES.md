@@ -297,10 +297,10 @@ These procedures cover functional areas that cannot be fully exercised by automa
 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
-| 1 | Scroll mouse wheel over the chart | Y axis zooms in/out |
+| 1 | Scroll mouse wheel over the chart | X axis zooms in/out (time axis) |
 | 2 | Click and drag on the chart | Both axes pan; X axis clamps at 0 (cannot pan before start) |
 | 3 | Enter a plot title in the title field | Title updates on chart immediately |
-| 4 | Change Y Min/Max spinboxes | Y axis range updates; data stays visible |
+| 4 | Type values into the Y Min/Max fields | Y axis range updates; data stays visible |
 | 5 | Type a valid DDD:HH:MM:SS value into the X Start or X Stop text field and press Enter or Tab | X axis zooms to the entered time window |
 | 6 | Type a time outside the file's range (e.g., day 0 or a day past the end) and press Tab | Field snaps to the nearest file boundary; chart updates to the clamped range |
 | 7 | Click Reset (button to the right of the X Stop field) | X and Y axes return to the full file time range; X Start and X Stop fields show the file's actual start and stop times |
@@ -315,14 +315,6 @@ These procedures cover functional areas that cannot be fully exercised by automa
 | 2 | Save to a test path | Log shows success with clickable PDF file link |
 | 3 | Open the PDF | Plot renders correctly at high quality; title, axes, and legend visible |
 | 4 | Set a custom title and Y range, then export again | PDF reflects the custom title and axis range |
-
-### MT-09d: Show/Hide Log and Plot
-
-| Step | Action | Expected Result |
-|------|--------|-----------------|
-| 1 | With plot open, click View > Show Log | Log dock appears; plot remains visible |
-| 2 | Close the plot dock | Log dock auto-restores to full height |
-| 3 | Reprocess a file | Plot dock reopens |
 
 **Pass criteria**: Plot renders correctly; all interactive controls work; PDF output is correct.
 

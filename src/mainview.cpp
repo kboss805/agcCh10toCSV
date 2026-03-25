@@ -104,7 +104,7 @@ void MainView::setUpMainLayout()
     // File section at the top of the controls panel
     m_controls_layout->addWidget(new QLabel("File"));
     m_controls_layout->addWidget(m_file_list);
-    m_controls_layout->addSpacing(4);
+    m_controls_layout->addSpacing(UIConstants::kLayoutSpacingSmall);
 
     // Receivers toggle button + content
     QPushButton* recv_toggle = new QPushButton("\u25b6  Receivers");

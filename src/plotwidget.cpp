@@ -155,8 +155,7 @@ void PlotWidget::initReceiverLegend(int receiver_count, int channels_per_receive
         tree->setFixedHeight((per_column * UIConstants::kTreeItemHeightFactor) +
                              UIConstants::kTreeHeightBuffer);
         tree->setFrameShape(QFrame::NoFrame);
-        tree->setStyleSheet("QTreeWidget { background: transparent; }");
-        tree->setAttribute(Qt::WA_TranslucentBackground);
+        tree->setStyleSheet("QTreeWidget { background: palette(window); }");
         tree->setEnabled(false);
 
         for (int r = start; r < end; r++)
@@ -169,7 +168,7 @@ void PlotWidget::initReceiverLegend(int receiver_count, int channels_per_receive
             for (int c = 0; c < channels_per_receiver; c++)
             {
                 QTreeWidgetItem* channel_item = new QTreeWidgetItem;
-                channel_item->setText(0, channel_prefix_fn(c) + "_RCVR" + QString::number(r + 1));
+                channel_item->setText(0, channel_prefix_fn(c));
                 channel_item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsUserCheckable);
                 channel_item->setCheckState(0, Qt::Checked);
                 channel_item->setData(0, Qt::UserRole, -1);
@@ -201,6 +200,8 @@ void PlotWidget::initReceiverLegend(int receiver_count, int channels_per_receive
     content_row->addLayout(btn_col);
     m_legend_layout->addLayout(content_row);
 
+    m_legend_panel->setFixedHeight((per_column * UIConstants::kTreeItemHeightFactor) +
+                                   UIConstants::kTreeHeightBuffer);
     syncLegendScrollbars();
     connectExpandCollapseToggle(toggle_btn);
 }
@@ -600,7 +601,6 @@ void PlotWidget::setUpLayout()
 
     // Legend tree panel — centered in the bottom bar
     m_legend_panel = new QWidget;
-    m_legend_panel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
     m_legend_layout = new QVBoxLayout(m_legend_panel);
     m_legend_layout->setContentsMargins(0, 0, 0, 0);
     m_legend_layout->setSpacing(2);
@@ -710,8 +710,7 @@ void PlotWidget::rebuildLegend()
         tree->setFixedHeight((per_column * UIConstants::kTreeItemHeightFactor) +
                              UIConstants::kTreeHeightBuffer);
         tree->setFrameShape(QFrame::NoFrame);
-        tree->setStyleSheet("QTreeWidget { background: transparent; }");
-        tree->setAttribute(Qt::WA_TranslucentBackground);
+        tree->setStyleSheet("QTreeWidget { background: palette(window); }");
 
         for (int r = start; r < end; r++)
         {
@@ -733,7 +732,10 @@ void PlotWidget::rebuildLegend()
             {
                 const PlotSeriesData& s = all_series[idx];
                 QTreeWidgetItem* channel_item = new QTreeWidgetItem;
-                channel_item->setText(0, s.name);
+                const QString channel_label = (s.channelIndex < static_cast<int>(UIConstants::kChannelPrefixes.size()))
+                    ? QString(UIConstants::kChannelPrefixes[s.channelIndex])
+                    : s.name;
+                channel_item->setText(0, channel_label);
                 channel_item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsUserCheckable);
                 channel_item->setCheckState(0, s.visible ? Qt::Checked : Qt::Unchecked);
                 channel_item->setForeground(0, s.color);
@@ -768,6 +770,8 @@ void PlotWidget::rebuildLegend()
     content_row->addLayout(btn_col);
     m_legend_layout->addLayout(content_row);
 
+    m_legend_panel->setFixedHeight((per_column * UIConstants::kTreeItemHeightFactor) +
+                                   UIConstants::kTreeHeightBuffer);
     syncLegendScrollbars();
     connectExpandCollapseToggle(toggle_btn);
 

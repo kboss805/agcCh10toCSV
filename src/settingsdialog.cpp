@@ -33,6 +33,9 @@ SettingsDialog::SettingsDialog(QWidget* parent)
     setWindowTitle("Settings");
 
     QVBoxLayout* main_layout = new QVBoxLayout;
+    main_layout->setSpacing(UIConstants::kLayoutSpacingSmall);
+    main_layout->setContentsMargins(UIConstants::kLayoutSpacingSmall, UIConstants::kLayoutSpacingSmall,
+                                    UIConstants::kLayoutSpacingSmall, UIConstants::kLayoutSpacingSmall);
 
     // Frame group
     QGroupBox* frame_group = new QGroupBox("Frame");
