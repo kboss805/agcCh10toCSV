@@ -128,8 +128,10 @@ public:
     const QVector<BatchFileInfo>& batchFiles() const;    ///< @return Read-only access to the batch file list.
     /// @return Auto-generated output filename for batch mode (AGC_<basename>.csv).
     static QString generateBatchOutputFilename(const QString& input_filepath);
-    /// @return Formatted status summary for the file list tree header.
+    /// @return Cached status summary for the file list tree header.
     QString batchStatusSummary() const;
+    /// Rebuilds the cached batch status summary string.
+    void rebuildBatchStatusSummary();
     /// @}
 
     /// @name Receiver grid state
@@ -368,6 +370,7 @@ private:
     /// @{
     QVector<BatchFileInfo> m_batch_files;    ///< Loaded file list for batch mode.
     bool m_batch_mode;                       ///< True when multiple files are loaded.
+    QString m_batch_status_summary;          ///< Cached summary string ("N files loaded (X valid, Y skipped)").
     int m_batch_current_index;               ///< Index of file currently being processed.
     bool m_batch_cancelled;                  ///< True if the user cancelled batch processing.
     QString m_batch_output_dir;              ///< User-selected output directory for batch.

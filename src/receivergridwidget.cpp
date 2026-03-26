@@ -129,6 +129,8 @@ void ReceiverGridWidget::rebuild(int receiver_count, int channels_per_receiver,
     QPushButton* toggle_btn = new QPushButton("Expand All");
     toggle_btn->setFlat(true);
     toggle_btn->setMinimumWidth(UIConstants::kFlatButtonMinWidth);
+    toggle_btn->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_E));
+    toggle_btn->setToolTip("Expand/Collapse All (Ctrl+E)");
     QPushButton* select_all_btn = new QPushButton("Select All");
     select_all_btn->setFlat(true);
     select_all_btn->setMinimumWidth(UIConstants::kFlatButtonMinWidth);

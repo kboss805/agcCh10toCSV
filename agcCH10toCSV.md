@@ -583,7 +583,7 @@ Automated unit tests use the **Qt Test** framework. Test sources are in the `tes
 
 ### Test Suites
 - **TestChannelData** (`tst_channeldata`) — ChannelData model object tests
-- **TestConstants** (`tst_constants`) — Verifies all PCMConstants, UIConstants, AppVersion, and recent files constants
+- **TestConstants** (`tst_constants`) — Verifies all PCMConstants, UIConstants, AppVersion, and recent files constants (including kMaxPacketBufferSize, kFrameSyncHexPattern)
 - **TestMainViewModelHelpers** (`tst_mainviewmodel_helpers`) — ViewModel helper methods (channelPrefix, parameterName, generateOutputFilename)
 - **TestMainViewModelState** (`tst_mainviewmodel_state`) — ViewModel property defaults, setters, signals, receiver grid, SettingsData roundtrip, frame setup loading, recent files, file metadata summary
 - **TestFrameSetup** (`tst_framesetup`) — Frame parameter loading, word map, calibration
@@ -608,6 +608,32 @@ mingw32-make -f Makefile.Debug
 2. Create `tst_newtest.cpp` with test implementations
 3. Add both files to `tests/tests.pro` under `SOURCES +=` and `HEADERS +=`
 4. Add `#include "tst_newtest.h"` and a `QTest::qExec()` block in `tests/main.cpp`
+
+## Future Feature Candidates
+
+The following features have been identified as potential improvements for future versions. None are committed to a release — they are tracked here for planning purposes.
+
+### UX Improvements
+
+- **Theme hot-reload without restart** — Currently toggling between dark and light theme requires an application restart. The fix would reload the QSS stylesheet at runtime (`qApp->setStyleSheet()`) and call `PlotWidget::applyTheme()` to update chart colors immediately, with no restart needed.
+
+- **Plot tooltip on hover** — When the mouse hovers over a data point on the plot, show a tooltip with the exact time (DDD:HH:MM:SS) and amplitude (dB) value. This would help users perform data accuracy spot-checks without needing to open the CSV.
+
+- **Plot data export to clipboard** — A "Copy to Clipboard" button in the plot toolbar that copies the currently visible data range as tab-separated values, allowing quick paste into Excel for comparison.
+
+- **Keyboard shortcuts for Expand/Collapse All** — The Receivers section and plot legend have Expand All / Collapse All buttons but no keyboard shortcuts. Adding `Ctrl+E` / `Ctrl+Shift+E` (or similar) would benefit keyboard-centric workflows.
+
+### Batch Processing Improvements
+
+- **Per-file retry after batch failure** — Currently, if a file fails during batch processing it is marked ERROR and the batch moves on. There is no way to retry a single failed file — the user must re-queue the entire batch. A "Retry Failed" button shown after batch completion would save time on large batches.
+
+- **Drag-and-drop reordering of batch file list** — When multiple files are loaded for batch processing, their order is set by the selection order. Drag-and-drop reordering in the file list tree would give users control over processing sequence.
+
+### Architecture / Robustness
+
+- **Background CSV parsing** — `PlotViewModel::loadCsvFile()` runs on the main thread. For very large CSV outputs (long recordings, many channels), parsing can visibly delay the UI after clicking "Show Plot". Moving parsing to a background QThread with a progress signal would keep the UI responsive.
+
+- **Efficiency: cache batch status summary** — `MainViewModel::inputFilename()` calls `batchStatusSummary()` on every property query, rebuilding the string each time. Caching the summary string and invalidating it only when the batch file list changes would eliminate redundant string allocation.
 
 ## Additional Resources
 

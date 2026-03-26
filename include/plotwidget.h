@@ -11,6 +11,7 @@
 #include <QDoubleSpinBox>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMouseEvent>
 #include <QPushButton>
 #include <QTreeWidget>
 #include <QVBoxLayout>
@@ -85,6 +86,10 @@ private slots:
     void onResetAxes();
     /// Exports the current plot to a PDF file.
     void onExportPdf();
+    /// Copies visible plot data to the clipboard as tab-separated values.
+    void onCopyDataToClipboard();
+    /// Shows a tooltip with the nearest data point value under the cursor.
+    void onPlotMouseMove(QMouseEvent* event);
 
 signals:
     /// Emitted when a log message should be displayed.
@@ -130,6 +135,7 @@ private:
     QLineEdit* m_x_stop_edit = nullptr;
     QPushButton* m_reset_btn = nullptr;
     QPushButton* m_export_pdf_btn = nullptr;
+    QPushButton* m_copy_data_btn = nullptr;
     /// @}
 
     /// @name Graph tracking

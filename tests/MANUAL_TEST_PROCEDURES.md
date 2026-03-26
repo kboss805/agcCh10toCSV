@@ -306,6 +306,9 @@ These procedures cover functional areas that cannot be fully exercised by automa
 | 7 | Click Reset (button to the right of the X Stop field) | X and Y axes return to the full file time range; X Start and X Stop fields show the file's actual start and stop times |
 | 8 | Uncheck a series in the legend | That series disappears from the chart |
 | 9 | Recheck it | Series reappears |
+| 10 | Hover mouse over a data point on the chart | Tooltip shows series name, time (DDD:HH:MM:SS), and amplitude in dB |
+| 11 | Move mouse away from data points | Tooltip disappears |
+| 12 | Press Ctrl+E with the plot area focused | Legend toggles between Expand All and Collapse All |
 
 ### MT-09c: PDF Export
 
@@ -316,7 +319,16 @@ These procedures cover functional areas that cannot be fully exercised by automa
 | 3 | Open the PDF | Plot renders correctly at high quality; title, axes, and legend visible |
 | 4 | Set a custom title and Y range, then export again | PDF reflects the custom title and axis range |
 
-**Pass criteria**: Plot renders correctly; all interactive controls work; PDF output is correct.
+### MT-09d: Copy Data to Clipboard
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 1 | With data loaded, zoom to a sub-range using X Start/Stop | Chart shows only the zoomed time window |
+| 2 | Click Copy Data | Log shows "Copied N rows to clipboard." |
+| 3 | Paste into Excel or a text editor | Tab-separated table with Time column and one column per visible series; rows match the zoomed range |
+| 4 | Uncheck some series in the legend, then click Copy Data again | Unchecked series are absent from the pasted table |
+
+**Pass criteria**: Plot renders correctly; all interactive controls work; PDF output is correct; clipboard export matches visible data.
 
 ---
 

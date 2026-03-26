@@ -119,6 +119,7 @@ MainViewModel::~MainViewModel()
         m_worker_thread->quit();
         m_worker_thread->wait();
     }
+    delete m_worker_thread;
 
     delete m_reader;
     delete m_frame_setup;
@@ -646,13 +647,20 @@ QString MainViewModel::generateBatchOutputFilename(const QString& input_filepath
 
 QString MainViewModel::batchStatusSummary() const
 {
+    return m_batch_status_summary;
+}
+
+void MainViewModel::rebuildBatchStatusSummary()
+{
     if (!m_batch_mode || m_batch_files.isEmpty())
     {
-        return QString();
+        m_batch_status_summary.clear();
+        return;
     }
-    return QString::number(m_batch_files.size()) + " files loaded (" +
-           QString::number(batchValidCount()) + " valid, " +
-           QString::number(batchSkippedCount()) + " skipped)";
+    m_batch_status_summary =
+        QString::number(m_batch_files.size()) + " files loaded (" +
+        QString::number(batchValidCount()) + " valid, " +
+        QString::number(batchSkippedCount()) + " skipped)";
 }
 
 void MainViewModel::openFiles(const QStringList& filenames)
@@ -712,6 +720,7 @@ void MainViewModel::openFiles(const QStringList& filenames)
         addRecentFile(filepath);
     }
 
+    rebuildBatchStatusSummary();
     emit inputFilenameChanged();
     emit fileLoadedChanged();
     emit batchFilesChanged();
@@ -856,6 +865,7 @@ void MainViewModel::preScanBatchFiles()
                                          info.isRandomized);
     }
 
+    rebuildBatchStatusSummary();
     emit batchFilesChanged();
 }
 
@@ -1025,6 +1035,7 @@ void MainViewModel::processNextBatchFile()
         ", Errors: " + QString::number(m_batch_error_count) +
         " / Total: " + QString::number(m_batch_files.size()));
 
+    rebuildBatchStatusSummary();
     emit batchFilesChanged();
     emit processingFinished(m_batch_error_count == 0 && m_batch_success_count > 0,
                             m_batch_output_dir);
@@ -1248,6 +1259,7 @@ void MainViewModel::clearState()
     {
         emit batchModeChanged();
     }
+    rebuildBatchStatusSummary();
     emit batchFilesChanged();
 }
 
@@ -1573,8 +1585,7 @@ void MainViewModel::onProcessingFinished(bool success)
 
     m_worker_thread->quit();
     m_worker_thread->wait();
-
-    m_worker_thread->deleteLater();
+    delete m_worker_thread;
     m_worker_thread = nullptr;
 
     if (m_batch_mode)

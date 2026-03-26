@@ -40,6 +40,9 @@ namespace PCMConstants {
     /// Default initial buffer size for CH10 packet reading (64 KB).
     inline constexpr unsigned long kDefaultBufferSize = 65536;
 
+    /// Maximum allowed packet buffer size to guard against malformed file headers (100 MB).
+    inline constexpr qsizetype kMaxPacketBufferSize = 100 * 1024 * 1024;
+
     /// Number of packets between progress position queries.
     inline constexpr int kProgressReportInterval = 100;
 

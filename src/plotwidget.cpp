@@ -6,11 +6,13 @@
 #include "plotwidget.h"
 
 #include <QApplication>
+#include <QClipboard>
 #include <QFileDialog>
 #include <QFrame>
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QScrollBar>
+#include <QToolTip>
 #include <QVBoxLayout>
 
 #include "qcustomplot.h"
@@ -116,6 +118,8 @@ void PlotWidget::initReceiverLegend(int receiver_count, int channels_per_receive
     toggle_btn->setFlat(true);
     toggle_btn->setMinimumWidth(UIConstants::kFlatButtonMinWidth);
     toggle_btn->setEnabled(false);
+    toggle_btn->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_E));
+    toggle_btn->setToolTip("Expand/Collapse All (Ctrl+E)");
     QPushButton* select_all_btn = new QPushButton("Select All");
     select_all_btn->setFlat(true);
     select_all_btn->setMinimumWidth(UIConstants::kFlatButtonMinWidth);
@@ -246,6 +250,7 @@ void PlotWidget::rebuildChart()
     m_y_min_spin->setEnabled(has_data);
     m_y_max_spin->setEnabled(has_data);
     m_reset_btn->setEnabled(has_data);
+    m_copy_data_btn->setEnabled(has_data);
     m_export_pdf_btn->setEnabled(has_data);
     m_plot->setInteractions(has_data
         ? QCP::iRangeDrag | QCP::iRangeZoom
@@ -608,7 +613,12 @@ void PlotWidget::setUpLayout()
 
     bottom_bar->addStretch(1);
 
-    // Export PDF — right-justified, alone on the right edge
+    // Copy Data and Export PDF — right-justified
+    m_copy_data_btn = new QPushButton("Copy Data");
+    m_copy_data_btn->setToolTip("Copy visible data to clipboard as tab-separated values");
+    m_copy_data_btn->setEnabled(false);
+    bottom_bar->addWidget(m_copy_data_btn, 0, Qt::AlignTop);
+
     m_export_pdf_btn = new QPushButton("Export PDF");
     m_export_pdf_btn->setToolTip("Export plot to PDF");
     m_export_pdf_btn->setEnabled(false);
@@ -635,7 +645,9 @@ void PlotWidget::setUpConnections()
     connect(m_x_stop_edit, &QLineEdit::editingFinished, this, &PlotWidget::onXRangeChanged);
 
     connect(m_reset_btn, &QPushButton::clicked, this, &PlotWidget::onResetAxes);
+    connect(m_copy_data_btn, &QPushButton::clicked, this, &PlotWidget::onCopyDataToClipboard);
     connect(m_export_pdf_btn, &QPushButton::clicked, this, &PlotWidget::onExportPdf);
+    connect(m_plot, &QCustomPlot::mouseMove, this, &PlotWidget::onPlotMouseMove);
 
     connect(m_plot->xAxis, QOverload<const QCPRange&>::of(&QCPAxis::rangeChanged),
             this, [this](const QCPRange& range) { handlePlotXRangeChanged(range.lower, range.upper); });
@@ -670,6 +682,8 @@ void PlotWidget::rebuildLegend()
     QPushButton* toggle_btn = new QPushButton("Expand All");
     toggle_btn->setFlat(true);
     toggle_btn->setMinimumWidth(UIConstants::kFlatButtonMinWidth);
+    toggle_btn->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_E));
+    toggle_btn->setToolTip("Expand/Collapse All (Ctrl+E)");
     QPushButton* select_all_btn = new QPushButton("Select All");
     select_all_btn->setFlat(true);
     select_all_btn->setMinimumWidth(UIConstants::kFlatButtonMinWidth);
@@ -901,4 +915,146 @@ void PlotWidget::setAllLegendChecks(bool checked)
     }
     m_updating_from_vm = false;
     rebuildChart();
+}
+
+void PlotWidget::onCopyDataToClipboard()
+{
+    if (m_view_model == nullptr || !m_view_model->hasData())
+    {
+        return;
+    }
+
+    const auto& all_series = m_view_model->allSeries();
+    const double x_min = m_view_model->xViewMin();
+    const double x_max = m_view_model->xViewMax();
+
+    // Build header row: Time\tSeriesName...
+    QStringList header;
+    header << "Time";
+    for (const auto& s : all_series)
+    {
+        if (s.visible)
+        {
+            header << s.name;
+        }
+    }
+    QString output = header.join('\t') + '\n';
+
+    // Collect all unique x values in the visible range across visible series
+    QVector<double> x_union;
+    for (const auto& s : all_series)
+    {
+        if (!s.visible)
+        {
+            continue;
+        }
+        for (double x : s.xValues)
+        {
+            if (x >= x_min && x <= x_max && !x_union.contains(x))
+            {
+                x_union.append(x);
+            }
+        }
+    }
+    std::sort(x_union.begin(), x_union.end());
+
+    // For each time point write a row
+    for (double x : x_union)
+    {
+        QStringList row;
+        row << m_view_model->formatTime(x);
+        for (const auto& s : all_series)
+        {
+            if (!s.visible)
+            {
+                continue;
+            }
+            // Find the closest x value in this series
+            int idx = s.xValues.indexOf(x);
+            if (idx >= 0)
+            {
+                row << QString::number(s.yValues[idx], 'f', 2);
+            }
+            else
+            {
+                row << QString();
+            }
+        }
+        output += row.join('\t') + '\n';
+    }
+
+    QApplication::clipboard()->setText(output);
+    emit logMessage(QString("Copied %1 rows to clipboard.").arg(x_union.size()));
+}
+
+void PlotWidget::onPlotMouseMove(QMouseEvent* event)
+{
+    if (m_view_model == nullptr || !m_view_model->hasData() || m_graphs.isEmpty())
+    {
+        return;
+    }
+
+    const double x_coord = m_plot->xAxis->pixelToCoord(event->pos().x());
+
+    // Find the nearest visible data point across all graphs
+    double best_dist = std::numeric_limits<double>::max();
+    double best_x = 0.0;
+    double best_y = 0.0;
+    QString best_name;
+
+    const auto& all_series = m_view_model->allSeries();
+    for (int i = 0; i < m_graphs.size() && i < static_cast<int>(all_series.size()); i++)
+    {
+        if (!all_series[i].visible)
+        {
+            continue;
+        }
+        const auto& xs = all_series[i].xValues;
+        if (xs.isEmpty())
+        {
+            continue;
+        }
+        // Binary search for nearest x
+        auto it = std::lower_bound(xs.constBegin(), xs.constEnd(), x_coord);
+        for (auto check = it; check != xs.constEnd() && check - it < 2; ++check)
+        {
+            double dist = qAbs(*check - x_coord);
+            if (dist < best_dist)
+            {
+                best_dist = dist;
+                int idx = static_cast<int>(check - xs.constBegin());
+                best_x = xs[idx];
+                best_y = all_series[i].yValues[idx];
+                best_name = all_series[i].name;
+            }
+        }
+        if (it != xs.constBegin())
+        {
+            --it;
+            double dist = qAbs(*it - x_coord);
+            if (dist < best_dist)
+            {
+                best_dist = dist;
+                int idx = static_cast<int>(it - xs.constBegin());
+                best_x = xs[idx];
+                best_y = all_series[i].yValues[idx];
+                best_name = all_series[i].name;
+            }
+        }
+    }
+
+    // Only show tooltip if the nearest point is within 10 pixels
+    const double pixel_dist = qAbs(m_plot->xAxis->coordToPixel(best_x) - event->pos().x());
+    if (pixel_dist <= 10.0 && !best_name.isEmpty())
+    {
+        QString tip = QString("%1\n%2\n%3 dB")
+            .arg(best_name)
+            .arg(m_view_model->formatTime(best_x))
+            .arg(QString::number(best_y, 'f', 2));
+        QToolTip::showText(event->globalPosition().toPoint(), tip, m_plot);
+    }
+    else
+    {
+        QToolTip::hideText();
+    }
 }

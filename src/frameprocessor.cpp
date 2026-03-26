@@ -146,8 +146,8 @@ void FrameProcessor::derandomizeBitstream(uint8_t* data, uint64_t total_bits, ui
 
     for (uint64_t i = 0; i < total_bits; i++)
     {
-        uint32_t byte_idx = static_cast<uint32_t>(i / 8);
-        uint8_t bit_idx = static_cast<uint8_t>(7 - (i % 8));
+        uint32_t byte_idx = static_cast<uint32_t>(i >> 3);
+        uint8_t bit_idx = static_cast<uint8_t>(7 - (i & 7));
 
         // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         int in_bit  = (data[byte_idx] >> bit_idx) & 1;
@@ -455,6 +455,8 @@ bool FrameProcessor::preScan(const QString& filename,
 
 bool FrameProcessor::ensureBufferCapacity(qsizetype required)
 {
+    if (required > PCMConstants::kMaxPacketBufferSize)
+        return false;
     if (m_buffer.size() >= required)
         return true;
     try {
