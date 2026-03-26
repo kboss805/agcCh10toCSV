@@ -159,10 +159,11 @@ void SettingsManager::loadFile(const QString& filename)
     int expected_params = data.receiverCount * data.channelsPerReceiver;
     if (ini_param_count != expected_params)
     {
-        emit logMessage("  WARNING: INI file has " + QString::number(ini_param_count) +
-                        " parameter sections but Receivers (" + QString::number(data.receiverCount) +
-                        ") x Channels (" + QString::number(data.channelsPerReceiver) +
-                        ") = " + QString::number(expected_params));
+        emit logMessage("  WARNING: INI file defines " + QString::number(ini_param_count) +
+                        " receiver/channel entries, but the configured " +
+                        QString::number(data.receiverCount) + " receivers × " +
+                        QString::number(data.channelsPerReceiver) + " channels/receiver requires " +
+                        QString::number(expected_params) + ". Some channel parameters may be missing or ignored.");
     }
 
     m_view_model->applySettingsData(data);

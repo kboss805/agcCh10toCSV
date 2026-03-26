@@ -1,4 +1,4 @@
-# Manual Test Procedures — agcCh10toCSV v3.1.2+
+# Manual Test Procedures — agcCh10toCSV v3.2.0
 
 These procedures cover functional areas that cannot be fully exercised by automated unit tests: GUI interactions, visual rendering, file system side effects, installer behavior, and end-to-end data validation.
 
@@ -61,6 +61,22 @@ These procedures cover functional areas that cannot be fully exercised by automa
 | 4 | Open 6 different files | Only the 5 most recent are retained |
 
 **Pass criteria**: All file loading paths work; status bar and log update correctly.
+
+---
+
+### MT-02d: Dialog Directory Persistence
+
+**Purpose**: Verify that each file dialog type independently remembers its last-used directory across sessions.
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 1 | Open a Ch10 file from `C:\TestData\Ch10\` | Directory saved for the Ch10 open dialog |
+| 2 | Process a file and save output to `C:\TestData\CSV\` | Directory saved for the CSV save dialog |
+| 3 | Open Settings and load an INI file from `C:\TestData\INI\` | Directory saved for the INI open dialog |
+| 4 | Reopen each dialog type without navigating away | Each dialog opens to its own last-used directory, not the other dialogs' directories |
+| 5 | Close and relaunch the application; reopen each dialog | All three directories are restored independently |
+
+**Pass criteria**: All three dialog types save and restore their directories independently; no dialog inherits another's last path.
 
 ---
 
@@ -174,9 +190,9 @@ These procedures cover functional areas that cannot be fully exercised by automa
 
 ---
 
-## MT-07: Settings Dialog
+## MT-07: Settings Dialog and INI File Handling
 
-**Purpose**: Verify all settings fields can be changed, validation is enforced, and a save/load round-trip preserves values.
+**Purpose**: Verify all settings fields can be changed, validation is enforced, a save/load round-trip preserves values, and INI edge cases are handled correctly.
 
 ### MT-07a: Dialog Open and Frame Sync Validation
 
@@ -264,6 +280,22 @@ These procedures cover functional areas that cannot be fully exercised by automa
 
 ---
 
+### MT-07f: INI Parameter Count Mismatch Warning
+
+**Purpose**: Verify that a manually edited or version-mismatched INI file produces a clear warning rather than silently using incomplete data.
+
+**Setup**: Using a text editor, open a copy of `default.ini` and set `Count=4` and `ChannelsPerReceiver=3` in the `[Receivers]` section, but delete 2 of the `[RcvrN_ChM]` parameter sections so only 10 are present instead of the expected 12 (4 receivers × 3 channels).
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 1 | In the application, open Settings and click Load; select the modified INI file | Settings load; log appends a dark-yellow WARNING line |
+| 2 | Read the warning message in the log | Message reads: *"INI file defines 10 receiver/channel entries, but the configured 4 receivers × 3 channels/receiver requires 12. Some channel parameters may be missing or ignored."* |
+| 3 | Open the Settings dialog | Receivers=4, Channels/Receiver=3 are applied; dialog opens normally |
+
+**Pass criteria**: A dark-yellow WARNING appears immediately after loading the INI; the message clearly states the found count, the expected count, and the configured receiver/channel breakdown; the application remains stable and usable.
+
+---
+
 ## MT-08: Theme Toggle (Dark / Light)
 
 **Purpose**: Verify the dark/light theme switch applies consistently.
@@ -348,6 +380,9 @@ These procedures cover functional areas that cannot be fully exercised by automa
 | 6 | Observe file list during processing | Status column shows colors (green = done, yellow = skip, red = error) |
 | 7 | After completion | Log shows summary: success/skip/error counts |
 | 8 | Verify output directory | One CSV per file, named `AGC_<inputname>.csv` |
+| 9 | Observe "View AGC Plot" dialog | Dialog appears with a dropdown listing each successfully processed file |
+| 10 | Select a file from the dropdown and click OK | Plot panel loads the selected CSV and displays AGC traces |
+| 11 | Dismiss the dialog with Cancel | Plot is not loaded; application returns to normal state |
 
 ### MT-10b: Cancel Batch
 
@@ -363,7 +398,7 @@ These procedures cover functional areas that cannot be fully exercised by automa
 | 1 | Include a file whose selected PCM channel doesn't match the frame structure | That file is skipped with a yellow warning in the file list |
 | 2 | Remaining files continue processing | Batch continues to completion |
 
-**Pass criteria**: All valid files produce output CSVs; batch naming correct; cancel works; errors do not halt remaining files.
+**Pass criteria**: All valid files produce output CSVs; batch naming correct; cancel works; errors do not halt remaining files; "View AGC Plot" dialog appears after successful batch and loads selected CSV into the plot panel.
 
 ---
 
@@ -398,35 +433,11 @@ These procedures cover functional areas that cannot be fully exercised by automa
 
 ---
 
-## MT-13: INI File Handling
-
-**Purpose**: Verify INI load/save and the installer upgrade logic.
-
-### MT-13a: Save and Reload
-
-| Step | Action | Expected Result |
-|------|--------|-----------------|
-| 1 | Open Settings; change Polarity and Slope; Save As `test_settings.ini` | File created |
-| 2 | Change settings to different values | Settings differ from saved file |
-| 3 | Load `test_settings.ini` | Settings revert to saved values; log confirms load |
-| 4 | Verify log messages | Lists all loaded values (Sync, Polarity, Slope, Scale, receiver counts) |
-
-### MT-13b: Parameter Count Mismatch Warning
-
-| Step | Action | Expected Result |
-|------|--------|-----------------|
-| 1 | Create an INI with `Count=4, ChannelsPerReceiver=3` but only 10 parameter sections instead of 12 | Load the INI |
-| 2 | Observe log | Warning about parameter section count mismatch |
-
-**Pass criteria**: Load/save round-trip correct; mismatch warning appears.
-
----
-
-## MT-14: Installer (US7)
+## MT-13: Installer (US7)
 
 **Purpose**: Verify the installer and portable distribution.
 
-### MT-14a: EXE Installer (Admin)
+### MT-13a: EXE Installer (Admin)
 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
@@ -436,14 +447,14 @@ These procedures cover functional areas that cannot be fully exercised by automa
 | 4 | Double-click a `.ch10` file in Explorer | Application opens and loads the file (file association works) |
 | 5 | Run installer again (upgrade) | Existing `default.ini` not overwritten; new fields added as `new_default.ini` (if schema changed) |
 
-### MT-14b: Non-Admin Install
+### MT-13b: Non-Admin Install
 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
 | 1 | Run installer without admin rights | Installer offers user-directory install option |
 | 2 | Complete install to user directory | Application runs; settings stored in user-writable path |
 
-### MT-14c: Portable ZIP
+### MT-13c: Portable ZIP
 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
@@ -452,21 +463,5 @@ These procedures cover functional areas that cannot be fully exercised by automa
 | 3 | Move the folder to a different path and relaunch | App still runs correctly; settings preserved |
 
 **Pass criteria**: Installer deploys all files; file association works; portable mode uses local settings.
-
----
-
-## MT-15: Directory Persistence
-
-**Purpose**: Verify that each file dialog type remembers its last-used directory independently.
-
-| Step | Action | Expected Result |
-|------|--------|-----------------|
-| 1 | Open a Ch10 file from `C:\TestData\Ch10\` | Directory saved for Ch10 dialog |
-| 2 | Open a CSV output dialog and navigate to `C:\TestData\CSV\`; save | Directory saved for CSV dialog |
-| 3 | Open an INI file from `C:\TestData\INI\`; load | Directory saved for INI dialog |
-| 4 | Reopen each dialog type | Each remembers its own last directory independently |
-| 5 | Close and relaunch the application | All three directories persist across sessions |
-
-**Pass criteria**: All three directory types saved and restored independently.
 
 ---

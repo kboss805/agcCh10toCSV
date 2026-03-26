@@ -13,7 +13,7 @@ REM                      Current cert: 1DCBF23B52067A8D52E9C517345EA77B9D926669
 REM    SIGN_TIMESTAMP  — timestamp server URL (default: http://timestamp.digicert.com)
 REM ====================================================================
 
-set VERSION=3.1.2
+set VERSION=3.2.0
 set PROJECT_DIR=%~dp0..
 call "%PROJECT_DIR%\scripts\env.bat"
 

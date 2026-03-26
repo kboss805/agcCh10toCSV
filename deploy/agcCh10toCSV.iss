@@ -8,7 +8,7 @@
 ; Or open this file in Inno Setup Compiler and press Ctrl+F9.
 
 #define MyAppName "agcCh10toCSV"
-#define MyAppVersion "3.1.2"
+#define MyAppVersion "3.2.0"
 #define MyAppPublisher "agcCh10toCSV"
 #define MyAppExeName "agcCH10toCSV.exe"
 #define StagingDir "staging\installer"
