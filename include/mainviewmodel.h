@@ -7,11 +7,9 @@
 #define MAINVIEWMODEL_H
 
 #include <QObject>
-#include <QSet>
 #include <QSettings>
 #include <QString>
 #include <QStringList>
-#include <QThread>
 #include <QVector>
 
 #include "batchfileinfo.h"
@@ -21,7 +19,7 @@
 
 class Chapter10Reader;
 class FrameSetup;
-class FrameProcessor;
+class ProcessingCoordinator;
 class SettingsManager;
 
 /**
@@ -290,76 +288,41 @@ private:
                                    const QString& stop_time,
                                    int sample_rate_index);
 
-    /// Runs a pre-scan on the given PCM channel to detect encoding and verify sync.
-    /// @return true if at least one sync pattern was found.
-    bool runPreScan(int pcm_channel_id);
-
     /// Validates all batch files against current channel/settings selection.
     void validateBatchFiles();
-    /// Runs pre-scan on all valid batch files.
-    void preScanBatchFiles();
-    /// Launches processing for the next non-skipped batch file.
-    void processNextBatchFile();
-    /// Builds a name-to-index map for O(1) parameter lookup in the frame setup.
-    QMap<QString, int> buildParameterMap() const;
 
-    /// Applies calibration slope/scale to each enabled frame parameter.
-    bool prepareFrameSetupParameters(const CalibrationParams& cal);
-
-    /// Creates a FrameProcessor and starts it on a background thread.
-    void launchWorkerThread(const ProcessingParams& params);
-
-    /// Slot: updates m_progress_percent from the worker thread.
-    void onProgressUpdated(int percent);
-    /// Slot: handles worker completion and cleans up the thread.
-    void onProcessingFinished(bool success);
-    /// Slot: forwards a log message from the worker thread.
-    void onLogMessage(const QString& message);
-
-    Chapter10Reader* m_reader;               ///< Chapter 10 file reader instance.
-    FrameSetup* m_frame_setup;               ///< Frame parameter definitions.
-    SettingsManager* m_settings;             ///< Settings persistence manager.
-    QThread* m_worker_thread;                ///< Background processing thread.
-    FrameProcessor* m_current_processor;     ///< Pointer to active processor (for abort).
+    Chapter10Reader*        m_reader;       ///< Chapter 10 file reader instance.
+    FrameSetup*             m_frame_setup;  ///< Frame parameter definitions.
+    SettingsManager*        m_settings;     ///< Settings persistence manager.
+    ProcessingCoordinator*  m_coordinator;  ///< Owns worker thread and batch state machine.
 
     QString m_app_root;                      ///< Application root directory.
     QString m_input_filename;                ///< Path to the loaded .ch10 file.
     QString m_last_output_file;              ///< Path to the last generated CSV file.
     QString m_last_ini_dir;                  ///< Last directory used in INI file dialogs.
     bool m_file_loaded;                      ///< True when a .ch10 file is loaded.
-    int m_progress_percent;                  ///< Processing progress (0--100).
-    bool m_processing;                       ///< True while background processing is running.
 
     int m_time_channel_index;                ///< Selected time channel combo box index.
     int m_pcm_channel_index;                 ///< Selected PCM channel combo box index.
 
     bool m_extract_all_time;                 ///< True to extract full time duration.
     int m_sample_rate_index;                 ///< Selected sample rate combo box index.
-    bool m_is_randomized = false;            ///< True if RNRZ-L encoding detected by last preScan.
 
-    QString m_settings_frame_sync;                ///< Frame sync hex pattern.
-    int m_settings_polarity_idx;                  ///< Polarity combo box index (0=Positive, 1=Negative).
-    int m_settings_slope_idx;                     ///< Voltage slope combo box index.
-    QString m_settings_scale;                     ///< Calibration scale in dB per volt.
-    int m_settings_receiver_count;                ///< Number of receivers.
-    int m_settings_channels_per_rcvr;             ///< Channels per receiver.
+    QString m_settings_frame_sync;           ///< Frame sync hex pattern.
+    int m_settings_polarity_idx;             ///< Polarity combo box index (0=Positive, 1=Negative).
+    int m_settings_slope_idx;               ///< Voltage slope combo box index.
+    QString m_settings_scale;               ///< Calibration scale in dB per volt.
+    int m_settings_receiver_count;           ///< Number of receivers.
+    int m_settings_channels_per_rcvr;        ///< Channels per receiver.
 
     QVector<QVector<bool>> m_receiver_states; ///< 2D grid of receiver/channel checked states.
     QStringList m_recent_files;              ///< Most-recently-opened file paths.
 
-    /// @name Batch processing state
+    /// @name Batch state (shared with coordinator via pointer)
     /// @{
     QVector<BatchFileInfo> m_batch_files;    ///< Loaded file list for batch mode.
     bool m_batch_mode;                       ///< True when multiple files are loaded.
     QString m_batch_status_summary;          ///< Cached summary string ("N files loaded (X valid, Y skipped)").
-    int m_batch_current_index;               ///< Index of file currently being processed.
-    bool m_batch_cancelled;                  ///< True if the user cancelled batch processing.
-    QString m_batch_output_dir;              ///< User-selected output directory for batch.
-    int m_batch_success_count;               ///< Number of successfully processed files.
-    int m_batch_skip_count;                  ///< Number of skipped files.
-    int m_batch_error_count;                 ///< Number of files that failed during processing.
-
-    int m_batch_sample_rate_index = 0;       ///< Sample rate index for current batch run.
     /// @}
 };
 

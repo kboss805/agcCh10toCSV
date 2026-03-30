@@ -1,6 +1,9 @@
 /**
  * @file mainviewmodel.cpp
- * @brief Implementation of MainViewModel — state management and processing orchestration.
+ * @brief Implementation of MainViewModel — UI state, settings, and validation.
+ *
+ * Processing orchestration (worker thread lifecycle, batch sequencing) has been
+ * extracted to ProcessingCoordinator.
  */
 
 #include "mainviewmodel.h"
@@ -14,16 +17,12 @@
 #include "chapter10reader.h"
 #include "constants.h"
 #include "framesetup.h"
-#include "frameprocessor.h"
+#include "processingcoordinator.h"
 #include "settingsmanager.h"
 
 MainViewModel::MainViewModel(QObject* parent)
     : QObject(parent),
-      m_worker_thread(nullptr),
-      m_current_processor(nullptr),
       m_file_loaded(false),
-      m_progress_percent(0),
-      m_processing(false),
       m_time_channel_index(0),
       m_pcm_channel_index(0),
       m_extract_all_time(true),
@@ -34,12 +33,7 @@ MainViewModel::MainViewModel(QObject* parent)
       m_settings_scale(UIConstants::kDefaultScale),
       m_settings_receiver_count(UIConstants::kDefaultReceiverCount),
       m_settings_channels_per_rcvr(UIConstants::kDefaultChannelsPerReceiver),
-      m_batch_mode(false),
-      m_batch_current_index(0),
-      m_batch_cancelled(false),
-      m_batch_success_count(0),
-      m_batch_skip_count(0),
-      m_batch_error_count(0)
+      m_batch_mode(false)
 {
     QString app_dir = QCoreApplication::applicationDirPath();
     QString one_up = QDir::cleanPath(app_dir + "/..");
@@ -106,21 +100,27 @@ MainViewModel::MainViewModel(QObject* parent)
             this, &MainViewModel::errorOccurred);
     connect(m_settings, &SettingsManager::logMessage,
             this, &MainViewModel::logMessageReceived);
+
+    m_coordinator = new ProcessingCoordinator(&m_batch_files, m_frame_setup, m_reader, this);
+    connect(m_coordinator, &ProcessingCoordinator::progressChanged,
+            this, [this]() { emit progressPercentChanged(); });
+    connect(m_coordinator, &ProcessingCoordinator::processingStateChanged,
+            this, [this]() { emit processingChanged(); emit controlsEnabledChanged(); });
+    connect(m_coordinator, &ProcessingCoordinator::batchFileProcessing,
+            this, &MainViewModel::batchFileProcessing);
+    connect(m_coordinator, &ProcessingCoordinator::batchFilesUpdated,
+            this, [this]() { rebuildBatchStatusSummary(); emit batchFilesChanged(); });
+    connect(m_coordinator, &ProcessingCoordinator::processingFinished,
+            this, &MainViewModel::processingFinished);
+    connect(m_coordinator, &ProcessingCoordinator::logMessageReceived,
+            this, &MainViewModel::logMessageReceived);
+    connect(m_coordinator, &ProcessingCoordinator::errorOccurred,
+            this, &MainViewModel::errorOccurred);
 }
 
 MainViewModel::~MainViewModel()
 {
-    if (m_worker_thread != nullptr && m_worker_thread->isRunning())
-    {
-        if (m_current_processor != nullptr)
-        {
-            m_current_processor->requestAbort();
-        }
-        m_worker_thread->quit();
-        m_worker_thread->wait();
-    }
-    delete m_worker_thread;
-
+    // m_coordinator is a child QObject and is auto-deleted before these.
     delete m_reader;
     delete m_frame_setup;
     delete m_settings;
@@ -159,9 +159,9 @@ QStringList MainViewModel::pcmChannelList() const
 int MainViewModel::timeChannelIndex() const { return m_time_channel_index; }
 int MainViewModel::pcmChannelIndex() const { return m_pcm_channel_index; }
 bool MainViewModel::fileLoaded() const { return m_file_loaded; }
-int MainViewModel::progressPercent() const { return m_progress_percent; }
-bool MainViewModel::processing() const { return m_processing; }
-bool MainViewModel::controlsEnabled() const { return m_file_loaded && !m_processing; }
+int MainViewModel::progressPercent() const { return m_coordinator->progressPercent(); }
+bool MainViewModel::processing() const { return m_coordinator->processing(); }
+bool MainViewModel::controlsEnabled() const { return m_file_loaded && !m_coordinator->processing(); }
 
 bool MainViewModel::extractAllTime() const { return m_extract_all_time; }
 int MainViewModel::sampleRateIndex() const { return m_sample_rate_index; }
@@ -219,7 +219,7 @@ void MainViewModel::setPcmChannelIndex(int index)
     // already runs runPreScan() at the end of its own sequence).
     if (m_file_loaded && !m_batch_mode && old_index != 0)
     {
-        runPreScan(m_reader->getCurrentPCMChannelID());
+        m_coordinator->runPreScan(m_reader->getCurrentPCMChannelID(), m_input_filename, m_settings_frame_sync);
     }
 }
 
@@ -426,7 +426,11 @@ void MainViewModel::loadFrameSetupFrom(const QString& filename)
 
 void MainViewModel::saveFrameSetupTo(QSettings& settings)
 {
-    QMap<QString, int> param_map = buildParameterMap();
+    QMap<QString, int> param_map;
+    for (int i = 0; i < m_frame_setup->length(); i++)
+    {
+        param_map.insert(m_frame_setup->getParameter(i)->name, i);
+    }
 
     // Sync receiver states to parameter Enabled before saving
     for (int receiver_index = 0; receiver_index < m_receiver_states.size(); receiver_index++)
@@ -451,56 +455,6 @@ void MainViewModel::saveFrameSetupTo(QSettings& settings)
 ////////////////////////////////////////////////////////////////////////////////
 //                               HELPERS                                      //
 ////////////////////////////////////////////////////////////////////////////////
-
-bool MainViewModel::runPreScan(int pcm_channel_id)
-{
-    if (pcm_channel_id < 0)
-    {
-        emit logMessageReceived("Pre-scan: skipped — no PCM channel selected.");
-        return false;
-    }
-    if (m_settings_frame_sync.isEmpty() || m_frame_setup->length() == 0)
-    {
-        emit logMessageReceived("Pre-scan: skipped — frame settings not loaded.");
-        return false;
-    }
-
-    bool sync_ok = false;
-    uint64_t scan_sync = m_settings_frame_sync.toULongLong(&sync_ok, UIConstants::kHexBase);
-    if (!sync_ok)
-    {
-        return false;
-    }
-
-    int scan_sync_len = static_cast<int>(m_settings_frame_sync.length()) * 4;
-    int data_words = m_frame_setup->length();
-    int scan_words = data_words + 1;
-    int scan_bits = (data_words * PCMConstants::kCommonWordLen) + scan_sync_len;
-
-    ProcessingParams scan_params;
-    scan_params.filename = m_input_filename;
-    scan_params.pcm_channel_id = pcm_channel_id;
-    scan_params.frame_sync = scan_sync;
-    scan_params.sync_pattern_length = scan_sync_len;
-    scan_params.words_in_minor_frame = scan_words;
-    scan_params.bits_in_minor_frame = scan_bits;
-
-    FrameProcessor scanner;
-    connect(&scanner, &FrameProcessor::logMessage,
-            this, &MainViewModel::logMessageReceived);
-
-    return scanner.preScan(scan_params, m_is_randomized);
-}
-
-QMap<QString, int> MainViewModel::buildParameterMap() const
-{
-    QMap<QString, int> param_map;
-    for (int i = 0; i < m_frame_setup->length(); i++)
-    {
-        param_map.insert(m_frame_setup->getParameter(i)->name, i);
-    }
-    return param_map;
-}
 
 QString MainViewModel::channelPrefix(int index)
 {
@@ -827,38 +781,12 @@ void MainViewModel::setBatchFileTimeChannel(int fileIndex, int channelIndex)
 
 void MainViewModel::retryFailedFiles()
 {
-    if (m_processing || !m_batch_mode)
+    if (m_coordinator->processing() || !m_batch_mode)
     {
         return;
     }
-
-    // Reset only the files that failed — leave successful/skipped files untouched
-    for (BatchFileInfo& info : m_batch_files)
-    {
-        if (info.processed && !info.processedOk && !info.skip)
-        {
-            info.processed = false;
-            info.processedOk = false;
-            info.preScanOk = false;  // Force re-scan with current channel selection
-        }
-    }
-
-    m_batch_current_index = 0;
-    m_batch_cancelled = false;
-    m_batch_success_count = 0;
-    m_batch_skip_count = 0;
-    m_batch_error_count = 0;
-
-    m_processing = true;
-    m_progress_percent = 0;
-    emit processingChanged();
-    emit controlsEnabledChanged();
-    emit progressPercentChanged();
-    preScanBatchFiles();  // Re-scan reset files with current channel selection; emits batchFilesChanged()
-
-    emit logMessageReceived("--- Batch Retry: Re-processing failed files ---");
-
-    processNextBatchFile();
+    m_coordinator->retryFailedFiles(m_settings_frame_sync, m_settings_polarity_idx,
+                                    m_settings_slope_idx, m_settings_scale, m_receiver_states);
 }
 
 void MainViewModel::reorderBatchFile(int from, int to)
@@ -873,239 +801,20 @@ void MainViewModel::reorderBatchFile(int from, int to)
     emit batchFilesChanged();
 }
 
-void MainViewModel::preScanBatchFiles()
-{
-    if (!m_batch_mode)
-    {
-        return;
-    }
-
-    bool sync_ok = false;
-    uint64_t scan_sync = m_settings_frame_sync.toULongLong(&sync_ok, UIConstants::kHexBase);
-    if (!sync_ok)
-    {
-        return;
-    }
-
-    int scan_sync_len = static_cast<int>(m_settings_frame_sync.length()) * 4;
-    int data_words = m_frame_setup->length();
-    if (data_words == 0)
-    {
-        return;
-    }
-    int scan_words = data_words + 1;
-    int scan_bits = (data_words * PCMConstants::kCommonWordLen) + scan_sync_len;
-
-    for (BatchFileInfo& info : m_batch_files)
-    {
-        if (info.skip || info.processedOk)
-        {
-            continue;
-        }
-
-        int idx = info.resolvedPcmIndex;
-        if (idx < 0 || idx >= info.pcmChannelIds.size())
-        {
-            info.preScanOk = false;
-            continue;
-        }
-        int pcm_ch_id = info.pcmChannelIds[idx];
-
-        ProcessingParams scan_params;
-        scan_params.filename = info.filepath;
-        scan_params.pcm_channel_id = pcm_ch_id;
-        scan_params.frame_sync = scan_sync;
-        scan_params.sync_pattern_length = scan_sync_len;
-        scan_params.words_in_minor_frame = scan_words;
-        scan_params.bits_in_minor_frame = scan_bits;
-
-        FrameProcessor scanner;
-        connect(&scanner, &FrameProcessor::logMessage,
-                this, &MainViewModel::logMessageReceived);
-
-        info.preScanOk = scanner.preScan(scan_params, info.isRandomized);
-    }
-
-    rebuildBatchStatusSummary();
-    emit batchFilesChanged();
-}
-
 void MainViewModel::startBatchProcessing(const QString& output_dir, int sample_rate_index)
 {
-    if (m_worker_thread != nullptr && m_worker_thread->isRunning())
+    if (m_coordinator->processing())
     {
         return;
     }
-
-    m_batch_output_dir = output_dir;
-    m_batch_current_index = 0;
-    m_batch_cancelled = false;
-    m_batch_success_count = 0;
-    m_batch_skip_count = 0;
-    m_batch_error_count = 0;
 
     // Batch mode always extracts the full time range of each file
     m_extract_all_time = true;
-    m_batch_sample_rate_index = sample_rate_index;
 
-    // Run pre-scan now (deferred from channel selection for batch mode)
-    preScanBatchFiles();
-
-    m_processing = true;
-    m_progress_percent = 0;
-    emit processingChanged();
-    emit controlsEnabledChanged();
-    emit progressPercentChanged();
-
-    emit logMessageReceived("--- Batch Processing: " +
-        QString::number(batchValidCount()) + " of " +
-        QString::number(m_batch_files.size()) + " files ---");
-
-    processNextBatchFile();
-}
-
-void MainViewModel::processNextBatchFile()
-{
-    while (m_batch_current_index < m_batch_files.size())
-    {
-        if (m_batch_cancelled)
-        {
-            emit logMessageReceived("Batch cancelled by user. Remaining files skipped.");
-            break;
-        }
-
-        BatchFileInfo& info = m_batch_files[m_batch_current_index];
-
-        if (info.skip)
-        {
-            emit logMessageReceived("  Skipping: " + info.filename + " (" + info.skipReason + ")");
-            m_batch_skip_count++;
-            m_batch_current_index++;
-            continue;
-        }
-
-        // Already succeeded in a previous run — count it and move on (retry support)
-        if (info.processed && info.processedOk)
-        {
-            m_batch_success_count++;
-            m_batch_current_index++;
-            continue;
-        }
-
-        if (!info.preScanOk)
-        {
-            info.processed = true;
-            info.processedOk = false;
-            m_batch_error_count++;
-            emit logMessageReceived("  ERROR: Pre-scan failed (no frame sync) for " + info.filename + " — file skipped.");
-            m_batch_current_index++;
-            continue;
-        }
-
-        emit batchFileProcessing(m_batch_current_index, static_cast<int>(m_batch_files.size()));
-        emit logMessageReceived("--- Processing file " +
-            QString::number(m_batch_current_index + 1) + " of " +
-            QString::number(m_batch_files.size()) + ": " + info.filename + " ---");
-
-        m_reader->clearSettings();
-        if (!m_reader->loadChannels(info.filepath))
-        {
-            info.processed = true;
-            info.processedOk = false;
-            m_batch_error_count++;
-            emit logMessageReceived("  ERROR: Could not load " + info.filename);
-            m_batch_current_index++;
-            continue;
-        }
-
-        int pcm_idx = info.resolvedPcmIndex;
-        int time_idx = info.resolvedTimeIndex;
-
-        if (pcm_idx < 0 || time_idx < 0)
-        {
-            info.processed = true;
-            info.processedOk = false;
-            m_batch_error_count++;
-            emit logMessageReceived("  ERROR: Channel resolution failed for " + info.filename);
-            m_batch_current_index++;
-            continue;
-        }
-
-        m_reader->pcmChannelChanged(pcm_idx + 1);
-        m_reader->timeChannelChanged(time_idx + 1);
-
-        ProcessingParams params;
-        params.filename = info.filepath;
-        params.time_channel_id = m_reader->getCurrentTimeChannelID();
-        params.pcm_channel_id = m_reader->getCurrentPCMChannelID();
-
-        bool frame_sync_ok = false;
-        params.frame_sync = m_settings_frame_sync.toULongLong(&frame_sync_ok, UIConstants::kHexBase);
-        params.sync_pattern_length = static_cast<int>(m_settings_frame_sync.length()) * 4;
-        int data_words = m_frame_setup->length();
-        params.words_in_minor_frame = data_words + 1;
-        params.bits_in_minor_frame = (data_words * PCMConstants::kCommonWordLen) + params.sync_pattern_length;
-
-        double scale_dB_per_V = m_settings_scale.toDouble();
-        int scale_index = m_settings_slope_idx;
-        double voltage_lower = UIConstants::kSlopeVoltageLower[scale_index];
-        double voltage_upper = UIConstants::kSlopeVoltageUpper[scale_index];
-        params.calibration.scale_lower_bound = voltage_lower * scale_dB_per_V;
-        params.calibration.scale_upper_bound = voltage_upper * scale_dB_per_V;
-        params.calibration.negative_polarity = (m_settings_polarity_idx == 1);
-
-        // Batch mode always uses each file's full time range
-        params.start_seconds = m_reader->dhmsToUInt64(
-            m_reader->getStartDayOfYear(), m_reader->getStartHour(),
-            m_reader->getStartMinute(), m_reader->getStartSecond());
-        params.stop_seconds = m_reader->dhmsToUInt64(
-            m_reader->getStopDayOfYear(), m_reader->getStopHour(),
-            m_reader->getStopMinute(), m_reader->getStopSecond());
-
-        switch (m_batch_sample_rate_index)
-        {
-            case 0: params.sample_rate = UIConstants::kSampleRate1Hz; break;
-            case 1: params.sample_rate = UIConstants::kSampleRate10Hz; break;
-            case 2: params.sample_rate = UIConstants::kSampleRate100Hz; break;
-            default: params.sample_rate = UIConstants::kSampleRate1Hz; break;
-        }
-
-        params.outfile = m_batch_output_dir + "/" +
-            UIConstants::kBatchOutputPrefix + QFileInfo(info.filepath).baseName() +
-            UIConstants::kOutputExtension;
-        info.outputFile = params.outfile;
-        params.is_randomized = info.isRandomized;
-
-        if (!prepareFrameSetupParameters(params.calibration))
-        {
-            info.processed = true;
-            info.processedOk = false;
-            m_batch_error_count++;
-            emit logMessageReceived("  ERROR: No receivers selected for " + info.filename);
-            m_batch_current_index++;
-            continue;
-        }
-
-        launchWorkerThread(params);
-        return;
-    }
-
-    m_processing = false;
-    m_progress_percent = UIConstants::kProgressBarMax;
-    emit progressPercentChanged();
-    emit processingChanged();
-    emit controlsEnabledChanged();
-
-    emit logMessageReceived("--- Batch Complete ---");
-    emit logMessageReceived("  Success: " + QString::number(m_batch_success_count) +
-        ", Skipped: " + QString::number(m_batch_skip_count) +
-        ", Errors: " + QString::number(m_batch_error_count) +
-        " / Total: " + QString::number(m_batch_files.size()));
-
-    rebuildBatchStatusSummary();
-    emit batchFilesChanged();
-    emit processingFinished(m_batch_error_count == 0 && m_batch_success_count > 0,
-                            m_batch_output_dir);
+    m_coordinator->startBatchProcessing(output_dir, sample_rate_index,
+                                        m_settings_frame_sync, m_settings_polarity_idx,
+                                        m_settings_slope_idx, m_settings_scale,
+                                        m_receiver_states);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1195,7 +904,7 @@ void MainViewModel::openFile(const QString& filename)
     emit fileTimesChanged();
     emit fileLoadedChanged();
 
-    runPreScan(m_reader->getCurrentPCMChannelID());
+    m_coordinator->runPreScan(m_reader->getCurrentPCMChannelID(), m_input_filename, m_settings_frame_sync);
 }
 
 void MainViewModel::startProcessing(const QString& output_file,
@@ -1209,20 +918,12 @@ void MainViewModel::startProcessing(const QString& output_file,
         return;
     }
 
-    if (!prepareFrameSetupParameters(params.calibration))
+    if (m_coordinator->processing())
     {
-        emit errorOccurred("No receivers selected.");
         return;
     }
 
     params.outfile = output_file;
-    m_last_output_file = output_file;
-
-    // Guard against re-entry
-    if (m_worker_thread != nullptr && m_worker_thread->isRunning())
-    {
-        return;
-    }
 
     // Log pre-process summary
     emit logMessageReceived("--- Processing Summary ---");
@@ -1256,19 +957,15 @@ void MainViewModel::startProcessing(const QString& output_file,
         QString::number(m_settings_receiver_count * m_settings_channels_per_rcvr) + " enabled");
     emit logMessageReceived("  Output: " + params.outfile);
 
-    if (!runPreScan(params.pcm_channel_id))
+    if (!m_coordinator->runPreScan(params.pcm_channel_id, params.filename, m_settings_frame_sync))
     {
         emit errorOccurred("Pre-scan failed: no frame sync found. Processing aborted.");
         return;
     }
 
-    m_processing = true;
-    m_progress_percent = 0;
-    emit processingChanged();
-    emit controlsEnabledChanged();
-    emit progressPercentChanged();
-
-    launchWorkerThread(params);
+    params.is_randomized = m_coordinator->isRandomized();
+    m_last_output_file = output_file;
+    m_coordinator->startSingleProcessing(params, m_receiver_states);
 }
 
 void MainViewModel::loadSettings(const QString& filename)
@@ -1292,20 +989,13 @@ void MainViewModel::clearState()
     m_input_filename.clear();
     m_last_output_file.clear();
     m_file_loaded = false;
-    m_progress_percent = 0;
-    m_processing = false;
     m_time_channel_index = 0;
     m_pcm_channel_index = 0;
 
     bool was_batch = m_batch_mode;
     m_batch_files.clear();
     m_batch_mode = false;
-    m_batch_current_index = 0;
-    m_batch_cancelled = false;
-    m_batch_output_dir.clear();
-    m_batch_success_count = 0;
-    m_batch_skip_count = 0;
-    m_batch_error_count = 0;
+    m_coordinator->reset();
 
     m_reader->clearSettings();
 
@@ -1326,14 +1016,7 @@ void MainViewModel::clearState()
 
 void MainViewModel::cancelProcessing()
 {
-    if (m_current_processor != nullptr)
-    {
-        m_current_processor->requestAbort();
-    }
-    if (m_batch_mode)
-    {
-        m_batch_cancelled = true;
-    }
+    m_coordinator->cancelProcessing();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1527,160 +1210,7 @@ bool MainViewModel::validateProcessingInputs(ProcessingParams& params,
             return false;
     }
 
-    params.is_randomized = m_is_randomized;
     return true;
-}
-
-bool MainViewModel::prepareFrameSetupParameters(const CalibrationParams& cal)
-{
-    bool any_enabled = false;
-
-    for (int i = 0; i < m_frame_setup->length(); i++)
-    {
-        ParameterInfo* param = m_frame_setup->getParameter(i);
-        param->slope = (cal.scale_upper_bound - cal.scale_lower_bound) / PCMConstants::kMaxRawSampleValue;
-        if (cal.negative_polarity)
-        {
-            param->slope *= -1;
-            param->scale = -cal.scale_upper_bound / (cal.scale_upper_bound - cal.scale_lower_bound) * PCMConstants::kMaxRawSampleValue;
-        }
-        else
-        {
-            param->scale = cal.scale_lower_bound / (cal.scale_upper_bound - cal.scale_lower_bound) * PCMConstants::kMaxRawSampleValue;
-        }
-        param->is_enabled = false;
-    }
-
-    // Enable only parameters that correspond to checked receivers in the grid
-    QMap<QString, int> param_map = buildParameterMap();
-
-    for (int receiver_index = 0; receiver_index < m_receiver_states.size(); receiver_index++)
-    {
-        for (int channel_index = 0;
-             channel_index < m_receiver_states[receiver_index].size();
-             channel_index++)
-        {
-            if (m_receiver_states[receiver_index][channel_index])
-            {
-                QString name = parameterName(channel_index, receiver_index);
-                auto it = param_map.constFind(name);
-                if (it != param_map.constEnd())
-                {
-                    m_frame_setup->getParameter(it.value())->is_enabled = true;
-                    any_enabled = true;
-                }
-            }
-        }
-    }
-
-    return any_enabled;
-}
-
-void MainViewModel::launchWorkerThread(const ProcessingParams& params)
-{
-    if (m_worker_thread != nullptr)
-    {
-        m_worker_thread->quit();
-        m_worker_thread->wait();
-        delete m_worker_thread;
-        m_worker_thread = nullptr;
-        m_current_processor = nullptr;
-    }
-
-    m_worker_thread = new QThread;
-
-    auto* processor = new FrameProcessor;
-    m_current_processor = processor;
-    processor->moveToThread(m_worker_thread);
-
-    connect(processor, &FrameProcessor::progressUpdated,
-            this, &MainViewModel::onProgressUpdated);
-    connect(processor, &FrameProcessor::processingFinished,
-            this, &MainViewModel::onProcessingFinished);
-    connect(processor, &FrameProcessor::logMessage,
-            this, &MainViewModel::onLogMessage);
-    connect(processor, &FrameProcessor::errorOccurred,
-            this, &MainViewModel::errorOccurred);
-
-    connect(m_worker_thread, &QThread::finished,
-            processor, &QObject::deleteLater);
-
-    connect(m_worker_thread, &QThread::started, processor, [processor, params, this]() {
-        processor->process(params, m_frame_setup);
-    });
-
-    m_worker_thread->start();
-}
-
-void MainViewModel::onProgressUpdated(int percent)
-{
-    if (m_batch_mode)
-    {
-        int total = static_cast<int>(m_batch_files.size());
-        if (total > 0)
-        {
-            m_progress_percent = ((m_batch_current_index * UIConstants::kProgressBarMax) + percent) / total;
-        }
-    }
-    else
-    {
-        m_progress_percent = percent;
-    }
-    emit progressPercentChanged();
-}
-
-void MainViewModel::onProcessingFinished(bool success)
-{
-    m_current_processor = nullptr;
-
-    m_worker_thread->quit();
-    m_worker_thread->wait();
-    delete m_worker_thread;
-    m_worker_thread = nullptr;
-
-    if (m_batch_mode)
-    {
-        BatchFileInfo& info = m_batch_files[m_batch_current_index];
-        info.processed = true;
-        info.processedOk = success;
-
-        if (success)
-        {
-            m_batch_success_count++;
-            emit logMessageReceived("  Completed: " + info.filename + " -> " + info.outputFile);
-        }
-        else
-        {
-            m_batch_error_count++;
-            emit logMessageReceived("  ERROR: Processing failed for " + info.filename);
-        }
-
-        m_batch_current_index++;
-
-        int file_progress = (m_batch_current_index * UIConstants::kProgressBarMax) / static_cast<int>(m_batch_files.size());
-        m_progress_percent = file_progress;
-        emit progressPercentChanged();
-
-        processNextBatchFile();
-    }
-    else
-    {
-        if (success)
-        {
-            m_progress_percent = UIConstants::kProgressBarMax;
-        }
-
-        m_processing = false;
-        emit progressPercentChanged();
-        emit processingChanged();
-        emit controlsEnabledChanged();
-        emit processingFinished(success, m_last_output_file);
-    }
-}
-
-void MainViewModel::onLogMessage(const QString& message)
-{
-    emit logMessageReceived(message);
 }
 
 #ifdef QT_TESTLIB_LIB

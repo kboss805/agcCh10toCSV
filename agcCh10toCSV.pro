@@ -26,6 +26,7 @@ SOURCES += \
     src/framesetup.cpp \
     src/main.cpp \
     src/mainviewmodel.cpp \
+    src/processingcoordinator.cpp \
     src/mainview.cpp \
     src/receivergridwidget.cpp \
     src/settingsdialog.cpp \
@@ -55,6 +56,7 @@ HEADERS += \
     include/constants.h \
     include/framesetup.h \
     include/mainviewmodel.h \
+    include/processingcoordinator.h \
     include/mainview.h \
     include/receivergridwidget.h \
     include/frameprocessor.h \

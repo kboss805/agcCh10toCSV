@@ -14,6 +14,7 @@
 #include "tst_mainviewmodel_state.h"
 #include "tst_plotviewmodel.h"
 #include "tst_receivergridwidget.h"
+#include "tst_processingcoordinator.h"
 #include "tst_settingsdialog.h"
 #include "tst_settingsmanager.h"
 #include "tst_timeextractionwidget.h"
@@ -95,6 +96,7 @@ int main(int argc, char* argv[])
     status |= runSuite<TestPlotViewModel>(log_path);
     status |= runSuite<TestTimeExtractionWidget>(log_path);
     status |= runSuite<TestReceiverGridWidget>(log_path);
+    status |= runSuite<TestProcessingCoordinator>(log_path);
 
     return status;
 }

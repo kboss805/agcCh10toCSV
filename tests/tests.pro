@@ -21,6 +21,7 @@ SOURCES += \
     $$PWD/../src/chapter10reader.cpp \
     $$PWD/../src/framesetup.cpp \
     $$PWD/../src/mainviewmodel.cpp \
+    $$PWD/../src/processingcoordinator.cpp \
     $$PWD/../src/mainview.cpp \
     $$PWD/../src/receivergridwidget.cpp \
     $$PWD/../src/settingsdialog.cpp \
@@ -38,6 +39,7 @@ HEADERS += \
     $$PWD/../include/constants.h \
     $$PWD/../include/framesetup.h \
     $$PWD/../include/mainviewmodel.h \
+    $$PWD/../include/processingcoordinator.h \
     $$PWD/../include/mainview.h \
     $$PWD/../include/receivergridwidget.h \
     $$PWD/../include/frameprocessor.h \
@@ -102,7 +104,8 @@ SOURCES += \
     tst_plotviewmodel.cpp \
     tst_frameprocessor.cpp \
     tst_timeextractionwidget.cpp \
-    tst_receivergridwidget.cpp
+    tst_receivergridwidget.cpp \
+    tst_processingcoordinator.cpp
 
 # Test headers (needed for MOC processing)
 HEADERS += \
@@ -118,4 +121,5 @@ HEADERS += \
     tst_settingsmanager.h \
     tst_frameprocessor.h \
     tst_timeextractionwidget.h \
-    tst_receivergridwidget.h
+    tst_receivergridwidget.h \
+    tst_processingcoordinator.h
