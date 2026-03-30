@@ -21,9 +21,9 @@ These procedures cover functional areas that cannot be fully exercised by automa
 |------|--------|-----------------|
 | 1 | Launch `agcCh10toCSV.exe` | Window opens; no crash; no error dialogs |
 | 2 | Observe the log window | Startup log entries appear: default.ini values (FrameSync, Polarity, Slope, Scale, receiver/channel counts) |
-| 3 | Observe the settings summary panel | Displays current Sync, Polarity, Slope, Scale, and Receivers values from default.ini |
+| 3 | Observe the log window | Displays current Sync, Polarity, Slope, Scale, and Receivers values from default.ini |
 | 4 | Observe the status bar | Shows a default/empty file summary (no file loaded) |
-| 5 | Observe the Advanced section | The collapsible "▶ Receivers" and "▶ Time Controls" sections are collapsed by default; the receiver grid is not visible until expanded |
+| 5 | Observe the collapsible sections | The "▶ Receivers" and "▶ Time Controls" sections are collapsed by default; the receiver grid is not visible until expanded |
 
 **Pass criteria**: Log shows startup info; no errors or warnings at startup.
 
@@ -202,7 +202,7 @@ These procedures cover functional areas that cannot be fully exercised by automa
 | 2 | Change Frame Sync to an invalid hex string (e.g., "GGGG1234") — do not click OK yet | Frame Sync field border turns red immediately; inline red error message appears below the field; OK button becomes disabled |
 | 3 | Clear the Frame Sync field entirely | Same red border and inline error; OK button remains disabled |
 | 4 | Type a valid hex value (e.g., "ABCD1234") | Red border clears; error message disappears; OK button re-enables |
-| 5 | Click OK | Dialog closes; log window shows "Settings applied:" with the new FrameSync value |
+| 5 | Click OK | Dialog closes; log window shows "Settings applied:" with the new FrameSync value; note that clicking "Save As..." logs "Settings saved:" instead |
 | 6 | Reopen Settings; change Frame Sync to an invalid value; click Cancel | Log shows no new "Settings applied:" entry; Settings dialog on next open reflects the previously accepted value |
 
 **Pass criteria**: Red border and error label appear immediately on invalid input without needing to click OK; OK button is disabled while any field is invalid and re-enables when all fields are valid; cancel does not modify settings.
@@ -254,7 +254,7 @@ These procedures cover functional areas that cannot be fully exercised by automa
 | 1 | Set Polarity to Positive, Slope to ±5V, Scale to 80, Receivers to 8, Channels to 3; click OK | Log appends "Settings applied:" with all new values |
 | 2 | Open Settings; click "Save As"; save as `test_settings.ini` | Log appends "Settings saved:" with all values listed |
 | 3 | Change settings to different values (e.g., Polarity Negative, Slope 0-10V); click OK | Log appends new "Settings applied:" entry with changed values |
-| 4 | Click "Load" and select `test_settings.ini` | Log appends "Loading settings:" followed by all loaded values (Sync, Polarity, Slope, Scale, Receivers, Channels) |
+| 4 | Click "Load..." and select `test_settings.ini` | Log appends "Loading settings:" followed by all loaded values (Sync, Polarity, Slope, Scale, Receivers, Channels) |
 | 5 | Reopen Settings dialog | Fields match the values saved in step 1 |
 
 **Pass criteria**: All field values survive a save/load round-trip; log messages confirm each applied and loaded value.
@@ -302,10 +302,10 @@ These procedures cover functional areas that cannot be fully exercised by automa
 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
-| 1 | Launch in default (light) theme | All UI elements use light palette |
-| 2 | Toggle to dark theme via View or toolbar | Background, text, dropdowns, spinboxes, and log window switch to dark palette |
-| 3 | Open a file and process | Plot window (if shown) adopts dark chart background |
-| 4 | Toggle back to light | All elements revert |
+| 1 | Launch in default (dark) theme | All UI elements use dark palette |
+| 2 | Toggle to light theme via File > "Switch to Light Theme" | Background, text, dropdowns, spinboxes, and log window switch to light palette |
+| 3 | Open a file and process | Plot window (if shown) adopts light chart background |
+| 4 | Toggle back to dark via File > "Switch to Dark Theme" | All elements revert to dark palette |
 | 5 | Close and relaunch | Last-used theme is restored |
 
 **Pass criteria**: All widgets (buttons, combos, spinboxes, QComboBox chevrons, plot) render correctly in both themes.
@@ -340,7 +340,6 @@ These procedures cover functional areas that cannot be fully exercised by automa
 | 9 | Recheck it | Series reappears |
 | 10 | Hover mouse over a data point on the chart | Tooltip shows series name, time (DDD:HH:MM:SS), and amplitude in dB |
 | 11 | Move mouse away from data points | Tooltip disappears |
-| 12 | Press Ctrl+E with the plot area focused | Legend toggles between Expand All and Collapse All |
 
 ### MT-09c: PDF Export
 
@@ -357,7 +356,7 @@ These procedures cover functional areas that cannot be fully exercised by automa
 |------|--------|-----------------|
 | 1 | With data loaded, zoom to a sub-range using X Start/Stop | Chart shows only the zoomed time window |
 | 2 | Click Copy Data | Log shows "Copied N rows to clipboard." |
-| 3 | Paste into Excel or a text editor | Tab-separated table with Time column and one column per visible series; rows match the zoomed range |
+| 3 | Paste into Excel or a text editor | Comma-separated table with Time column and one column per visible series; rows match the zoomed range |
 | 4 | Uncheck some series in the legend, then click Copy Data again | Unchecked series are absent from the pasted table |
 
 **Pass criteria**: Plot renders correctly; all interactive controls work; PDF output is correct; clipboard export matches visible data.
@@ -384,14 +383,52 @@ These procedures cover functional areas that cannot be fully exercised by automa
 | 10 | Select a file from the dropdown and click OK | Plot panel loads the selected CSV and displays AGC traces |
 | 11 | Dismiss the dialog with Cancel | Plot is not loaded; application returns to normal state |
 
-### MT-10b: Cancel Batch
+### MT-10b: Drag-and-Drop File Reorder
+
+**Purpose**: Verify that batch files can be reordered by drag-and-drop before processing, and that processing uses the new order.
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 1 | Open at least three .ch10 files (File > Open, multi-select) | File list shows files in the order they were selected |
+| 2 | Note the current file order (e.g., A, B, C top to bottom) | |
+| 3 | Click and hold the bottom file item; drag it to the top of the list and release | File list immediately reflects new order (e.g., C, A, B); no combo widgets are lost |
+| 4 | Drag the middle file to the bottom | Order updates again correctly |
+| 5 | Click Process, select output directory, and let batch complete | Output CSVs are created for all files; no order-related errors |
+| 6 | Verify log messages | Log lists files in the reordered sequence |
+
+**Pass criteria**: Files reorder visually on drop; combo widgets (Time/PCM channels) remain intact after reorder; batch processes files in the new order.
+
+---
+
+### MT-10c: Retry Failed Files
+
+**Purpose**: Verify that the Retry Failed button re-processes only files that errored, without re-running files that succeeded.
+
+**Setup**: Before loading files, change Settings > Frame Sync to an incorrect value (e.g., `FFFFFFFF`) so pre-scan will fail for all files.
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 1 | Load two .ch10 files into batch | Both files appear in the file list |
+| 2 | Click Process and select an output directory | Batch runs; both files fail pre-scan; file list shows both in red (ERROR); log shows "Pre-scan failed" for each |
+| 3 | Observe the toolbar | An orange circular-arrow "Retry Failed" button is now visible |
+| 4 | Open Settings; restore the correct Frame Sync value; click OK | Settings updated |
+| 5 | Click Retry Failed in the toolbar | Batch re-runs; log shows "--- Batch Retry: Re-processing failed files ---" |
+| 6 | Wait for completion | Both files process successfully; file list shows green; Retry button disappears |
+| 7 | Load a fresh batch; process the first file only partway (cancel mid-batch) | First file succeeds (green), remaining files are unprocessed |
+| 8 | Click Retry Failed | Only the unprocessed/failed files run; the already-green file is not re-processed |
+
+**Pass criteria**: Retry button appears only when at least one file has ERROR status; retry re-runs only failed files; already-successful files are skipped; Retry button disappears after a clean retry run.
+
+---
+
+### MT-10d: Cancel Batch
 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
 | 1 | Start batch processing | Cancel button becomes visible in toolbar |
 | 2 | Click Cancel | Processing stops after current file finishes; log shows cancellation summary |
 
-### MT-10c: Batch with Invalid File
+### MT-10e: Batch with Invalid File
 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
@@ -410,8 +447,9 @@ These procedures cover functional areas that cannot be fully exercised by automa
 |----------|-----------------|
 | Ctrl+O | Opens file dialog (single file mode) |
 | Ctrl+R | Starts processing (if inputs are valid) |
+| Ctrl+E | Expands all receivers in the plot legend (press again to collapse all) |
 
-**Pass criteria**: Both shortcuts trigger their actions from any focus state.
+**Pass criteria**: All shortcuts trigger their actions from any focus state.
 
 ---
 

@@ -5,6 +5,7 @@
 
 #include "plotviewmodel.h"
 
+#include <QtConcurrent/QtConcurrent>
 #include <QtMath>
 
 #include <QFile>
@@ -19,12 +20,18 @@ PlotViewModel::PlotViewModel(QObject* parent)
 {
 }
 
-bool PlotViewModel::loadCsvFile(const QString& filepath)
+// ---------------------------------------------------------------------------
+// Static parse helpers
+// ---------------------------------------------------------------------------
+
+CsvParseResult PlotViewModel::parseCsvData(const QString& filepath)
 {
+    CsvParseResult result;
+
     QFile file(filepath);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
     {
-        return false;
+        return result;
     }
 
     QTextStream stream(&file);
@@ -33,13 +40,13 @@ bool PlotViewModel::loadCsvFile(const QString& filepath)
     QString header_line = stream.readLine();
     if (header_line.isEmpty())
     {
-        return false;
+        return result;
     }
 
     QStringList columns = header_line.split(',');
     if (columns.size() < 3)
     {
-        return false;
+        return result;
     }
 
     // Build series list from columns 2..N (skip Day, Time)
@@ -79,8 +86,8 @@ bool PlotViewModel::loadCsvFile(const QString& filepath)
         series[i].yValues.reserve(estimated_rows);
     }
 
-    // Parse data rows
-    parseCsvDataRows(stream, param_count, series);
+    // Parse data rows (writes base_day / base_time_offset into result directly)
+    parseCsvDataRows(stream, param_count, series, result.baseDay, result.baseTimeOffset);
 
     file.close();
 
@@ -97,32 +104,28 @@ bool PlotViewModel::loadCsvFile(const QString& filepath)
 
     if (!has_any_data)
     {
-        return false;
+        return result;
     }
 
-    m_series = std::move(series);
-
-    // Compute X range from data
-    m_x_min = 0.0;
-    m_x_max = 0.0;
-    for (const auto& s : m_series)
+    // Compute xMax from data (cheap here while data is hot)
+    double x_max = 0.0;
+    for (const auto& s : series)
     {
-        if (!s.xValues.isEmpty() && s.xValues.last() > m_x_max)
+        if (!s.xValues.isEmpty() && s.xValues.last() > x_max)
         {
-            m_x_max = s.xValues.last();
+            x_max = s.xValues.last();
         }
     }
-    m_x_view_min = m_x_min;
-    m_x_view_max = m_x_max;
 
-    assignColors();
-    computeYRange();
-
-    emit dataChanged();
-    return true;
+    result.series  = std::move(series);
+    result.xMax    = x_max;
+    result.success = true;
+    return result;
 }
 
-void PlotViewModel::parseCsvDataRows(QTextStream& stream, int param_count, QVector<PlotSeriesData>& series)
+void PlotViewModel::parseCsvDataRows(QTextStream& stream, int param_count,
+                                     QVector<PlotSeriesData>& series,
+                                     int& out_base_day, double& out_base_time_offset)
 {
     double first_time = -1.0;
     int first_day = 0;
@@ -147,10 +150,10 @@ void PlotViewModel::parseCsvDataRows(QTextStream& stream, int param_count, QVect
         // Convert DOY + time to elapsed seconds from first sample
         if (first_time < 0.0)
         {
-            first_day = day;
-            first_time = time_seconds;
-            m_base_day = day;
-            m_base_time_offset = time_seconds;
+            first_day         = day;
+            first_time        = time_seconds;
+            out_base_day      = day;
+            out_base_time_offset = time_seconds;
         }
 
         double elapsed = ((day - first_day) * UIConstants::kSecondsPerDay)
@@ -171,6 +174,78 @@ void PlotViewModel::parseCsvDataRows(QTextStream& stream, int param_count, QVect
     }
 }
 
+// ---------------------------------------------------------------------------
+// Commit helper — shared by loadCsvFile and onParseFinished
+// ---------------------------------------------------------------------------
+
+void PlotViewModel::commitParseResult(CsvParseResult&& result)
+{
+    m_series            = std::move(result.series);
+    m_base_day          = result.baseDay;
+    m_base_time_offset  = result.baseTimeOffset;
+    m_x_min             = 0.0;
+    m_x_max             = result.xMax;
+    m_x_view_min        = m_x_min;
+    m_x_view_max        = m_x_max;
+
+    assignColors();
+    computeYRange();
+
+    emit dataChanged();
+}
+
+// ---------------------------------------------------------------------------
+// Public data loading API
+// ---------------------------------------------------------------------------
+
+bool PlotViewModel::loadCsvFile(const QString& filepath)
+{
+    CsvParseResult result = parseCsvData(filepath);
+    if (!result.success)
+    {
+        return false;
+    }
+    commitParseResult(std::move(result));
+    return true;
+}
+
+void PlotViewModel::loadCsvFileAsync(const QString& filepath)
+{
+    if (m_loading)
+    {
+        return;  // drop concurrent requests
+    }
+    m_loading = true;
+    emit loadStarted();
+
+    if (m_parse_watcher == nullptr)
+    {
+        m_parse_watcher = new QFutureWatcher<CsvParseResult>(this);
+        connect(m_parse_watcher, &QFutureWatcher<CsvParseResult>::finished,
+                this, &PlotViewModel::onParseFinished);
+    }
+
+    m_parse_watcher->setFuture(QtConcurrent::run(&PlotViewModel::parseCsvData, filepath));
+}
+
+void PlotViewModel::onParseFinished()
+{
+    CsvParseResult result = m_parse_watcher->result();
+    m_loading = false;
+
+    if (!result.success)
+    {
+        emit loadFailed();
+        return;
+    }
+
+    commitParseResult(std::move(result));
+}
+
+// ---------------------------------------------------------------------------
+// clearData
+// ---------------------------------------------------------------------------
+
 void PlotViewModel::clearData()
 {
     m_series.clear();
@@ -184,9 +259,18 @@ void PlotViewModel::clearData()
     emit dataChanged();
 }
 
+// ---------------------------------------------------------------------------
+// Accessors
+// ---------------------------------------------------------------------------
+
 bool PlotViewModel::hasData() const
 {
     return !m_series.isEmpty();
+}
+
+bool PlotViewModel::isLoading() const
+{
+    return m_loading;
 }
 
 int PlotViewModel::seriesCount() const
@@ -253,6 +337,10 @@ double PlotViewModel::xViewMax() const
 {
     return m_x_view_max;
 }
+
+// ---------------------------------------------------------------------------
+// Mutators
+// ---------------------------------------------------------------------------
 
 void PlotViewModel::setSeriesVisible(int index, bool visible)
 {
@@ -327,6 +415,10 @@ void PlotViewModel::resetYRange()
     computeYRange();
     emit axisRangeChanged();
 }
+
+// ---------------------------------------------------------------------------
+// Private helpers
+// ---------------------------------------------------------------------------
 
 void PlotViewModel::assignColors()
 {

@@ -6,6 +6,7 @@
 #include "tst_receivergridwidget.h"
 
 #include <QSignalSpy>
+#include <QTreeWidget>
 #include <QtTest>
 
 #include "constants.h"
@@ -123,4 +124,36 @@ void TestReceiverGridWidget::rebuildWithOneReceiver()
     widget.rebuild(1, 3, testChannelPrefix, allChecked);
     // Should work with a single receiver
     QVERIFY(true);
+}
+
+void TestReceiverGridWidget::receiverCheckedSignalEmittedOnCheckboxToggle()
+{
+    ReceiverGridWidget widget;
+    widget.rebuild(2, 3, testChannelPrefix, allChecked);
+
+    QSignalSpy spy(&widget, &ReceiverGridWidget::receiverChecked);
+
+    // Find the first QTreeWidget and toggle a channel item
+    const QList<QTreeWidget*> trees = widget.findChildren<QTreeWidget*>();
+    if (trees.isEmpty())
+        QSKIP("No QTreeWidget found in ReceiverGridWidget");
+
+    QTreeWidget* tree = trees.first();
+    if (tree->topLevelItemCount() == 0)
+        QSKIP("Tree has no receiver items");
+
+    QTreeWidgetItem* receiver_item = tree->topLevelItem(0);
+    if (receiver_item->childCount() == 0)
+        QSKIP("Receiver item has no channel children");
+
+    // Expand the receiver so child items are accessible, then uncheck channel 0
+    tree->expandItem(receiver_item);
+    QTreeWidgetItem* channel_item = receiver_item->child(0);
+    channel_item->setCheckState(0, Qt::Unchecked);
+
+    QVERIFY2(!spy.isEmpty(), "receiverChecked signal should be emitted when a channel checkbox is toggled");
+    QList<QVariant> args = spy.takeFirst();
+    QCOMPARE(args.at(0).toInt(), 0);  // receiver_index = 0
+    QCOMPARE(args.at(1).toInt(), 0);  // channel_index = 0
+    QCOMPARE(args.at(2).toBool(), false);
 }

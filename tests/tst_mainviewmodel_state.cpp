@@ -26,8 +26,8 @@ void TestMainViewModelState::constructorDefaults()
     QCOMPARE(vm.processing(), false);
     QCOMPARE(vm.progressPercent(), 0);
     QCOMPARE(vm.extractAllTime(), true);
-    QCOMPARE(vm.sampleRateIndex(), 0);
-    QCOMPARE(vm.polarityIndex(), 0);
+    QCOMPARE(vm.sampleRateIndex(), UIConstants::kDefaultSampleRateIndex);
+    QCOMPARE(vm.polarityIndex(), UIConstants::kDefaultPolarityIndex);
     QCOMPARE(vm.slopeIndex(), UIConstants::kDefaultSlopeIndex);
     QCOMPARE(vm.scale(), QString(UIConstants::kDefaultScale));
     QCOMPARE(vm.receiverCount(), UIConstants::kDefaultReceiverCount);
@@ -74,7 +74,7 @@ void TestMainViewModelState::setSampleRateIndexNoOpWhenUnchanged()
     MainViewModel vm;
     QSignalSpy spy(&vm, &MainViewModel::sampleRateIndexChanged);
 
-    vm.setSampleRateIndex(0); // default is 0
+    vm.setSampleRateIndex(UIConstants::kDefaultSampleRateIndex); // default is kDefaultSampleRateIndex
 
     QCOMPARE(spy.count(), 0);
 }
@@ -106,10 +106,10 @@ void TestMainViewModelState::setPolarityIndexEmitsSignal()
     MainViewModel vm;
     QSignalSpy spy(&vm, &MainViewModel::settingsChanged);
 
-    vm.setPolarityIndex(1);
+    vm.setPolarityIndex(0); // default is kDefaultPolarityIndex (1), so 0 triggers a change
 
     QCOMPARE(spy.count(), 1);
-    QCOMPARE(vm.polarityIndex(), 1);
+    QCOMPARE(vm.polarityIndex(), 0);
 }
 
 void TestMainViewModelState::setSlopeIndexEmitsSignal()
@@ -445,43 +445,36 @@ void TestMainViewModelState::loadFrameSetupSmallConfigAcceptsParams()
 
 void TestMainViewModelState::validateTimeFieldsValidInput()
 {
-    int ddd = 0, hh = 0, mm = 0, ss = 0;
-    bool ok = MainViewModel::validateTimeFields("45", "10", "30", "15",
-                                                ddd, hh, mm, ss);
+    TimeFields tf;
+    bool ok = MainViewModel::validateTimeFields("45", "10", "30", "15", tf);
     QVERIFY2(ok, "Valid time fields should return true");
-    QCOMPARE(ddd, 45);
-    QCOMPARE(hh, 10);
-    QCOMPARE(mm, 30);
-    QCOMPARE(ss, 15);
+    QCOMPARE(tf.ddd, 45);
+    QCOMPARE(tf.hh, 10);
+    QCOMPARE(tf.mm, 30);
+    QCOMPARE(tf.ss, 15);
 }
 
 void TestMainViewModelState::validateTimeFieldsInvalidDayText()
 {
-    int ddd = 0, hh = 0, mm = 0, ss = 0;
-    bool ok = MainViewModel::validateTimeFields("xyz", "10", "30", "15",
-                                                ddd, hh, mm, ss);
+    TimeFields tf;
+    bool ok = MainViewModel::validateTimeFields("xyz", "10", "30", "15", tf);
     QVERIFY2(!ok, "Non-numeric day string should return false");
 }
 
 void TestMainViewModelState::validateTimeFieldsOutOfRangeBounds()
 {
-    int ddd = 0, hh = 0, mm = 0, ss = 0;
+    TimeFields tf;
 
     // Day out of range: below minimum (0 < kMinDayOfYear = 1)
-    QVERIFY(!MainViewModel::validateTimeFields("0", "10", "30", "15",
-                                               ddd, hh, mm, ss));
+    QVERIFY(!MainViewModel::validateTimeFields("0", "10", "30", "15", tf));
     // Day out of range: above maximum (> kMaxDayOfYear = 366)
-    QVERIFY(!MainViewModel::validateTimeFields("367", "10", "30", "15",
-                                               ddd, hh, mm, ss));
+    QVERIFY(!MainViewModel::validateTimeFields("367", "10", "30", "15", tf));
     // Hour out of range
-    QVERIFY(!MainViewModel::validateTimeFields("45", "24", "30", "15",
-                                               ddd, hh, mm, ss));
+    QVERIFY(!MainViewModel::validateTimeFields("45", "24", "30", "15", tf));
     // Minute out of range
-    QVERIFY(!MainViewModel::validateTimeFields("45", "10", "60", "15",
-                                               ddd, hh, mm, ss));
+    QVERIFY(!MainViewModel::validateTimeFields("45", "10", "60", "15", tf));
     // Second out of range
-    QVERIFY(!MainViewModel::validateTimeFields("45", "10", "30", "60",
-                                               ddd, hh, mm, ss));
+    QVERIFY(!MainViewModel::validateTimeFields("45", "10", "30", "60", tf));
 }
 
 void TestMainViewModelState::validateTimeRangeValidRange()
@@ -512,6 +505,35 @@ void TestMainViewModelState::validateTimeRangeBadFormat()
     QVERIFY2(!err.isEmpty(), "Non-DDD:HH:MM:SS format should return an error message");
 }
 
+void TestMainViewModelState::startProcessingErrorIfNoReceiversSelected()
+{
+    // Verify that startProcessing emits errorOccurred when all receivers are unchecked.
+    const QString filepath = mvmTestDataPath("nrz-l_testfile.ch10");
+    if (!QFileInfo::exists(filepath))
+        QSKIP("nrz-l_testfile.ch10 not available");
+
+    MainViewModel vm;
+    vm.openFile(filepath);
+    if (!vm.fileLoaded())
+        QSKIP("Could not load nrz-l_testfile.ch10");
+
+    vm.setAllReceiversChecked(false);
+
+    QSignalSpy error_spy(&vm, &MainViewModel::errorOccurred);
+
+    QString start_time = QString("%1:%2:%3:%4")
+        .arg(vm.startDayOfYear()).arg(vm.startHour())
+        .arg(vm.startMinute()).arg(vm.startSecond());
+    QString stop_time = QString("%1:%2:%3:%4")
+        .arg(vm.stopDayOfYear()).arg(vm.stopHour())
+        .arg(vm.stopMinute()).arg(vm.stopSecond());
+    vm.startProcessing("output_should_not_exist.csv", start_time, stop_time, 0);
+
+    QVERIFY2(!error_spy.isEmpty(), "errorOccurred should be emitted when no receivers are selected");
+    QVERIFY2(!vm.processing(), "processing() should remain false when no receivers are selected");
+    QVERIFY2(!QFileInfo::exists("output_should_not_exist.csv"), "No output file should be created");
+}
+
 void TestMainViewModelState::startProcessingAbortedIfPreScanFails()
 {
     // Verify that startProcessing emits errorOccurred and does NOT set processing=true
@@ -530,12 +552,13 @@ void TestMainViewModelState::startProcessingAbortedIfPreScanFails()
 
     QSignalSpy error_spy(&vm, &MainViewModel::errorOccurred);
 
-    vm.startProcessing("output_should_not_exist.csv",
-                       QString::number(vm.startDayOfYear()),  QString::number(vm.startHour()),
-                       QString::number(vm.startMinute()),     QString::number(vm.startSecond()),
-                       QString::number(vm.stopDayOfYear()),   QString::number(vm.stopHour()),
-                       QString::number(vm.stopMinute()),      QString::number(vm.stopSecond()),
-                       0);
+    QString start_time = QString("%1:%2:%3:%4")
+        .arg(vm.startDayOfYear()).arg(vm.startHour())
+        .arg(vm.startMinute()).arg(vm.startSecond());
+    QString stop_time = QString("%1:%2:%3:%4")
+        .arg(vm.stopDayOfYear()).arg(vm.stopHour())
+        .arg(vm.stopMinute()).arg(vm.stopSecond());
+    vm.startProcessing("output_should_not_exist.csv", start_time, stop_time, 0);
 
     QVERIFY2(!error_spy.isEmpty(), "errorOccurred should be emitted when pre-scan finds no sync");
     QVERIFY2(!vm.processing(), "processing() should remain false when pre-scan fails");

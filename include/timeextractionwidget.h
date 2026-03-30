@@ -13,6 +13,8 @@
 #include <QLineEdit>
 #include <QSignalBlocker>
 
+#include "timefields.h"
+
 
 
 /**
@@ -40,17 +42,10 @@ public:
 
     /**
      * @brief Populates start/stop time fields from file times.
-     * @param[in] start_ddd Start day-of-year.
-     * @param[in] start_hh  Start hour.
-     * @param[in] start_mm  Start minute.
-     * @param[in] start_ss  Start second.
-     * @param[in] stop_ddd  Stop day-of-year.
-     * @param[in] stop_hh   Stop hour.
-     * @param[in] stop_mm   Stop minute.
-     * @param[in] stop_ss   Stop second.
+     * @param[in] start Start time components.
+     * @param[in] stop  Stop time components.
      */
-    void fillTimes(int start_ddd, int start_hh, int start_mm, int start_ss,
-                   int stop_ddd, int stop_hh, int stop_mm, int stop_ss);
+    void fillTimes(const TimeFields& start, const TimeFields& stop);
 
     /// Clears all start/stop time fields.
     void clearTimes();

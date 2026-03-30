@@ -13,6 +13,7 @@
 #include <QLineEdit>
 #include <QMouseEvent>
 #include <QPushButton>
+#include <QResizeEvent>
 #include <QTreeWidget>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -86,7 +87,7 @@ private slots:
     void onResetAxes();
     /// Exports the current plot to a PDF file.
     void onExportPdf();
-    /// Copies visible plot data to the clipboard as tab-separated values.
+    /// Copies visible plot data to the clipboard as comma-separated values.
     void onCopyDataToClipboard();
     /// Shows a tooltip with the nearest data point value under the cursor.
     void onPlotMouseMove(QMouseEvent* event);
@@ -105,6 +106,9 @@ private:
     void setUpLayout();
     void setUpConnections();
     void rebuildLegend();
+    /// Shows or hides the centered "Loading..." overlay over the chart.
+    void showLoadingIndicator(bool visible);
+    void resizeEvent(QResizeEvent* event) override;
 
     /// @name Legend helpers (extracted to reduce cognitive complexity)
     /// @{
@@ -150,6 +154,7 @@ private:
     QVector<QTreeWidget*> m_legend_trees;
     /// @}
 
+    QLabel* m_loading_label = nullptr; ///< Overlay label shown while CSV is parsing.
     bool m_updating_from_vm = false;  ///< Guard against signal loops.
     QColor m_title_color;              ///< Chart title text color (accent blue).
 };

@@ -127,8 +127,10 @@ private:
     QAction* m_toolbar_open_action;          ///< Toolbar open action.
     QAction* m_process_action;               ///< Toolbar process/play action.
     QAction* m_cancel_action;                ///< Toolbar cancel/stop action (visible during processing).
+    QAction* m_retry_action;                 ///< Toolbar retry-failed action (visible after batch errors).
 
     QTreeWidget* m_file_list;                 ///< File list tree with per-file channel combo boxes.
+    int m_drag_source_index = -1;             ///< File index being reordered via drag, or -1.
 
     ReceiverGridWidget* m_receiver_grid;     ///< Receiver/channel selection grid.
     TimeExtractionWidget* m_time_widget;     ///< Time extraction and sample rate controls.

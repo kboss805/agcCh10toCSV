@@ -49,7 +49,7 @@ void TestTimeExtractionWidget::fillTimesAndReadBack()
 {
     TimeExtractionWidget widget;
 
-    widget.fillTimes(45, 10, 30, 15, 120, 23, 59, 59);
+    widget.fillTimes({45, 10, 30, 15}, {120, 23, 59, 59});
 
     QString start_text = widget.startTimeText();
     QString stop_text = widget.stopTimeText();
@@ -64,7 +64,7 @@ void TestTimeExtractionWidget::fillTimesAndReadBack()
 void TestTimeExtractionWidget::clearTimesEmptiesFields()
 {
     TimeExtractionWidget widget;
-    widget.fillTimes(45, 10, 30, 15, 120, 23, 59, 59);
+    widget.fillTimes({45, 10, 30, 15}, {120, 23, 59, 59});
     widget.clearTimes();
 
     // After clearing, the fields should be empty or default

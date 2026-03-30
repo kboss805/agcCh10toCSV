@@ -13,7 +13,14 @@
 #include <QStyleFactory>
 
 #include "constants.h"
-
+#ifndef QT_NO_DEBUG
+#include <intrin.h>
+static void debugBreakOnFatal(QtMsgType type, const QMessageLogContext&, const QString&)
+{
+    if (type == QtFatalMsg)
+        __debugbreak();
+}
+#endif
 int main(int argc, char** argv)
 {
     QApplication a(argc, argv);
@@ -47,5 +54,8 @@ int main(int argc, char** argv)
 
     MainView w;
     w.show();
+#ifndef QT_NO_DEBUG
+    qInstallMessageHandler(debugBreakOnFatal);
+#endif
     return QApplication::exec();
 }

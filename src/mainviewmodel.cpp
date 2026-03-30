@@ -27,9 +27,9 @@ MainViewModel::MainViewModel(QObject* parent)
       m_time_channel_index(0),
       m_pcm_channel_index(0),
       m_extract_all_time(true),
-      m_sample_rate_index(0),
+      m_sample_rate_index(UIConstants::kDefaultSampleRateIndex),
       m_settings_frame_sync(PCMConstants::kDefaultFrameSync),
-      m_settings_polarity_idx(0),
+      m_settings_polarity_idx(UIConstants::kDefaultPolarityIndex),
       m_settings_slope_idx(UIConstants::kDefaultSlopeIndex),
       m_settings_scale(UIConstants::kDefaultScale),
       m_settings_receiver_count(UIConstants::kDefaultReceiverCount),
@@ -73,7 +73,7 @@ MainViewModel::MainViewModel(QObject* parent)
     {
         m_settings_frame_sync = ini_sync;
     }
-    m_settings_polarity_idx = config.value("Parameters/Polarity", 0).toInt();
+    m_settings_polarity_idx = config.value("Parameters/Polarity", UIConstants::kDefaultPolarityIndex).toInt();
     m_settings_slope_idx = config.value("Parameters/Slope", UIConstants::kDefaultSlopeIndex).toInt();
     QString ini_range = config.value("Parameters/Scale").toString();
     if (!ini_range.isEmpty())
@@ -477,12 +477,19 @@ bool MainViewModel::runPreScan(int pcm_channel_id)
     int scan_words = data_words + 1;
     int scan_bits = (data_words * PCMConstants::kCommonWordLen) + scan_sync_len;
 
+    ProcessingParams scan_params;
+    scan_params.filename = m_input_filename;
+    scan_params.pcm_channel_id = pcm_channel_id;
+    scan_params.frame_sync = scan_sync;
+    scan_params.sync_pattern_length = scan_sync_len;
+    scan_params.words_in_minor_frame = scan_words;
+    scan_params.bits_in_minor_frame = scan_bits;
+
     FrameProcessor scanner;
     connect(&scanner, &FrameProcessor::logMessage,
             this, &MainViewModel::logMessageReceived);
 
-    return scanner.preScan(m_input_filename, pcm_channel_id, scan_sync,
-                           scan_sync_len, scan_words, scan_bits, m_is_randomized);
+    return scanner.preScan(scan_params, m_is_randomized);
 }
 
 QMap<QString, int> MainViewModel::buildParameterMap() const
@@ -781,10 +788,10 @@ void MainViewModel::setBatchFilePcmChannel(int fileIndex, int channelIndex)
     // Re-evaluate skip status
     info.skip = false;
     info.skipReason.clear();
-    if (!info.hasTimeChannel)
+    if (info.resolvedTimeIndex < 0)
     {
         info.skip = true;
-        info.skipReason = "No time channels in file";
+        info.skipReason = "No time channel selected";
     }
 
     emit batchFileUpdated(fileIndex);
@@ -809,13 +816,61 @@ void MainViewModel::setBatchFileTimeChannel(int fileIndex, int channelIndex)
     // Re-evaluate skip status
     info.skip = false;
     info.skipReason.clear();
-    if (!info.hasPcmChannel)
+    if (info.resolvedPcmIndex < 0)
     {
         info.skip = true;
-        info.skipReason = "No PCM channels in file";
+        info.skipReason = "No PCM channel selected";
     }
 
     emit batchFileUpdated(fileIndex);
+}
+
+void MainViewModel::retryFailedFiles()
+{
+    if (m_processing || !m_batch_mode)
+    {
+        return;
+    }
+
+    // Reset only the files that failed — leave successful/skipped files untouched
+    for (BatchFileInfo& info : m_batch_files)
+    {
+        if (info.processed && !info.processedOk && !info.skip)
+        {
+            info.processed = false;
+            info.processedOk = false;
+            info.preScanOk = false;  // Force re-scan with current channel selection
+        }
+    }
+
+    m_batch_current_index = 0;
+    m_batch_cancelled = false;
+    m_batch_success_count = 0;
+    m_batch_skip_count = 0;
+    m_batch_error_count = 0;
+
+    m_processing = true;
+    m_progress_percent = 0;
+    emit processingChanged();
+    emit controlsEnabledChanged();
+    emit progressPercentChanged();
+    preScanBatchFiles();  // Re-scan reset files with current channel selection; emits batchFilesChanged()
+
+    emit logMessageReceived("--- Batch Retry: Re-processing failed files ---");
+
+    processNextBatchFile();
+}
+
+void MainViewModel::reorderBatchFile(int from, int to)
+{
+    const int count = m_batch_files.size();
+    if (from < 0 || from >= count || to < 0 || to >= count || from == to)
+    {
+        return;
+    }
+    m_batch_files.move(from, to);
+    rebuildBatchStatusSummary();
+    emit batchFilesChanged();
 }
 
 void MainViewModel::preScanBatchFiles()
@@ -843,7 +898,7 @@ void MainViewModel::preScanBatchFiles()
 
     for (BatchFileInfo& info : m_batch_files)
     {
-        if (info.skip)
+        if (info.skip || info.processedOk)
         {
             continue;
         }
@@ -856,13 +911,19 @@ void MainViewModel::preScanBatchFiles()
         }
         int pcm_ch_id = info.pcmChannelIds[idx];
 
+        ProcessingParams scan_params;
+        scan_params.filename = info.filepath;
+        scan_params.pcm_channel_id = pcm_ch_id;
+        scan_params.frame_sync = scan_sync;
+        scan_params.sync_pattern_length = scan_sync_len;
+        scan_params.words_in_minor_frame = scan_words;
+        scan_params.bits_in_minor_frame = scan_bits;
+
         FrameProcessor scanner;
         connect(&scanner, &FrameProcessor::logMessage,
                 this, &MainViewModel::logMessageReceived);
 
-        info.preScanOk = scanner.preScan(info.filepath, pcm_ch_id, scan_sync,
-                                         scan_sync_len, scan_words, scan_bits,
-                                         info.isRandomized);
+        info.preScanOk = scanner.preScan(scan_params, info.isRandomized);
     }
 
     rebuildBatchStatusSummary();
@@ -919,6 +980,14 @@ void MainViewModel::processNextBatchFile()
         {
             emit logMessageReceived("  Skipping: " + info.filename + " (" + info.skipReason + ")");
             m_batch_skip_count++;
+            m_batch_current_index++;
+            continue;
+        }
+
+        // Already succeeded in a previous run — count it and move on (retry support)
+        if (info.processed && info.processedOk)
+        {
+            m_batch_success_count++;
             m_batch_current_index++;
             continue;
         }
@@ -981,9 +1050,9 @@ void MainViewModel::processNextBatchFile()
         int scale_index = m_settings_slope_idx;
         double voltage_lower = UIConstants::kSlopeVoltageLower[scale_index];
         double voltage_upper = UIConstants::kSlopeVoltageUpper[scale_index];
-        params.scale_lower_bound = voltage_lower * scale_dB_per_V;
-        params.scale_upper_bound = voltage_upper * scale_dB_per_V;
-        params.negative_polarity = (m_settings_polarity_idx == 1);
+        params.calibration.scale_lower_bound = voltage_lower * scale_dB_per_V;
+        params.calibration.scale_upper_bound = voltage_upper * scale_dB_per_V;
+        params.calibration.negative_polarity = (m_settings_polarity_idx == 1);
 
         // Batch mode always uses each file's full time range
         params.start_seconds = m_reader->dhmsToUInt64(
@@ -1007,9 +1076,7 @@ void MainViewModel::processNextBatchFile()
         info.outputFile = params.outfile;
         params.is_randomized = info.isRandomized;
 
-        if (!prepareFrameSetupParameters(params.scale_lower_bound,
-                                          params.scale_upper_bound,
-                                          params.negative_polarity))
+        if (!prepareFrameSetupParameters(params.calibration))
         {
             info.processed = true;
             info.processedOk = false;
@@ -1132,23 +1199,17 @@ void MainViewModel::openFile(const QString& filename)
 }
 
 void MainViewModel::startProcessing(const QString& output_file,
-                                     const QString& start_ddd, const QString& start_hh,
-                                     const QString& start_mm, const QString& start_ss,
-                                     const QString& stop_ddd, const QString& stop_hh,
-                                     const QString& stop_mm, const QString& stop_ss,
+                                     const QString& start_time,
+                                     const QString& stop_time,
                                      int sample_rate_index)
 {
     ProcessingParams params;
-    if (!validateProcessingInputs(params, start_ddd, start_hh, start_mm, start_ss,
-                                   stop_ddd, stop_hh, stop_mm, stop_ss,
-                                   sample_rate_index))
+    if (!validateProcessingInputs(params, start_time, stop_time, sample_rate_index))
     {
         return;
     }
 
-    if (!prepareFrameSetupParameters(params.scale_lower_bound,
-                                      params.scale_upper_bound,
-                                      params.negative_polarity))
+    if (!prepareFrameSetupParameters(params.calibration))
     {
         emit errorOccurred("No receivers selected.");
         return;
@@ -1281,22 +1342,22 @@ void MainViewModel::cancelProcessing()
 
 bool MainViewModel::validateTimeFields(const QString& ddd, const QString& hh,
                                         const QString& mm, const QString& ss,
-                                        int& out_ddd, int& out_hh, int& out_mm, int& out_ss)
+                                        TimeFields& out)
 {
     bool ddd_ok = false;
     bool hh_ok = false;
     bool mm_ok = false;
     bool ss_ok = false;
-    out_ddd = ddd.toInt(&ddd_ok);
-    out_hh = hh.toInt(&hh_ok);
-    out_mm = mm.toInt(&mm_ok);
-    out_ss = ss.toInt(&ss_ok);
+    out.ddd = ddd.toInt(&ddd_ok);
+    out.hh = hh.toInt(&hh_ok);
+    out.mm = mm.toInt(&mm_ok);
+    out.ss = ss.toInt(&ss_ok);
 
     return ddd_ok && hh_ok && mm_ok && ss_ok &&
-           out_ddd >= UIConstants::kMinDayOfYear && out_ddd <= UIConstants::kMaxDayOfYear &&
-           out_hh >= 0 && out_hh <= UIConstants::kMaxHour &&
-           out_mm >= 0 && out_mm <= UIConstants::kMaxMinute &&
-           out_ss >= 0 && out_ss <= UIConstants::kMaxSecond;
+           out.ddd >= UIConstants::kMinDayOfYear && out.ddd <= UIConstants::kMaxDayOfYear &&
+           out.hh >= 0 && out.hh <= UIConstants::kMaxHour &&
+           out.mm >= 0 && out.mm <= UIConstants::kMaxMinute &&
+           out.ss >= 0 && out.ss <= UIConstants::kMaxSecond;
 }
 
 QString MainViewModel::validateTimeRange(const QString& start_text,
@@ -1310,34 +1371,26 @@ QString MainViewModel::validateTimeRange(const QString& start_text,
         return "Start and stop times must be in DDD:HH:MM:SS format.";
     }
 
-    int s_ddd = 0;
-    int s_hh = 0;
-    int s_mm = 0;
-    int s_ss = 0;
+    TimeFields s;
     if (!validateTimeFields(start_parts[0], start_parts[1],
-                             start_parts[2], start_parts[3],
-                             s_ddd, s_hh, s_mm, s_ss))
+                             start_parts[2], start_parts[3], s))
     {
         return "Start time is out of valid range. Day: 1-366, Hour: 0-23, Minute: 0-59, Second: 0-59.";
     }
 
-    int e_ddd = 0;
-    int e_hh = 0;
-    int e_mm = 0;
-    int e_ss = 0;
+    TimeFields e;
     if (!validateTimeFields(stop_parts[0], stop_parts[1],
-                             stop_parts[2], stop_parts[3],
-                             e_ddd, e_hh, e_mm, e_ss))
+                             stop_parts[2], stop_parts[3], e))
     {
         return "Stop time is out of valid range. Day: 1-366, Hour: 0-23, Minute: 0-59, Second: 0-59.";
     }
 
-    long long start_total = (s_ddd * (long long)UIConstants::kSecondsPerDay)
-        + (s_hh * (long long)UIConstants::kSecondsPerHour)
-        + (s_mm * (long long)UIConstants::kSecondsPerMinute) + s_ss;
-    long long stop_total = (e_ddd * (long long)UIConstants::kSecondsPerDay)
-        + (e_hh * (long long)UIConstants::kSecondsPerHour)
-        + (e_mm * (long long)UIConstants::kSecondsPerMinute) + e_ss;
+    long long start_total = (s.ddd * (long long)UIConstants::kSecondsPerDay)
+        + (s.hh * (long long)UIConstants::kSecondsPerHour)
+        + (s.mm * (long long)UIConstants::kSecondsPerMinute) + s.ss;
+    long long stop_total = (e.ddd * (long long)UIConstants::kSecondsPerDay)
+        + (e.hh * (long long)UIConstants::kSecondsPerHour)
+        + (e.mm * (long long)UIConstants::kSecondsPerMinute) + e.ss;
 
     if (stop_total <= start_total)
     {
@@ -1348,10 +1401,8 @@ QString MainViewModel::validateTimeRange(const QString& start_text,
 }
 
 bool MainViewModel::validateProcessingInputs(ProcessingParams& params,
-                                              const QString& start_ddd, const QString& start_hh,
-                                              const QString& start_mm, const QString& start_ss,
-                                              const QString& stop_ddd, const QString& stop_hh,
-                                              const QString& stop_mm, const QString& stop_ss,
+                                              const QString& start_time,
+                                              const QString& stop_time,
                                               int sample_rate_index)
 {
     params.filename = m_input_filename;
@@ -1425,34 +1476,40 @@ bool MainViewModel::validateProcessingInputs(ProcessingParams& params,
 
     double voltage_lower = UIConstants::kSlopeVoltageLower[scale_index];
     double voltage_upper = UIConstants::kSlopeVoltageUpper[scale_index];
-    params.scale_lower_bound = voltage_lower * scale_dB_per_V;
-    params.scale_upper_bound = voltage_upper * scale_dB_per_V;
+    params.calibration.scale_lower_bound = voltage_lower * scale_dB_per_V;
+    params.calibration.scale_upper_bound = voltage_upper * scale_dB_per_V;
 
-    params.negative_polarity = (m_settings_polarity_idx == 1);
+    params.calibration.negative_polarity = (m_settings_polarity_idx == 1);
 
-    int s_ddd = 0;
-    int s_hh = 0;
-    int s_mm = 0;
-    int s_ss = 0;
-    if (!validateTimeFields(start_ddd, start_hh, start_mm, start_ss,
-                             s_ddd, s_hh, s_mm, s_ss))
+    QStringList start_parts = start_time.split(":");
+    if (start_parts.size() != 4)
+    {
+        emit errorOccurred("Invalid start time format.");
+        return false;
+    }
+    TimeFields s;
+    if (!validateTimeFields(start_parts[0], start_parts[1],
+                             start_parts[2], start_parts[3], s))
     {
         emit errorOccurred("Invalid start time.");
         return false;
     }
-    params.start_seconds = m_reader->dhmsToUInt64(s_ddd, s_hh, s_mm, s_ss);
+    params.start_seconds = m_reader->dhmsToUInt64(s.ddd, s.hh, s.mm, s.ss);
 
-    int e_ddd = 0;
-    int e_hh = 0;
-    int e_mm = 0;
-    int e_ss = 0;
-    if (!validateTimeFields(stop_ddd, stop_hh, stop_mm, stop_ss,
-                             e_ddd, e_hh, e_mm, e_ss))
+    QStringList stop_parts = stop_time.split(":");
+    if (stop_parts.size() != 4)
+    {
+        emit errorOccurred("Invalid stop time format.");
+        return false;
+    }
+    TimeFields e;
+    if (!validateTimeFields(stop_parts[0], stop_parts[1],
+                             stop_parts[2], stop_parts[3], e))
     {
         emit errorOccurred("Invalid stop time.");
         return false;
     }
-    params.stop_seconds = m_reader->dhmsToUInt64(e_ddd, e_hh, e_mm, e_ss);
+    params.stop_seconds = m_reader->dhmsToUInt64(e.ddd, e.hh, e.mm, e.ss);
 
     if (params.stop_seconds < params.start_seconds)
     {
@@ -1474,24 +1531,22 @@ bool MainViewModel::validateProcessingInputs(ProcessingParams& params,
     return true;
 }
 
-bool MainViewModel::prepareFrameSetupParameters(double scale_lower_bound,
-                                                  double scale_upper_bound,
-                                                  bool negative_polarity)
+bool MainViewModel::prepareFrameSetupParameters(const CalibrationParams& cal)
 {
     bool any_enabled = false;
 
     for (int i = 0; i < m_frame_setup->length(); i++)
     {
         ParameterInfo* param = m_frame_setup->getParameter(i);
-        param->slope = (scale_upper_bound - scale_lower_bound) / PCMConstants::kMaxRawSampleValue;
-        if (negative_polarity)
+        param->slope = (cal.scale_upper_bound - cal.scale_lower_bound) / PCMConstants::kMaxRawSampleValue;
+        if (cal.negative_polarity)
         {
             param->slope *= -1;
-            param->scale = -scale_upper_bound / (scale_upper_bound - scale_lower_bound) * PCMConstants::kMaxRawSampleValue;
+            param->scale = -cal.scale_upper_bound / (cal.scale_upper_bound - cal.scale_lower_bound) * PCMConstants::kMaxRawSampleValue;
         }
         else
         {
-            param->scale = scale_lower_bound / (scale_upper_bound - scale_lower_bound) * PCMConstants::kMaxRawSampleValue;
+            param->scale = cal.scale_lower_bound / (cal.scale_upper_bound - cal.scale_lower_bound) * PCMConstants::kMaxRawSampleValue;
         }
         param->is_enabled = false;
     }
@@ -1551,12 +1606,7 @@ void MainViewModel::launchWorkerThread(const ProcessingParams& params)
             processor, &QObject::deleteLater);
 
     connect(m_worker_thread, &QThread::started, processor, [processor, params, this]() {
-        processor->process(params.filename, m_frame_setup, params.outfile,
-                           params.time_channel_id, params.pcm_channel_id,
-                           params.frame_sync, params.sync_pattern_length,
-                           params.words_in_minor_frame, params.bits_in_minor_frame,
-                           params.start_seconds, params.stop_seconds, params.sample_rate,
-                           params.is_randomized);
+        processor->process(params, m_frame_setup);
     });
 
     m_worker_thread->start();
@@ -1632,3 +1682,11 @@ void MainViewModel::onLogMessage(const QString& message)
 {
     emit logMessageReceived(message);
 }
+
+#ifdef QT_TESTLIB_LIB
+void MainViewModel::addBatchFileForTesting(const BatchFileInfo& info)
+{
+    m_batch_files.append(info);
+    m_batch_mode = true;
+}
+#endif

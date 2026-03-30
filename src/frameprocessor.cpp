@@ -224,15 +224,17 @@ void FrameProcessor::requestAbort()
 ////////////////////////////////////////////////////////////////////////////////
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-bool FrameProcessor::preScan(const QString& filename,
-                              int pcm_channel_id,
-                              uint64_t frame_sync,
-                              int sync_pattern_len,
-                              int words_in_minor_frame,
-                              int bits_in_minor_frame,
+bool FrameProcessor::preScan(const ProcessingParams& params,
                               bool& is_randomized,
                               int max_packets)
 {
+    const auto& filename            = params.filename;
+    const int   pcm_channel_id      = params.pcm_channel_id;
+    const auto  frame_sync          = params.frame_sync;
+    const int   sync_pattern_len    = params.sync_pattern_length;
+    const int   words_in_minor_frame = params.words_in_minor_frame;
+    const int   bits_in_minor_frame = params.bits_in_minor_frame;
+
     emit logMessage("Pre-scan: checking frame sync and encoding...");
 
     if (pcm_channel_id < 0 || pcm_channel_id >= PCMConstants::kMaxChannelCount)
@@ -502,20 +504,21 @@ void FrameProcessor::closeFile() const
 ////////////////////////////////////////////////////////////////////////////////
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-bool FrameProcessor::process(const QString& filename,
-                                FrameSetup* frame_setup,
-                                const QString& outfile,
-                                int time_channel_id,
-                                int pcm_channel_id,
-                                uint64_t frame_sync,
-                                int sync_pattern_len,
-                                int words_in_minor_frame,
-                                int bits_in_minor_frame,
-                                uint64_t start_seconds,
-                                uint64_t stop_seconds,
-                                int sample_rate,
-                                bool is_randomized)
+bool FrameProcessor::process(const ProcessingParams& params, FrameSetup* frame_setup)
 {
+    const auto& filename            = params.filename;
+    const auto& outfile             = params.outfile;
+    const int   time_channel_id     = params.time_channel_id;
+    const int   pcm_channel_id      = params.pcm_channel_id;
+    const auto  frame_sync          = params.frame_sync;
+    const int   sync_pattern_len    = params.sync_pattern_length;
+    const int   words_in_minor_frame = params.words_in_minor_frame;
+    const int   bits_in_minor_frame = params.bits_in_minor_frame;
+    const auto  start_seconds       = params.start_seconds;
+    const auto  stop_seconds        = params.stop_seconds;
+    const int   sample_rate         = params.sample_rate;
+    const bool  is_randomized       = params.is_randomized;
+
     QElapsedTimer elapsed_timer;
     elapsed_timer.start();
 

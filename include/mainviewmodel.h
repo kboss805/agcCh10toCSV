@@ -15,7 +15,9 @@
 #include <QVector>
 
 #include "batchfileinfo.h"
+#include "processingparams.h"
 #include "settingsdata.h"
+#include "timefields.h"
 
 class Chapter10Reader;
 class FrameSetup;
@@ -171,7 +173,7 @@ public:
     /// Validates and parses day/hour/minute/second time field strings.
     static bool validateTimeFields(const QString& ddd, const QString& hh,
                                     const QString& mm, const QString& ss,
-                                    int& out_ddd, int& out_hh, int& out_mm, int& out_ss);
+                                    TimeFields& out);
 
     /// Pre-validates time range strings. Returns empty on success, or a warning message.
     static QString validateTimeRange(const QString& start_text, const QString& stop_text);
@@ -207,24 +209,21 @@ public:
     /// Sets the resolved time channel index for a batch file.
     void setBatchFileTimeChannel(int fileIndex, int channelIndex);
 
+    /// Re-queues only failed batch files and re-runs processing.
+    void retryFailedFiles();
+    /// Moves a batch file from index @p from to index @p to and emits batchFilesChanged().
+    void reorderBatchFile(int from, int to);
+
     /**
      * @brief Validates inputs and starts background AGC processing.
      * @param[in] output_file       Path to the CSV output file.
-     * @param[in] start_ddd         Start day-of-year string.
-     * @param[in] start_hh          Start hour string.
-     * @param[in] start_mm          Start minute string.
-     * @param[in] start_ss          Start second string.
-     * @param[in] stop_ddd          Stop day-of-year string.
-     * @param[in] stop_hh           Stop hour string.
-     * @param[in] stop_mm           Stop minute string.
-     * @param[in] stop_ss           Stop second string.
+     * @param[in] start_time        Start time in "DDD:HH:MM:SS" format.
+     * @param[in] stop_time         Stop time in "DDD:HH:MM:SS" format.
      * @param[in] sample_rate_index Sample rate combo box index.
      */
     void startProcessing(const QString& output_file,
-                         const QString& start_ddd, const QString& start_hh,
-                         const QString& start_mm, const QString& start_ss,
-                         const QString& stop_ddd, const QString& stop_hh,
-                         const QString& stop_mm, const QString& stop_ss,
+                         const QString& start_time,
+                         const QString& stop_time,
                          int sample_rate_index);
 
     /**
@@ -243,6 +242,11 @@ public:
     void clearState();
     /// Requests cancellation of the current processing run.
     void cancelProcessing();
+
+#ifdef QT_TESTLIB_LIB
+    /// Appends a pre-built BatchFileInfo and enables batch mode. For unit testing only.
+    void addBatchFileForTesting(const BatchFileInfo& info);
+#endif
 
 signals:
     void inputFilenameChanged();      ///< Emitted when the input file path changes.
@@ -280,31 +284,10 @@ signals:
     void logMessageReceived(const QString& message);
 
 private:
-    /// @brief Validated parameters bundle passed to the worker thread.
-    struct ProcessingParams {
-        QString filename;              ///< Path to the .ch10 input file.
-        int time_channel_id;           ///< Resolved time channel ID.
-        int pcm_channel_id;            ///< Resolved PCM channel ID.
-        uint64_t frame_sync;           ///< Frame sync pattern as a numeric value.
-        int sync_pattern_length;       ///< Sync pattern length in bits.
-        int words_in_minor_frame;      ///< Words per PCM minor frame (data words + 1).
-        int bits_in_minor_frame;       ///< Total bits per PCM minor frame.
-        double scale_lower_bound;      ///< Lower dB bound (voltage_lower * range_dB_per_V).
-        double scale_upper_bound;      ///< Upper dB bound (voltage_upper * range_dB_per_V).
-        bool negative_polarity;        ///< True if AGC polarity is negative.
-        uint64_t start_seconds;        ///< Start of extraction window (IRIG seconds).
-        uint64_t stop_seconds;         ///< End of extraction window (IRIG seconds).
-        int sample_rate;               ///< Output sample rate in Hz.
-        QString outfile;               ///< Path to the CSV output file.
-        bool is_randomized = false;    ///< True if RNRZ-L encoding detected by preScan.
-    };
-
     /// Validates user inputs and populates @p params for processing.
     bool validateProcessingInputs(ProcessingParams& params,
-                                   const QString& start_ddd, const QString& start_hh,
-                                   const QString& start_mm, const QString& start_ss,
-                                   const QString& stop_ddd, const QString& stop_hh,
-                                   const QString& stop_mm, const QString& stop_ss,
+                                   const QString& start_time,
+                                   const QString& stop_time,
                                    int sample_rate_index);
 
     /// Runs a pre-scan on the given PCM channel to detect encoding and verify sync.
@@ -321,9 +304,7 @@ private:
     QMap<QString, int> buildParameterMap() const;
 
     /// Applies calibration slope/scale to each enabled frame parameter.
-    bool prepareFrameSetupParameters(double scale_lower_bound,
-                                      double scale_upper_bound,
-                                      bool negative_polarity);
+    bool prepareFrameSetupParameters(const CalibrationParams& cal);
 
     /// Creates a FrameProcessor and starts it on a background thread.
     void launchWorkerThread(const ProcessingParams& params);

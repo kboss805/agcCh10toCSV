@@ -1,4 +1,4 @@
-QT       += core gui printsupport
+QT       += core gui printsupport concurrent
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -58,8 +58,10 @@ HEADERS += \
     include/mainview.h \
     include/receivergridwidget.h \
     include/frameprocessor.h \
+    include/processingparams.h \
     include/batchfileinfo.h \
     include/settingsdata.h \
+    include/timefields.h \
     include/settingsdialog.h \
     include/timeextractionwidget.h \
     include/plotviewmodel.h \
@@ -97,8 +99,8 @@ RESOURCES += \
     resources/folder-open.svg \
     resources/play.svg \
     resources/stop.svg \
-    resources/magnifying-glass.svg \
-    resources/gear.svg
+    resources/gear.svg \
+    resources/retry.svg
 
 RC_FILE = resources/agcCh10toCSV_resource.rc
 

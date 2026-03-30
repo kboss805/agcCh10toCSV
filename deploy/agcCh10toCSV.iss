@@ -1,14 +1,19 @@
 ; agcCh10toCSV Inno Setup Script
-; Generates an installer for v3.1.2
+; Version is passed in from build_release.cmd via /DMyAppVersion=X.Y.Z
+; which reads the authoritative version from include/constants.h.
+;
 ; Requires Inno Setup 6.x (https://jrsoftware.org/isinfo.php)
 ;
-; Build the installer from the command line:
-;   iscc deploy\agcCh10toCSV.iss
+; Build via build script (recommended — picks up version automatically):
+;   deploy\build_release.cmd
 ;
-; Or open this file in Inno Setup Compiler and press Ctrl+F9.
+; Build manually (uses fallback version string):
+;   iscc /DMyAppVersion=X.Y.Z deploy\agcCh10toCSV.iss
 
 #define MyAppName "agcCh10toCSV"
-#define MyAppVersion "3.2.0"
+#ifndef MyAppVersion
+  #define MyAppVersion "0.0.0-dev"
+#endif
 #define MyAppPublisher "agcCh10toCSV"
 #define MyAppExeName "agcCH10toCSV.exe"
 #define StagingDir "staging\installer"

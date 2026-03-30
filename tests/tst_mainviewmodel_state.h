@@ -58,6 +58,9 @@ private slots:
 
     // pre-scan gate
     void startProcessingAbortedIfPreScanFails();
+
+    // no receivers selected
+    void startProcessingErrorIfNoReceiversSelected();
 };
 
 #endif // TST_MAINVIEWMODEL_STATE_H

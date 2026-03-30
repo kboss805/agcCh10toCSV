@@ -21,6 +21,23 @@ private slots:
     void setBatchFilePcmChannelOutOfBoundsNoSignal();
     void setBatchFileTimeChannelOutOfBoundsNoSignal();
     void setBatchFileChannelNegativeIndexNoSignal();
+
+    // reorderBatchFile guard conditions
+    void reorderBatchFileEmptyBatchNoSignal();
+    void reorderBatchFileOutOfBoundsNoSignal();
+    void reorderBatchFileSameIndexNoSignal();
+
+    // retryFailedFiles guard conditions
+    void retryFailedFilesNotBatchModeNoOp();
+
+    // Channel setter skip-flag correctness
+    void setBatchFilePcmChannelNoSkipWhenTimeResolved();
+    void setBatchFilePcmChannelSkipWhenTimeNotResolved();
+    void setBatchFileTimeChannelNoSkipWhenPcmResolved();
+
+    // Retry state correctness
+    void retryFailedFilesPreservesSuccessfulFile();
+    void retryFailedFilesEmitsBatchFilesChanged();
 };
 
 #endif // TST_MAINVIEWMODEL_BATCH_H

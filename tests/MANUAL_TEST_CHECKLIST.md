@@ -34,8 +34,10 @@
   - [ ] MT-09d: Copy Data to Clipboard
 - [ ] MT-10: Batch Processing
   - [ ] MT-10a: Basic Batch Run
-  - [ ] MT-10b: Cancel Batch
-  - [ ] MT-10c: Batch with Invalid File
+  - [ ] MT-10b: Drag-and-Drop File Reorder
+  - [ ] MT-10c: Retry Failed Files
+  - [ ] MT-10d: Cancel Batch
+  - [ ] MT-10e: Batch with Invalid File
 - [ ] MT-11: Keyboard Shortcuts
 - [ ] MT-12: Log Window Behavior
 - [ ] MT-13: Installer

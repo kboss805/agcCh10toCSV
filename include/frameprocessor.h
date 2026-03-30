@@ -19,6 +19,7 @@
 #include "i106_decode_tmats.h"
 
 #include "constants.h"
+#include "processingparams.h"
 
 class FrameSetup;
 struct ParameterInfo;
@@ -65,34 +66,11 @@ public:
      * channel and averaging samples at the requested rate. Emits
      * progressUpdated() periodically and processingFinished() on completion.
      *
-     * @param[in] filename              Path to the .ch10 input file.
-     * @param[in] frame_setup           Frame parameter definitions (word map, calibration).
-     * @param[in] outfile               Path to the CSV output file.
-     * @param[in] time_channel_id       Time channel ID (resolved, not combo box index).
-     * @param[in] pcm_channel_id        PCM channel ID (resolved, not combo box index).
-     * @param[in] frame_sync            Frame sync pattern as a numeric value.
-     * @param[in] sync_pattern_len      Sync pattern length in bits.
-     * @param[in] words_in_minor_frame  Words per PCM minor frame (data words + 1).
-     * @param[in] bits_in_minor_frame   Total bits per PCM minor frame.
-     * @param[in] start_seconds         Start of the extraction window (IRIG seconds).
-     * @param[in] stop_seconds          End of the extraction window (IRIG seconds).
-     * @param[in] sample_rate           Output sample rate in Hz.
-     * @param[in] is_randomized         True if RNRZ-L encoding detected by preScan().
+     * @param[in] params      Validated processing parameters (file, channels, timing, etc.).
+     * @param[in] frame_setup Frame parameter definitions (word map, calibration).
      * @return true if processing completed without errors.
      */
-    bool process(const QString& filename,
-                 FrameSetup* frame_setup,
-                 const QString& outfile,
-                 int time_channel_id,
-                 int pcm_channel_id,
-                 uint64_t frame_sync,
-                 int sync_pattern_len,
-                 int words_in_minor_frame,
-                 int bits_in_minor_frame,
-                 uint64_t start_seconds,
-                 uint64_t stop_seconds,
-                 int sample_rate,
-                 bool is_randomized);
+    bool process(const ProcessingParams& params, FrameSetup* frame_setup);
 
     /// Requests a cooperative abort of the current processing run.
     void requestAbort();
@@ -105,22 +83,13 @@ public:
      * raw (NRZ-L) and derandomized (RNRZ-L) data, reporting results via
      * logMessage().
      *
-     * @param[in] filename          Path to the .ch10 input file.
-     * @param[in] pcm_channel_id   PCM channel ID to scan.
-     * @param[in] frame_sync       Frame sync pattern as a numeric value.
-     * @param[in] sync_pattern_len Sync pattern length in bits.
-     * @param[in] words_in_minor_frame Words per PCM minor frame (data words + 1).
-     * @param[in] bits_in_minor_frame  Total bits per PCM minor frame.
-     * @param[out] is_randomized       Set to true if RNRZ-L encoding is detected.
-     * @param[in] max_packets      Maximum number of PCM packets to scan.
+     * @param[in]  params         Processing parameters (uses filename, pcm_channel_id,
+     *                            frame_sync, sync_pattern_length, words/bits_in_minor_frame).
+     * @param[out] is_randomized  Set to true if RNRZ-L encoding is detected.
+     * @param[in]  max_packets    Maximum number of PCM packets to scan.
      * @return true if at least one sync pattern was found.
      */
-    bool preScan(const QString& filename,
-                 int pcm_channel_id,
-                 uint64_t frame_sync,
-                 int sync_pattern_len,
-                 int words_in_minor_frame,
-                 int bits_in_minor_frame,
+    bool preScan(const ProcessingParams& params,
                  bool& is_randomized,
                  int max_packets = PCMConstants::kPreScanMaxPackets);
 

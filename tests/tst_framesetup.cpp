@@ -1,5 +1,6 @@
 #include "tst_framesetup.h"
 
+#include <QCoreApplication>
 #include <QDir>
 #include <QSettings>
 #include <QTemporaryFile>
@@ -13,9 +14,10 @@ static constexpr int kTestWordsInFrame = 49;
 static QString testFixturePath(const QString& filename)
 {
     // The test executable is built in tests/debug/ or tests/release/.
-    // Navigate back to tests/fixtures/.
-    return QDir(QCoreApplication::applicationDirPath())
-        .filePath("../../tests/fixtures/" + filename);
+    // One cdUp() reaches tests/, then fixtures/ is a sibling of data/.
+    QDir dir(QCoreApplication::applicationDirPath());
+    dir.cdUp();
+    return dir.filePath("fixtures/" + filename);
 }
 
 void TestFrameSetup::defaultLengthIsZero()

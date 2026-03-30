@@ -63,10 +63,8 @@ SettingsDialog::SettingsDialog(QWidget* parent)
     params_row->addWidget(m_polarity);
 
     params_row->addWidget(new QLabel("    Slope: "));
-    m_slope->addItem(QString::fromUtf8("\xc2\xb1") + "10V");
-    m_slope->addItem(QString::fromUtf8("\xc2\xb1") + "5V");
-    m_slope->addItem("0-10V");
-    m_slope->addItem("0-5V");
+    for (const char* label : UIConstants::kSlopeLabels)
+        m_slope->addItem(QString(label));
     params_row->addWidget(m_slope);
 
     params_row->addWidget(new QLabel("    Scale (dB/V): "));

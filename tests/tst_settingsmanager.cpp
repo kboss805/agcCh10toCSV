@@ -315,7 +315,7 @@ void TestSettingsManager::loadFileParameterCountMismatch()
 
     bool has_mismatch_warning = false;
     for (const auto& call : spy)
-        if (call.at(0).toString().contains("parameter sections"))
+        if (call.at(0).toString().contains("receiver/channel entries"))
             has_mismatch_warning = true;
     QVERIFY(has_mismatch_warning);
 }

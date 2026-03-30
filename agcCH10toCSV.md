@@ -7,7 +7,7 @@ This file provides context and guidelines for AI assistants working on the agcCh
 - **Qt Version**: 6.10.2 (minimum: Qt 6.0.0)
 - **MinGW Version**: 13.1.0 (minimum: GCC/MinGW 7.0)
 - **C++ Standard**: C++17 (required — `inline constexpr` used throughout constants.h)
-- **Project Version**: 3.1.2 — defined in `AppVersion` struct in `include/constants.h`
+- **Project Version**: 3.2.0 — defined in `AppVersion` struct in `include/constants.h`
 
 - **Target Users:** Telemetry engineers and data analysts who need to convert RCC IRIG 106 chapter 10 formated files that include automatic gain control (AGC) signals information from telmetery receivers to comma separated values so AGC signals can be plotted and analyzed in capplications like Microsoft Excel or Matlab. 
 
@@ -250,11 +250,18 @@ This file provides context and guidelines for AI assistants working on the agcCh
 - ✅ Fixed README sample rate typo (20 Hz → 100 Hz)
 - ✅ Updated portable README version to current release
 
-## Future Version Functions
-
-### v3.2.0 — UX Improvements
-- [ ] Import previously exported CSV files to view in the plot
-- [ ] Auto dark/light theme based on Windows system theme (`QStyleHints::colorScheme()`, Qt 6.5+)
+### v3.2.0 — Plot & Batch Improvements
+- ✅ Plot hover tooltip: shows series name, time (DDD:HH:MM:SS), and dB value
+- ✅ Copy Data to Clipboard: copies visible plot range as comma-separated values
+- ✅ Ctrl+E keyboard shortcut to expand/collapse all receivers in the plot legend
+- ✅ Fixed plot legend scroll overdraw (transparent background issue)
+- ✅ Per-file batch retry: "Retry Failed" toolbar button re-queues only ERROR files; successful files are not re-run
+- ✅ Drag-and-drop batch file reordering: file items draggable in the batch list before processing
+- ✅ Fixed worker thread use-after-free: replaced `deleteLater()` with delete after `wait()`
+- ✅ Fixed destructor memory leak: worker thread now deleted on application exit
+- ✅ Added 100 MB ceiling on packet buffer allocation to guard against malformed Ch10 files
+- ✅ Optimized RNRZ-L derandomization loop: replaced division/modulo with bit shifts
+- ✅ Cached batch status summary string to avoid redundant rebuilds
 
 ## Tech Stack
 
@@ -346,6 +353,8 @@ The application follows the **MVVM (Model-View-ViewModel)** pattern:
    - Batch processing: `openFiles()` loads multiple files, per-file channel discovery and validation
    - `setBatchFilePcmChannel()` / `setBatchFileTimeChannel()` for per-file channel selection
    - `startBatchProcessing(output_dir, sample_rate_index)` / `processNextBatchFile()` drive sequential batch execution with async continuation via `onProcessingFinished()`
+   - `retryFailedFiles()` resets ERROR files' `processed` state and re-runs `processNextBatchFile()`; `processNextBatchFile()` skips `processed && processedOk` files so successful files are never re-run
+   - `reorderBatchFile(from, to)` moves a file in `m_batch_files` and emits `batchFilesChanged()` to trigger a full list rebuild
 
 4. **PlotViewModel** (`src/plotviewmodel.cpp`, `include/plotviewmodel.h`) — *ViewModel*
    - Parses CSV output files into in-memory `PlotSeriesData` vectors (name, receiver index, x/y values, cached Y min/max, color)
@@ -498,8 +507,8 @@ Order includes in each `.cpp` / `.h` file as follows, with a blank line between 
 - Includes platform-specific libraries (ws2_32 for Windows sockets)
 
 ### Build Targets
-- **Debug**: `mingw32-make -f Makefile.Debug` inside `build/` → `build/debug/agcCh10toCSV.exe`
-- **Release**: `mingw32-make -f Makefile.Release` inside `build/` → `build/release/agcCh10toCSV.exe`
+- **Debug**: `mingw32-make -f Makefile.Debug` → `debug/agcCH10toCSV.exe`
+- **Release**: `mingw32-make -f Makefile.Release` → `release/agcCH10toCSV.exe`
 
 ### VS Code Integration
 Tasks are defined in `.vscode/tasks.json`:
@@ -552,8 +561,8 @@ Tasks are defined in `.vscode/tasks.json`:
 
 ### Modifying Build Configuration
 1. Edit `agcCh10toCSV.pro`
-2. Re-run qmake: `qmake agcCh10toCSV.pro`
-3. Rebuild project
+2. Re-run qmake from the project root: `qmake agcCh10toCSV.pro -spec win32-g++ CONFIG+=debug`
+3. Rebuild: `mingw32-make -f Makefile.Debug`
 
 ### Adding a New Setting
 1. Add field to `SettingsData` struct in `include/settingsdata.h`
@@ -589,7 +598,7 @@ Automated unit tests use the **Qt Test** framework. Test sources are in the `tes
 - **TestFrameSetup** (`tst_framesetup`) — Frame parameter loading, word map, calibration
 - **TestSettingsDialog** (`tst_settingsdialog`) — SettingsDialog widget defaults, setter/getter roundtrips, SettingsData roundtrip, signal emission
 - **TestSettingsManager** (`tst_settingsmanager`) — INI load/save validation (invalid FrameSync, Slope, Scale, Polarity, receiver counts, parameter count mismatch, roundtrip, frame setup preservation)
-- **TestMainViewModelBatch** (`tst_mainviewmodel_batch`) — Batch mode defaults, generateBatchOutputFilename format, batchStatusSummary, clearState/cancelProcessing batch reset, per-file channel setter bounds checking
+- **TestMainViewModelBatch** (`tst_mainviewmodel_batch`) — Batch mode defaults, generateBatchOutputFilename format, batchStatusSummary, clearState/cancelProcessing batch reset, per-file channel setter bounds checking, reorderBatchFile guard conditions (empty batch, out-of-bounds, same-index no-op), retryFailedFiles no-op outside batch mode
 - **TestPlotViewModel** (`tst_plotviewmodel`) — PlotViewModel default state, CSV loading, time conversion, series color assignment, Y auto/manual range, X time window, series visibility, clear data, plot title, invalid/empty file handling
 - **TestFrameProcessor** (`tst_frameprocessor`) — FrameProcessor constructor, abort flag, private static helpers (hasSyncPattern, derandomizeBitstream, writeTimeSample), preScan with valid/invalid files and encodings, process with real Ch10 test data
 - **TestTimeExtractionWidget** (`tst_timeextractionwidget`) — Widget defaults, extractAllTime toggle, sampleRate setter/getter, fillTimes/clearTimes, enable/disable controls, sample rate options
@@ -613,27 +622,9 @@ mingw32-make -f Makefile.Debug
 
 The following features have been identified as potential improvements for future versions. None are committed to a release — they are tracked here for planning purposes.
 
-### UX Improvements
-
-- **Theme hot-reload without restart** — Currently toggling between dark and light theme requires an application restart. The fix would reload the QSS stylesheet at runtime (`qApp->setStyleSheet()`) and call `PlotWidget::applyTheme()` to update chart colors immediately, with no restart needed.
-
-- **Plot tooltip on hover** — When the mouse hovers over a data point on the plot, show a tooltip with the exact time (DDD:HH:MM:SS) and amplitude (dB) value. This would help users perform data accuracy spot-checks without needing to open the CSV.
-
-- **Plot data export to clipboard** — A "Copy to Clipboard" button in the plot toolbar that copies the currently visible data range as tab-separated values, allowing quick paste into Excel for comparison.
-
-- **Keyboard shortcuts for Expand/Collapse All** — The Receivers section and plot legend have Expand All / Collapse All buttons but no keyboard shortcuts. Adding `Ctrl+E` / `Ctrl+Shift+E` (or similar) would benefit keyboard-centric workflows.
-
-### Batch Processing Improvements
-
-- **Per-file retry after batch failure** — Currently, if a file fails during batch processing it is marked ERROR and the batch moves on. There is no way to retry a single failed file — the user must re-queue the entire batch. A "Retry Failed" button shown after batch completion would save time on large batches.
-
-- **Drag-and-drop reordering of batch file list** — When multiple files are loaded for batch processing, their order is set by the selection order. Drag-and-drop reordering in the file list tree would give users control over processing sequence.
-
 ### Architecture / Robustness
 
-- **Background CSV parsing** — `PlotViewModel::loadCsvFile()` runs on the main thread. For very large CSV outputs (long recordings, many channels), parsing can visibly delay the UI after clicking "Show Plot". Moving parsing to a background QThread with a progress signal would keep the UI responsive.
-
-- **Efficiency: cache batch status summary** — `MainViewModel::inputFilename()` calls `batchStatusSummary()` on every property query, rebuilding the string each time. Caching the summary string and invalidating it only when the batch file list changes would eliminate redundant string allocation.
+- **Extract ProcessingCoordinator** — `MainViewModel` is ~1600 lines. Extracting worker thread lifecycle and batch sequencing into a `ProcessingCoordinator` class would improve maintainability and testability. Deferred: no user-facing benefit, high regression risk.
 
 ## Additional Resources
 

@@ -1,4 +1,4 @@
-QT += core gui widgets printsupport testlib
+QT += core gui widgets printsupport testlib concurrent
 
 CONFIG += c++17 console
 CONFIG -= app_bundle
@@ -41,6 +41,8 @@ HEADERS += \
     $$PWD/../include/mainview.h \
     $$PWD/../include/receivergridwidget.h \
     $$PWD/../include/frameprocessor.h \
+    $$PWD/../include/processingparams.h \
+    $$PWD/../include/timefields.h \
     $$PWD/../include/batchfileinfo.h \
     $$PWD/../include/settingsdata.h \
     $$PWD/../include/settingsdialog.h \

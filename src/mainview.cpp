@@ -297,6 +297,13 @@ void MainView::setUpMenuBar()
     connect(m_cancel_action, &QAction::triggered,
             this, [this]() { m_view_model->cancelProcessing(); });
 
+    m_retry_action = m_toolbar->addAction(
+        QIcon(":/resources/retry.svg"), "Retry Failed");
+    m_retry_action->setToolTip("Retry Failed Files");
+    m_retry_action->setVisible(false);
+    connect(m_retry_action, &QAction::triggered,
+            this, [this]() { m_view_model->retryFailedFiles(); });
+
     QWidget* toolbar_spacer = new QWidget;
     toolbar_spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     m_toolbar->addWidget(toolbar_spacer);
@@ -315,7 +322,11 @@ void MainView::setUpFileList()
     m_file_list->setMinimumWidth(UIConstants::kControlsDockMinWidth);
     m_file_list->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_file_list->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-    m_file_list->setSelectionMode(QAbstractItemView::NoSelection);
+    m_file_list->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_file_list->setDragEnabled(true);
+    m_file_list->setAcceptDrops(true);
+    m_file_list->setDragDropMode(QAbstractItemView::InternalMove);
+    m_file_list->setDefaultDropAction(Qt::MoveAction);
 
     // Build the initial state (no file loaded) using the same populate path so
     // the Time and PCM combo rows are always present from startup.
@@ -324,7 +335,7 @@ void MainView::setUpFileList()
 
 void MainView::onShowPlot(const QString& csv_filepath)
 {
-    m_plot_view_model->loadCsvFile(csv_filepath);
+    m_plot_view_model->loadCsvFileAsync(csv_filepath);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -342,10 +353,10 @@ void MainView::setUpConnections()
                 if (checked)
                 {
                     m_time_widget->fillTimes(
-                        m_view_model->startDayOfYear(), m_view_model->startHour(),
-                        m_view_model->startMinute(),    m_view_model->startSecond(),
-                        m_view_model->stopDayOfYear(),  m_view_model->stopHour(),
-                        m_view_model->stopMinute(),     m_view_model->stopSecond());
+                        {m_view_model->startDayOfYear(), m_view_model->startHour(),
+                         m_view_model->startMinute(),    m_view_model->startSecond()},
+                        {m_view_model->stopDayOfYear(),  m_view_model->stopHour(),
+                         m_view_model->stopMinute(),     m_view_model->stopSecond()});
                 }
             });
     connect(m_time_widget, &TimeExtractionWidget::sampleRateIndexChanged,
@@ -425,10 +436,10 @@ void MainView::setUpConnections()
             }
         }
 
-        int sd, sh, sm, ss, ed, eh, em, es;
-        fromSeconds(start_sec, sd, sh, sm, ss);
-        fromSeconds(stop_sec,  ed, eh, em, es);
-        m_time_widget->fillTimes(sd, sh, sm, ss, ed, eh, em, es);
+        TimeFields start_tf, stop_tf;
+        fromSeconds(start_sec, start_tf.ddd, start_tf.hh, start_tf.mm, start_tf.ss);
+        fromSeconds(stop_sec,  stop_tf.ddd,  stop_tf.hh,  stop_tf.mm,  stop_tf.ss);
+        m_time_widget->fillTimes(start_tf, stop_tf);
     };
 
     connect(m_time_widget, &TimeExtractionWidget::startTimeEditingFinished,
@@ -459,11 +470,20 @@ void MainView::setUpConnections()
             return;
         }
         QTreeWidgetItem* root = m_file_list->topLevelItem(0);
-        if (fileIndex < 0 || fileIndex >= root->childCount())
+        // Find item by ViewModel index (UserRole), not visual position
+        QTreeWidgetItem* file_item = nullptr;
+        for (int i = 0; i < root->childCount(); ++i)
+        {
+            if (root->child(i)->data(0, Qt::UserRole).toInt() == fileIndex)
+            {
+                file_item = root->child(i);
+                break;
+            }
+        }
+        if (!file_item)
         {
             return;
         }
-        QTreeWidgetItem* file_item = root->child(fileIndex);
         const QVector<BatchFileInfo>& files = m_view_model->batchFiles();
         const BatchFileInfo& info = files[fileIndex];
 
@@ -525,6 +545,9 @@ void MainView::setUpConnections()
 
     // PlotWidget -> Log window
     connect(m_plot_widget, &PlotWidget::logMessage, this, &MainView::onLogMessage);
+    connect(m_plot_view_model, &PlotViewModel::loadFailed, this, [this]() {
+        displayErrorMessage("Failed to load CSV file for plotting.");
+    });
 
     connect(m_log_preview, &QTextBrowser::anchorClicked, this, [](const QUrl& url) {
         QDesktopServices::openUrl(url);
@@ -594,10 +617,10 @@ void MainView::onFileTimesChanged()
         return;
     }
     m_time_widget->fillTimes(
-        m_view_model->startDayOfYear(), m_view_model->startHour(),
-        m_view_model->startMinute(), m_view_model->startSecond(),
-        m_view_model->stopDayOfYear(), m_view_model->stopHour(),
-        m_view_model->stopMinute(), m_view_model->stopSecond());
+        {m_view_model->startDayOfYear(), m_view_model->startHour(),
+         m_view_model->startMinute(),    m_view_model->startSecond()},
+        {m_view_model->stopDayOfYear(),  m_view_model->stopHour(),
+         m_view_model->stopMinute(),     m_view_model->stopSecond()});
 }
 
 void MainView::onProgressChanged()
@@ -613,6 +636,7 @@ void MainView::onProcessingChanged()
         setAllControlsEnabled(false);
         m_process_action->setEnabled(false);
         m_cancel_action->setEnabled(true);
+        m_retry_action->setVisible(false);
         m_progress_bar->setValue(0);
     }
     else
@@ -681,6 +705,18 @@ void MainView::onProcessingFinished(bool success, const QString& output_file)
             }
         }
         updateFileList();
+
+        // Show retry action if any files failed
+        bool has_errors = false;
+        for (const BatchFileInfo& info : m_view_model->batchFiles())
+        {
+            if (info.processed && !info.processedOk && !info.skip)
+            {
+                has_errors = true;
+                break;
+            }
+        }
+        m_retry_action->setVisible(has_errors);
     }
     else
     {
@@ -893,9 +929,6 @@ void MainView::progressProcessButtonPressed()
         }
     }
 
-    QStringList start_parts = m_time_widget->startTimeText().split(":");
-    QStringList stop_parts = m_time_widget->stopTimeText().split(":");
-
     {
         QString outfile = QFileDialog::getSaveFileName(this, tr("Save File"),
                                                         m_last_csv_dir + "/" + m_view_model->generateOutputFilename(),
@@ -910,10 +943,8 @@ void MainView::progressProcessButtonPressed()
 
         m_view_model->startProcessing(
             outfile,
-            start_parts.value(0), start_parts.value(1),
-            start_parts.value(2), start_parts.value(3),
-            stop_parts.value(0), stop_parts.value(1),
-            stop_parts.value(2), stop_parts.value(3),
+            m_time_widget->startTimeText(),
+            m_time_widget->stopTimeText(),
             m_time_widget->sampleRateIndex());
     }
 }
@@ -928,6 +959,97 @@ bool MainView::eventFilter(QObject* obj, QEvent* event)
     auto* widget = qobject_cast<QWidget*>(obj);
     if (!widget || widget->window() != this)
         return QMainWindow::eventFilter(obj, event);
+
+    // Internal batch file reorder: handle drag events on the file list viewport
+    bool is_file_list_viewport = (m_file_list && obj == m_file_list->viewport());
+    if (is_file_list_viewport && m_view_model->batchMode() && !m_view_model->processing())
+    {
+        static const char* kReorderMime = "application/x-qabstractitemmodeldatalist";
+        if (event->type() == QEvent::MouseButtonPress)
+        {
+            // Record source by position at click time — more reliable than currentItem()
+            // at DragEnter time (currentItem() can lag behind when combo widgets absorb
+            // mouse events on adjacent rows).
+            auto* me = static_cast<QMouseEvent*>(event);
+            if (me->button() == Qt::LeftButton)
+            {
+                QTreeWidgetItem* item = m_file_list->itemAt(me->position().toPoint());
+                QTreeWidgetItem* root = m_file_list->topLevelItem(0);
+                m_drag_source_index = -1;
+                if (item && root && item->parent() == root)
+                    m_drag_source_index = item->data(0, Qt::UserRole).toInt();
+            }
+        }
+        // DragEnter and DragMove are passed through to QTreeWidget unchanged.
+        // QTreeWidget's own handlers (via InternalMove mode) accept the drag,
+        // draw the drop-position indicator line, and run the auto-scroll timer.
+        // Returning false here skips the switch block below (which would call
+        // our URL-only dragEnterEvent and reject the drag).
+        if (event->type() == QEvent::DragEnter)
+        {
+            if (static_cast<QDragEnterEvent*>(event)->mimeData()->hasFormat(kReorderMime))
+                return false;
+        }
+        if (event->type() == QEvent::DragMove)
+        {
+            auto* dm = static_cast<QDragMoveEvent*>(event);
+            if (dm->mimeData()->hasFormat(kReorderMime))
+            {
+                // Drive auto-scroll manually. Qt's built-in auto-scroll stops working
+                // when the drag passes over the expanded combo-child rows because
+                // InternalMove validation rejects those rows and halts the scroll timer.
+                static const int kMargin = 40;  // px from top/bottom edge that triggers scroll
+                static const int kStep   = 12;  // px to scroll per DragMove event in margin zone
+                QScrollBar* vsb = m_file_list->verticalScrollBar();
+                int y = dm->position().toPoint().y();
+                int h = m_file_list->viewport()->height();
+                if (y < kMargin)
+                    vsb->setValue(vsb->value() - kStep);
+                else if (y > h - kMargin)
+                    vsb->setValue(vsb->value() + kStep);
+                return false;  // Let QTreeWidget draw the drop indicator
+            }
+        }
+        if (event->type() == QEvent::Drop)
+        {
+            auto* de = static_cast<QDropEvent*>(event);
+            if (de->mimeData()->hasFormat(kReorderMime) && m_drag_source_index >= 0)
+            {
+                QTreeWidgetItem* target = m_file_list->itemAt(de->position().toPoint());
+                QTreeWidgetItem* root = m_file_list->topLevelItem(0);
+                int to_index = -1;
+                if (root)
+                {
+                    // Resolve: if null (gap between items) or the header row, find the
+                    // nearest file-level child by vertical distance so gaps and the
+                    // header all snap to a real file item rather than defaulting to slot 0.
+                    if (!target || target == root)
+                    {
+                        QPoint dropPt = de->position().toPoint();
+                        int bestDist = INT_MAX;
+                        for (int i = 0; i < root->childCount(); i++)
+                        {
+                            QTreeWidgetItem* child = root->child(i);
+                            int dist = qAbs(m_file_list->visualItemRect(child).center().y()
+                                            - dropPt.y());
+                            if (dist < bestDist) { bestDist = dist; target = child; }
+                        }
+                    }
+                    // If dropped on a combo child row, use its file-level parent
+                    if (target && target->parent() && target->parent() != root)
+                        target = target->parent();
+                    if (target && target->parent() == root)
+                        to_index = target->data(0, Qt::UserRole).toInt();
+                }
+                if (to_index >= 0 && to_index != m_drag_source_index)
+                    m_view_model->reorderBatchFile(m_drag_source_index, to_index);
+                m_drag_source_index = -1;
+                de->setDropAction(Qt::CopyAction);
+                de->accept();
+                return true;
+            }
+        }
+    }
 
     switch (event->type())
     {
@@ -1138,7 +1260,7 @@ void MainView::populateBatchFileList()
 
     QTreeWidgetItem* root = new QTreeWidgetItem;
     root->setText(0, m_view_model->batchStatusSummary());
-    root->setFlags(Qt::ItemIsEnabled);
+    root->setFlags(Qt::ItemIsEnabled | Qt::ItemIsDropEnabled);
 
     // Build tree structure first (items must be in the tree before
     // setItemWidget and setExpanded can work)
@@ -1147,10 +1269,14 @@ void MainView::populateBatchFileList()
     for (int i = 0; i < files.size(); i++)
     {
         const BatchFileInfo& info = files[i];
+        if (info.processedOk)
+            continue;  // Successfully processed files fall out of the list
 
         // File row: filename | status | encoding
         QTreeWidgetItem* file_item = new QTreeWidgetItem;
         file_item->setText(0, info.filename);
+        file_item->setData(0, Qt::UserRole, i);
+        file_item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsDragEnabled);
         applyBatchFileStatus(file_item, info);
 
         root->addChild(file_item);
@@ -1174,12 +1300,17 @@ void MainView::populateBatchFileList()
     root->setExpanded(true);
 
     // Now attach combo box widgets and expand file items
-    for (int i = 0; i < files.size(); i++)
+    // j tracks position in combo_items/file_items, which skips processedOk entries
+    for (int i = 0, j = 0; i < files.size(); i++)
     {
         const BatchFileInfo& info = files[i];
-        QTreeWidgetItem* time_item = combo_items[static_cast<qsizetype>(i) * 2];
-        QTreeWidgetItem* pcm_item  = combo_items[(static_cast<qsizetype>(i) * 2) + 1];
-        file_items[i]->setExpanded(true);
+        if (info.processedOk)
+            continue;
+
+        QTreeWidgetItem* time_item = combo_items[static_cast<qsizetype>(j) * 2];
+        QTreeWidgetItem* pcm_item  = combo_items[(static_cast<qsizetype>(j) * 2) + 1];
+        file_items[j]->setExpanded(true);
+        j++;
 
         // Time channel combo — own row, column 0
         QWidget* time_container = new QWidget;

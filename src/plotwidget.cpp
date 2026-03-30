@@ -64,7 +64,10 @@ void PlotWidget::setViewModel(PlotViewModel* vm)
     ticker->setTickCount(PlotConstants::kTickCount);
     m_plot->xAxis->setTicker(ticker);
 
-    connect(vm, &PlotViewModel::dataChanged, this, &PlotWidget::onDataChanged);
+    connect(vm, &PlotViewModel::dataChanged,  this, &PlotWidget::onDataChanged);
+    connect(vm, &PlotViewModel::dataChanged,  this, [this]() { showLoadingIndicator(false); });
+    connect(vm, &PlotViewModel::loadStarted,  this, [this]() { showLoadingIndicator(true);  });
+    connect(vm, &PlotViewModel::loadFailed,   this, [this]() { showLoadingIndicator(false); });
     connect(vm, &PlotViewModel::seriesVisibilityChanged, this, &PlotWidget::onSeriesVisibilityToggled);
     connect(vm, &PlotViewModel::axisRangeChanged, this, &PlotWidget::updateAxes);
     connect(vm, &PlotViewModel::plotTitleChanged, this, &PlotWidget::updateTitle);
@@ -546,6 +549,15 @@ void PlotWidget::setUpLayout()
     main_layout->addWidget(m_plot, 1);
     main_layout->addSpacing(8);
 
+    // Loading overlay (child of m_plot so it floats over the chart)
+    m_loading_label = new QLabel("Loading...", m_plot);
+    m_loading_label->setAlignment(Qt::AlignCenter);
+    m_loading_label->setStyleSheet(
+        "background-color: rgba(0,0,0,160); color: white; "
+        "font-size: 14pt; border-radius: 8px; padding: 12px 24px;");
+    m_loading_label->adjustSize();
+    m_loading_label->hide();
+
     // --- Bottom bar: [axis controls] [16px] [legend panel] [stretch] [Export PDF] ---
     auto* bottom_bar = new QHBoxLayout;
     bottom_bar->setContentsMargins(0, 0, 0, 0);
@@ -615,7 +627,7 @@ void PlotWidget::setUpLayout()
 
     // Copy Data and Export PDF — right-justified
     m_copy_data_btn = new QPushButton("Copy Data");
-    m_copy_data_btn->setToolTip("Copy visible data to clipboard as tab-separated values");
+    m_copy_data_btn->setToolTip("Copy visible data to clipboard as comma-separated values");
     m_copy_data_btn->setEnabled(false);
     bottom_bar->addWidget(m_copy_data_btn, 0, Qt::AlignTop);
 
@@ -938,7 +950,7 @@ void PlotWidget::onCopyDataToClipboard()
             header << s.name;
         }
     }
-    QString output = header.join('\t') + '\n';
+    QString output = header.join(',') + '\n';
 
     // Collect all unique x values in the visible range across visible series
     QVector<double> x_union;
@@ -980,7 +992,7 @@ void PlotWidget::onCopyDataToClipboard()
                 row << QString();
             }
         }
-        output += row.join('\t') + '\n';
+        output += row.join(',') + '\n';
     }
 
     QApplication::clipboard()->setText(output);
@@ -1056,5 +1068,28 @@ void PlotWidget::onPlotMouseMove(QMouseEvent* event)
     else
     {
         QToolTip::hideText();
+    }
+}
+
+void PlotWidget::showLoadingIndicator(bool visible)
+{
+    if (!visible)
+    {
+        m_loading_label->hide();
+        return;
+    }
+    m_loading_label->adjustSize();
+    m_loading_label->move((m_plot->width()  - m_loading_label->width())  / 2,
+                          (m_plot->height() - m_loading_label->height()) / 2);
+    m_loading_label->raise();
+    m_loading_label->show();
+}
+
+void PlotWidget::resizeEvent(QResizeEvent* event)
+{
+    QWidget::resizeEvent(event);
+    if (m_loading_label != nullptr && m_loading_label->isVisible())
+    {
+        showLoadingIndicator(true);  // re-centre on resize
     }
 }

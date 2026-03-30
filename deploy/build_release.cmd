@@ -13,8 +13,13 @@ REM                      Current cert: 1DCBF23B52067A8D52E9C517345EA77B9D926669
 REM    SIGN_TIMESTAMP  — timestamp server URL (default: http://timestamp.digicert.com)
 REM ====================================================================
 
-set VERSION=3.2.0
 set PROJECT_DIR=%~dp0..
+
+REM --- Extract version from constants.h (single source of truth) ---
+for /f "tokens=6 delims= " %%v in ('findstr "kMajor" "%PROJECT_DIR%\include\constants.h"') do set _MAJOR_RAW=%%v
+for /f "tokens=6 delims= " %%v in ('findstr "kMinor" "%PROJECT_DIR%\include\constants.h"') do set _MINOR_RAW=%%v
+for /f "tokens=6 delims= " %%v in ('findstr "kPatch" "%PROJECT_DIR%\include\constants.h"') do set _PATCH_RAW=%%v
+set VERSION=%_MAJOR_RAW:;=%.%_MINOR_RAW:;=%.%_PATCH_RAW:;=%
 call "%PROJECT_DIR%\scripts\env.bat"
 
 set STAGE_DIR=%PROJECT_DIR%\deploy\staging
@@ -28,7 +33,7 @@ echo ============================================
 echo  Building agcCH10toCSV v%VERSION% Release
 echo ============================================
 
-REM --- Step 1: Clean and build release ---
+REM --- Step 1: Clean and build release (in-source) ---
 cd /d "%PROJECT_DIR%"
 echo [1/7] Running qmake...
 qmake agcCh10toCSV.pro -spec win32-g++ "CONFIG+=release"
@@ -111,14 +116,14 @@ if %ERRORLEVEL% EQU 0 (
 
 if defined ISCC_PATH (
     if defined SIGN_CERT_SHA1 (
-        "%ISCC_PATH%" /DSIGN /Ssigntool="signtool.exe sign /sha1 %SIGN_CERT_SHA1% /tr %SIGN_TIMESTAMP% /td sha256 /fd sha256 $f" "%PROJECT_DIR%\deploy\agcCh10toCSV.iss"
+        "%ISCC_PATH%" /DMyAppVersion=%VERSION% /DSIGN /Ssigntool="signtool.exe sign /sha1 %SIGN_CERT_SHA1% /tr %SIGN_TIMESTAMP% /td sha256 /fd sha256 $f" "%PROJECT_DIR%\deploy\agcCh10toCSV.iss"
     ) else (
-        "%ISCC_PATH%" "%PROJECT_DIR%\deploy\agcCh10toCSV.iss"
+        "%ISCC_PATH%" /DMyAppVersion=%VERSION% "%PROJECT_DIR%\deploy\agcCh10toCSV.iss"
     )
     if %ERRORLEVEL% NEQ 0 (echo WARNING: Inno Setup compilation failed)
 ) else (
     echo  Skipping — Inno Setup not found. Install from https://jrsoftware.org/isinfo.php
-    echo  Then run: iscc "%PROJECT_DIR%\deploy\agcCh10toCSV.iss"
+    echo  Then run: iscc /DMyAppVersion=%VERSION% "%PROJECT_DIR%\deploy\agcCh10toCSV.iss"
 )
 
 echo.

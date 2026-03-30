@@ -73,7 +73,6 @@ namespace UIConstants {
     inline constexpr const char* kThemeLight        = "light";        ///< Light theme identifier.
     inline constexpr const char* kSettingsKeyRecentFiles = "RecentFiles"; ///< QSettings key for recent files list.
     inline constexpr int kMaxRecentFiles            = 5;              ///< Maximum number of recent files to remember.
-    inline constexpr const char* kSettingsKeyPlotVisible = "PlotVisible"; ///< QSettings key for plot dock visibility.
     /// @}
 
     /// @name Receiver grid layout
@@ -83,7 +82,6 @@ namespace UIConstants {
     inline constexpr int kTreeHeightBuffer      = 4;   ///< Extra height buffer for tree widgets.
     inline constexpr int kTreeFixedWidth        = 100; ///< Fixed width for receiver tree widgets.
     inline constexpr int kFlatButtonMinWidth    = 90;  ///< Minimum width for flat action buttons (accommodates "Collapse All").
-    inline constexpr int kLogMinimumWidth       = 400; ///< Minimum width for the log window.
     inline constexpr int kLogPreviewHeight      = 80;  ///< Fixed height for the log preview panel.
     /// @}
 
@@ -106,12 +104,6 @@ namespace UIConstants {
     inline constexpr int kMaxTotalParameters          = 48;    ///< Maximum total parameter words (receivers x channels).
     inline constexpr std::array<const char*, 3> kChannelPrefixes = {"L", "R", "C"}; ///< Channel prefix labels.
     inline constexpr int kNumKnownPrefixes            = 3;     ///< Number of known channel prefixes.
-
-    /// @name Button text
-    /// @{
-    inline constexpr const char* kButtonTextStart      = "Process";        ///< Process button idle text.
-    inline constexpr const char* kButtonTextProcessing = "Processing...";  ///< Process button active text.
-    /// @}
 
     /// @name Time validation limits
     /// @{

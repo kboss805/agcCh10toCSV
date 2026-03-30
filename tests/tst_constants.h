@@ -26,7 +26,6 @@ private slots:
     void uiChannelPrefixes();
     void uiNumKnownPrefixes();
     void uiOutputFormatConstants();
-    void uiButtonText();
 
     // v2.0 additions
     void appVersionValues();

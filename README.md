@@ -34,6 +34,8 @@ This application reads IRIG 106 Chapter 10 (.ch10) files, extracts telemetry dat
 - **AGC Signal Plot Window**: Interactive QCustomPlot chart with mouse wheel zoom, click-drag pan, auto-scale axes, per-receiver-channel visibility toggles, and auto-assigned color palette
 - **X-Axis Time Display**: Actual file time (DDD:HH:MM:SS) on the X axis instead of elapsed seconds
 - **Plot PDF Export**: Export current plot to high-quality PDF file via QCustomPlot's built-in `savePdf()` method
+- **Hover Tooltip**: Shows series name, time (DDD:HH:MM:SS), and dB value on mouse hover
+- **Copy Data to Clipboard**: Copies the visible plot range as comma-separated values
 
 ### Logging & Feedback
 - **Inline Log Window**: Persistent, scrollable log with color-coded messages (green for success, yellow for warnings, red for errors)
@@ -44,7 +46,7 @@ This application reads IRIG 106 Chapter 10 (.ch10) files, extracts telemetry dat
 
 ### Application & UI
 - **Dark & Light Themes**: Windows 11 / WinUI 3 styled dark and light themes with runtime toggle
-- **Keyboard Shortcuts**: Ctrl+O (Open file), Ctrl+R (Process)
+- **Keyboard Shortcuts**: Ctrl+O (Open file), Ctrl+R (Process), Ctrl+E (Expand/collapse all plot legend receivers)
 - **Collapsible Panels**: Receivers and Time Controls sections collapse/expand to reduce visual clutter
 - **Tooltips**: Descriptive tooltips on all plot controls (spinboxes, buttons, title field)
 - **Busy Cursor**: Hourglass cursor shown during file processing
@@ -73,12 +75,8 @@ This application reads IRIG 106 Chapter 10 (.ch10) files, extracts telemetry dat
 
 ### Using Command Line (Windows with MinGW)
 ```bash
-# We use a shadow build directory to keep the source tree clean
-mkdir build
-cd build
-
-# Configure the project
-qmake ../agcCh10toCSV.pro -spec win32-g++
+# Configure the project (run from the project root)
+qmake agcCh10toCSV.pro -spec win32-g++
 
 # Build debug version
 mingw32-make -f Makefile.Debug
@@ -88,7 +86,6 @@ mingw32-make -f Makefile.Release
 
 # Run the application
 debug\agcCH10toCSV.exe
-cd ..
 
 # Alternatively, use the provided build script
 scripts\build.bat
@@ -174,12 +171,15 @@ agcCH10toCSV/
 │   ├── folder-open.svg        # Toolbar open icon
 │   ├── play.svg               # Toolbar process icon
 │   ├── stop.svg               # Toolbar cancel/stop icon
-│   ├── magnifying-glass.svg   # Toolbar pre-scan icon
 │   ├── gear.svg               # Toolbar settings icon
-│   └── icon.ico               # Application icon
+│   ├── retry.svg              # Toolbar retry-failed icon
+│   ├── icon.ico               # Application icon
+│   └── icon_image.png         # Application icon source image
 ├── scripts/                    # Build and utility scripts
-│   ├── build.bat              # Command-line shadow build generator
-│   └── env.bat                # Developer environment PATH setup helper
+│   ├── build.bat              # Command-line debug build script
+│   ├── build_ide.ps1          # IDE/VS Code test build helper (reads QTDIR/MINGW_DIR from env)
+│   ├── env.bat                # Developer environment PATH setup helper
+│   └── setup-env.ps1          # One-time Windows user environment variable registration
 ├── agcCh10toCSV.pro            # Qt project file
 ├── agcCH10toCSV.md             # AI assistant guide
 └── README.md                   # This file

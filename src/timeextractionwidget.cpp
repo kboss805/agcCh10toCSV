@@ -111,22 +111,21 @@ void TimeExtractionWidget::setSampleRateEnabled(bool enabled)
     m_sample_rate->setEnabled(enabled);
 }
 
-void TimeExtractionWidget::fillTimes(int start_ddd, int start_hh, int start_mm, int start_ss,
-                                      int stop_ddd, int stop_hh, int stop_mm, int stop_ss)
+void TimeExtractionWidget::fillTimes(const TimeFields& start, const TimeFields& stop)
 {
     m_start_time->setText(
         QString("%1:%2:%3:%4")
-            .arg(start_ddd, 3, UIConstants::kDecimalBase, QChar('0'))
-            .arg(start_hh, 2, UIConstants::kDecimalBase, QChar('0'))
-            .arg(start_mm, 2, UIConstants::kDecimalBase, QChar('0'))
-            .arg(start_ss, 2, UIConstants::kDecimalBase, QChar('0')));
+            .arg(start.ddd, 3, UIConstants::kDecimalBase, QChar('0'))
+            .arg(start.hh, 2, UIConstants::kDecimalBase, QChar('0'))
+            .arg(start.mm, 2, UIConstants::kDecimalBase, QChar('0'))
+            .arg(start.ss, 2, UIConstants::kDecimalBase, QChar('0')));
 
     m_stop_time->setText(
         QString("%1:%2:%3:%4")
-            .arg(stop_ddd, 3, UIConstants::kDecimalBase, QChar('0'))
-            .arg(stop_hh, 2, UIConstants::kDecimalBase, QChar('0'))
-            .arg(stop_mm, 2, UIConstants::kDecimalBase, QChar('0'))
-            .arg(stop_ss, 2, UIConstants::kDecimalBase, QChar('0')));
+            .arg(stop.ddd, 3, UIConstants::kDecimalBase, QChar('0'))
+            .arg(stop.hh, 2, UIConstants::kDecimalBase, QChar('0'))
+            .arg(stop.mm, 2, UIConstants::kDecimalBase, QChar('0'))
+            .arg(stop.ss, 2, UIConstants::kDecimalBase, QChar('0')));
 }
 
 void TimeExtractionWidget::clearTimes()

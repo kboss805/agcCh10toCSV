@@ -20,6 +20,7 @@ private slots:
     void selectNoneSignalEmitted();
     void rebuildWithZeroReceivers();
     void rebuildWithOneReceiver();
+    void receiverCheckedSignalEmittedOnCheckboxToggle();
 };
 
 #endif // TST_RECEIVERGRIDWIDGET_H

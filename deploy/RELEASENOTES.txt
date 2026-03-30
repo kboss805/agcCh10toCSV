@@ -3,7 +3,7 @@ agcCh10toCSV v3.2.0 - What's New
 
 Plot Improvements
   - Plot hover tooltip: shows series name, time (DDD:HH:MM:SS), and dB value
-  - Copy Data to Clipboard: copies visible plot range as tab-separated values
+  - Copy Data to Clipboard: copies visible plot range as comma-separated values
   - Ctrl+E keyboard shortcut to expand/collapse all receivers in the plot legend
   - Fixed plot legend scroll overdraw (transparent background issue)
 

@@ -28,6 +28,26 @@ static QString testDataPath(const QString& filename)
     return dir.filePath("data/" + filename);
 }
 
+/// Helper: builds a ProcessingParams with common test defaults.
+static ProcessingParams makeTestParams(const QString& filename = {},
+                                        int time_channel_id = -1,
+                                        int pcm_channel_id = -1,
+                                        uint64_t frame_sync = 0xFE6B2840,
+                                        int sync_len = 32,
+                                        int words_in_frame = 49,
+                                        int bits_in_frame = 800)
+{
+    ProcessingParams p;
+    p.filename = filename;
+    p.time_channel_id = time_channel_id;
+    p.pcm_channel_id = pcm_channel_id;
+    p.frame_sync = frame_sync;
+    p.sync_pattern_length = sync_len;
+    p.words_in_minor_frame = words_in_frame;
+    p.bits_in_minor_frame = bits_in_frame;
+    return p;
+}
+
 /// Helper: loads the default frame setup from the settings/default.ini.
 static bool loadDefaultFrameSetup(FrameSetup& setup)
 {
@@ -231,12 +251,12 @@ void TestFrameProcessor::preScanInvalidChannelId()
     QSignalSpy log_spy(&fp, &FrameProcessor::logMessage);
 
     bool is_randomized = false;
-    bool result = fp.preScan("dummy.ch10", -1, 0xFE6B2840, 32, 49, 800, is_randomized);
+    bool result = fp.preScan(makeTestParams("dummy.ch10", -1, -1), is_randomized);
     QVERIFY2(!result, "preScan should return false for negative channel ID");
     QVERIFY(!log_spy.isEmpty());
 
     // Also test out-of-range channel
-    result = fp.preScan("dummy.ch10", PCMConstants::kMaxChannelCount, 0xFE6B2840, 32, 49, 800, is_randomized);
+    result = fp.preScan(makeTestParams("dummy.ch10", -1, PCMConstants::kMaxChannelCount), is_randomized);
     QVERIFY2(!result, "preScan should return false for out-of-range channel ID");
 }
 
@@ -246,7 +266,7 @@ void TestFrameProcessor::preScanInvalidFile()
     QSignalSpy error_spy(&fp, &FrameProcessor::errorOccurred);
 
     bool is_randomized = false;
-    bool result = fp.preScan("nonexistent_file.ch10", 1, 0xFE6B2840, 32, 49, 800, is_randomized);
+    bool result = fp.preScan(makeTestParams("nonexistent_file.ch10", -1, 1), is_randomized);
     QVERIFY2(!result, "preScan should return false for nonexistent file");
 }
 
@@ -283,8 +303,8 @@ void TestFrameProcessor::preScanWithNrzlFile()
     int words_in_frame = 49;   // 48 data words + 1 sync word
     int bits_in_frame  = (48 * PCMConstants::kCommonWordLen) + sync_len;  // 800
 
-    bool result = fp.preScan(filepath, pcm_id, frame_sync, sync_len,
-                              words_in_frame, bits_in_frame, is_randomized);
+    bool result = fp.preScan(makeTestParams(filepath, -1, pcm_id, frame_sync,
+                              sync_len, words_in_frame, bits_in_frame), is_randomized);
     QVERIFY2(result, "preScan should find sync pattern in NRZ-L file");
     QVERIFY2(!is_randomized, "NRZ-L file should NOT be detected as randomized");
 }
@@ -315,8 +335,8 @@ void TestFrameProcessor::preScanWithRnrzlFile()
     int words_in_frame = 49;
     int bits_in_frame = (48 * 16) + 32;
 
-    bool result = fp.preScan(filepath, pcm_id, frame_sync, sync_len,
-                              words_in_frame, bits_in_frame, is_randomized);
+    bool result = fp.preScan(makeTestParams(filepath, -1, pcm_id, frame_sync,
+                              sync_len, words_in_frame, bits_in_frame), is_randomized);
     QVERIFY2(result, "preScan should find sync pattern in RNRZ-L file");
     QVERIFY2(is_randomized, "RNRZ-L file should be detected as randomized");
 }
@@ -332,9 +352,12 @@ void TestFrameProcessor::processInvalidTimeChannel()
     QSignalSpy finished_spy(&fp, &FrameProcessor::processingFinished);
 
     FrameSetup setup;
-    bool result = fp.process("dummy.ch10", &setup, "output.csv",
-                              -1, 1, 0xFE6B2840, 32, 49, 800,
-                              0, 100, 1, false);
+    ProcessingParams p = makeTestParams("dummy.ch10", -1, 1);
+    p.outfile = "output.csv";
+    p.start_seconds = 0;
+    p.stop_seconds = 100;
+    p.sample_rate = 1;
+    bool result = fp.process(p, &setup);
     QVERIFY(!result);
     QVERIFY(!error_spy.isEmpty());
     QVERIFY(!finished_spy.isEmpty());
@@ -348,9 +371,12 @@ void TestFrameProcessor::processInvalidPcmChannel()
     QSignalSpy finished_spy(&fp, &FrameProcessor::processingFinished);
 
     FrameSetup setup;
-    bool result = fp.process("dummy.ch10", &setup, "output.csv",
-                              1, -1, 0xFE6B2840, 32, 49, 800,
-                              0, 100, 1, false);
+    ProcessingParams p = makeTestParams("dummy.ch10", 1, -1);
+    p.outfile = "output.csv";
+    p.start_seconds = 0;
+    p.stop_seconds = 100;
+    p.sample_rate = 1;
+    bool result = fp.process(p, &setup);
     QVERIFY(!result);
     QVERIFY(!error_spy.isEmpty());
     QVERIFY(!finished_spy.isEmpty());
@@ -364,9 +390,12 @@ void TestFrameProcessor::processInvalidFile()
     QSignalSpy finished_spy(&fp, &FrameProcessor::processingFinished);
 
     FrameSetup setup;
-    bool result = fp.process("nonexistent_file.ch10", &setup, "output.csv",
-                              1, 1, 0xFE6B2840, 32, 49, 800,
-                              0, 100, 1, false);
+    ProcessingParams p = makeTestParams("nonexistent_file.ch10", 1, 1);
+    p.outfile = "output.csv";
+    p.start_seconds = 0;
+    p.stop_seconds = 100;
+    p.sample_rate = 1;
+    bool result = fp.process(p, &setup);
     QVERIFY(!result);
     QVERIFY(!error_spy.isEmpty());
 }
@@ -422,16 +451,19 @@ void TestFrameProcessor::processWithTestFile()
     QSignalSpy progress_spy(&fp, &FrameProcessor::progressUpdated);
     QSignalSpy finished_spy(&fp, &FrameProcessor::processingFinished);
 
-    uint64_t frame_sync = 0xFE6B2840;
     int sync_len = 32;
     int words_in_frame = setup.length() + 1;
     int bits_in_frame = (setup.length() * PCMConstants::kCommonWordLen) + sync_len;
 
     // File is RNRZ-L encoded
-    bool result = fp.process(filepath, &setup, out_path,
-                              time_id, pcm_id, frame_sync, sync_len,
-                              words_in_frame, bits_in_frame,
-                              start_secs, stop_secs, 1, true);
+    ProcessingParams p = makeTestParams(filepath, time_id, pcm_id,
+                                         0xFE6B2840, sync_len, words_in_frame, bits_in_frame);
+    p.outfile = out_path;
+    p.start_seconds = start_secs;
+    p.stop_seconds = stop_secs;
+    p.sample_rate = 1;
+    p.is_randomized = true;
+    bool result = fp.process(p, &setup);
 
     QVERIFY2(result, "Processing should succeed on valid RNRZ-L file");
     QVERIFY(!finished_spy.isEmpty());
@@ -511,10 +543,14 @@ void TestFrameProcessor::processWithNrzlFile()
     QSignalSpy finished_spy(&fp, &FrameProcessor::processingFinished);
     QSignalSpy error_spy(&fp, &FrameProcessor::errorOccurred);
 
-    bool result = fp.process(filepath, &setup, out_path,
-                             time_id, pcm_id, 0xFE6B2840, sync_len,
-                             words_in_frame, bits_in_frame,
-                             start_secs, stop_secs, 1, false);  // is_randomized=false
+    ProcessingParams p = makeTestParams(filepath, time_id, pcm_id,
+                                         0xFE6B2840, sync_len, words_in_frame, bits_in_frame);
+    p.outfile = out_path;
+    p.start_seconds = start_secs;
+    p.stop_seconds = stop_secs;
+    p.sample_rate = 1;
+    p.is_randomized = false;
+    bool result = fp.process(p, &setup);
 
     QString error_msg;
     if (!error_spy.isEmpty())
@@ -578,16 +614,20 @@ static QString runProcess(FrameSetup& setup, const QString& out_path)
         reader.getStopDayOfYear(), reader.getStopHour(),
         reader.getStopMinute(), reader.getStopSecond());
 
-    uint64_t frame_sync = 0xFE6B2840;
     int sync_len = 32;
     int words_in_frame = setup.length() + 1;
     int bits_in_frame = (setup.length() * PCMConstants::kCommonWordLen) + sync_len;
 
+    ProcessingParams p = makeTestParams(filepath, time_id, pcm_id,
+                                         0xFE6B2840, sync_len, words_in_frame, bits_in_frame);
+    p.outfile = out_path;
+    p.start_seconds = start_secs;
+    p.stop_seconds = stop_secs;
+    p.sample_rate = 1;
+    p.is_randomized = true;
+
     FrameProcessor fp;
-    bool ok = fp.process(filepath, &setup, out_path,
-                         time_id, pcm_id, frame_sync, sync_len,
-                         words_in_frame, bits_in_frame,
-                         start_secs, stop_secs, 1, true);
+    bool ok = fp.process(p, &setup);
     return ok ? out_path : QString();
 }
 
