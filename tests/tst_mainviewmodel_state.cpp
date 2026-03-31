@@ -106,10 +106,10 @@ void TestMainViewModelState::setPolarityIndexEmitsSignal()
     MainViewModel vm;
     QSignalSpy spy(&vm, &MainViewModel::settingsChanged);
 
-    vm.setPolarityIndex(0); // default is kDefaultPolarityIndex (1), so 0 triggers a change
+    vm.setPolarityIndex(1); // default is kDefaultPolarityIndex (0), so 1 triggers a change
 
     QCOMPARE(spy.count(), 1);
-    QCOMPARE(vm.polarityIndex(), 0);
+    QCOMPARE(vm.polarityIndex(), 1);
 }
 
 void TestMainViewModelState::setSlopeIndexEmitsSignal()

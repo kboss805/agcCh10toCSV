@@ -178,7 +178,7 @@ void TestConstants::uiTimeConversionConstants()
 
 void TestConstants::uiPolarityConstants()
 {
-    QCOMPARE(UIConstants::kDefaultPolarityIndex, 1);
+    QCOMPARE(UIConstants::kDefaultPolarityIndex, 0);
     QCOMPARE(UIConstants::kMaxPolarityIndex, 1);
     QCOMPARE(QString(UIConstants::kPolarityLabels[0]), QString("Positive"));
     QCOMPARE(QString(UIConstants::kPolarityLabels[1]), QString("Negative"));

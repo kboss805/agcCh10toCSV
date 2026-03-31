@@ -136,7 +136,7 @@ namespace UIConstants {
 
     /// @name Polarity combo box
     /// @{
-    inline constexpr int kDefaultPolarityIndex = 1;  ///< Default polarity combo index (Negative).
+    inline constexpr int kDefaultPolarityIndex = 0;  ///< Default polarity combo index (Positive).
     inline constexpr int kMaxPolarityIndex     = 1;  ///< Maximum valid polarity combo index.
     inline constexpr std::array<const char*, 2> kPolarityLabels  = {"Positive", "Negative"}; ///< Polarity display labels.
     /// @}
